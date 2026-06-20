@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
 	"github.com/go-resty/resty/v2"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
 )
 
 // requesterFailFast is a Requester that fails fast on subsequent requests having received an unauthorized response.

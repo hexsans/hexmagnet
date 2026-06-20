@@ -73,102 +73,6 @@ func NewChecker(options ...CheckerOption) Checker {
 	return newChecker(cfg)
 }
 
-// WithDisabledDetails disables all data in the JSON response body. The AvailabilityStatus will be the only
-// content. Example: { "status":"down" }. Enabled by default.
-func WithDisabledDetails() CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.detailsDisabled = true
-	}
-}
-
-// WithTimeout defines a timeout duration for all checks. You can override
-// this timeout by using the timeout value in the Check configuration.
-// Default value is 10 seconds.
-func WithTimeout(timeout time.Duration) CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.timeout = timeout
-	}
-}
-
-// WithStatusListener registers a listener function that will be called whenever the overall/aggregated system health
-// status changes (e.g. from "up" to "down"). Attention: Because this listener is also executed for synchronous
-// (i.e, request-based) health checks, it should not block processing.
-func WithStatusListener(listener func(ctx context.Context, state CheckerState)) CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.statusChangeListener = listener
-	}
-}
-
-// WithMiddleware configures a middleware that will be used by the handler
-// to pro- and post-process HTTP requests and health checks.
-// Refer to the documentation of type Middleware for more information.
-func WithMiddleware(middleware ...Middleware) HandlerOption {
-	return func(cfg *HandlerConfig) {
-		cfg.middleware = append(cfg.middleware, middleware...)
-	}
-}
-
-// WithStatusCodeUp sets an HTTP status code that will be used for responses
-// where the system is considered to be available ("up").
-// Default is HTTP status code 200 (OK).
-func WithStatusCodeUp(httpStatus int) HandlerOption {
-	return func(cfg *HandlerConfig) {
-		cfg.statusCodeUp = httpStatus
-	}
-}
-
-// WithStatusCodeDown sets an HTTP status code that will be used for responses
-// where the system is considered to be unavailable ("down").
-// Default is HTTP status code 503 (Service Unavailable).
-func WithStatusCodeDown(httpStatus int) HandlerOption {
-	return func(cfg *HandlerConfig) {
-		cfg.statusCodeDown = httpStatus
-	}
-}
-
-// WithResultWriter is responsible for writing a health check result (see CheckerResult)
-// into an HTTP response. By default, JSONResultWriter will be used.
-func WithResultWriter(writer ResultWriter) HandlerOption {
-	return func(cfg *HandlerConfig) {
-		cfg.resultWriter = writer
-	}
-}
-
-// WithDisabledAutostart disables automatic startup of a Checker instance.
-func WithDisabledAutostart() CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.autostartDisabled = true
-	}
-}
-
-// WithDisabledCache disabled the check cache. This is not recommended in most cases.
-// This will effectively lead to a health endpoint that initiates a new health check for each incoming HTTP request.
-// This may have an impact on the systems that are being checked (especially if health checks are expensive).
-// Caching also mitigates "denial of service" attacks. Caching is enabled by default.
-func WithDisabledCache() CheckerOption {
-	return WithCacheDuration(0)
-}
-
-// WithCacheDuration sets the duration for how long the aggregated health check result will be
-// cached. By default, the cache TTL (i.e, the duration for how long responses will be cached) is set to 1 second.
-// Caching will prevent that each incoming HTTP request triggers a new health check. A duration of 0 will
-// effectively disable the cache and has the same effect as WithDisabledCache.
-func WithCacheDuration(duration time.Duration) CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.cacheTTL = duration
-	}
-}
-
-// WithCheck adds a new health check that contributes to the overall service availability status.
-// This check will be triggered each time Checker.Check is called (i.e., for each HTTP request).
-// If health checks are expensive, or you expect a higher amount of requests on the health endpoint,
-// consider using WithPeriodicCheck instead.
-func WithCheck(check Check) CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.checks[check.Name] = &check
-	}
-}
-
 // WithPeriodicCheck adds a new health check that contributes to the overall service availability status.
 // The health check will be performed on a fixed schedule and will not be executed for each HTTP request
 // (as in contrast to WithCheck). This allows to process a much higher number of HTTP requests without
@@ -182,21 +86,12 @@ func WithPeriodicCheck(refreshPeriod time.Duration, initialDelay time.Duration, 
 	}
 }
 
-// WithInterceptors adds a list of interceptors that will be applied to every check function. Interceptors
-// may intercept the function call and do some pre- and post-processing, having the check state and check function
-// result at hand. The interceptors will be executed in the order they are passed to this function.
-func WithInterceptors(interceptors ...Interceptor) CheckerOption {
-	return func(cfg *checkerConfig) {
-		cfg.interceptors = interceptors
-	}
-}
-
 // WithInfo sets values that will be available in every health check result. For example, you can use this option
 // if you want to set information about your system that will be returned in every health check result, such as
 // version number, Git SHA, build date, etc. These values will be available in CheckerResult.Info. If you use the
 // default HTTP handler of this library (see NewHandler) or convert the CheckerResult to JSON on your own,
 // these values will be available in the "info" field.
-func WithInfo(values map[string]interface{}) CheckerOption {
+func WithInfo(values map[string]any) CheckerOption {
 	return func(cfg *checkerConfig) {
 		cfg.info = values
 	}

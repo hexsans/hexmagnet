@@ -2,110 +2,50 @@ package processor
 
 import (
 	"context"
-	"database/sql/driver"
+	"fmt"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/database/dao"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/slice"
-	"gorm.io/gorm/clause"
+	"github.com/hexsans/hexmagnet/internal/database/db"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type persistPayload struct {
-	torrentContents  []model.TorrentContent
-	deleteIDs        []string
-	deleteInfoHashes []protocol.ID
-	addTags          map[protocol.ID]map[string]struct{}
+	torrents []model.Torrent
 }
 
-func (c processor) persist(ctx context.Context, payload persistPayload) error {
-	contentsMap := make(map[model.ContentRef]struct{}, len(payload.torrentContents))
-	contentsPtr := make([]*model.Content, 0, len(payload.torrentContents))
-	torrentContentsPtr := make([]*model.TorrentContent, 0, len(payload.torrentContents))
-	torrentTagsPtr := make([]*model.TorrentTag, 0, len(payload.addTags))
+func (c *processor) persist(ctx context.Context, payload persistPayload) error {
+	contents := make([]model.Content, 0, len(payload.torrents))
+	contentSeen := make(map[model.ContentRef]struct{}, len(payload.torrents))
 
-	for _, tc := range payload.torrentContents {
-		tcCopy := tc
-		tcCopy.Torrent = model.Torrent{}
+	for _, t := range payload.torrents {
+		if t.ContentID.Valid && t.Content.CreatedAt.IsZero() && t.Content.Source != "" && t.Content.ID != "" {
+			ref := t.Content.Ref()
+			if _, ok := contentSeen[ref]; !ok {
+				contentSeen[ref] = struct{}{}
 
-		if tcCopy.ContentID.Valid && tcCopy.Content.CreatedAt.IsZero() {
-			contentRef := tcCopy.Content.Ref()
-			if _, ok := contentsMap[contentRef]; !ok {
-				contentsMap[contentRef] = struct{}{}
-				contentCopy := tcCopy.Content
-				contentsPtr = append(contentsPtr, &contentCopy)
+				contents = append(contents, t.Content)
 			}
-		}
-
-		tcCopy.Content = model.Content{}
-		torrentContentsPtr = append(torrentContentsPtr, &tcCopy)
-	}
-
-	for infoHash, tags := range payload.addTags {
-		for tag := range tags {
-			torrentTagsPtr = append(torrentTagsPtr, &model.TorrentTag{
-				InfoHash: infoHash,
-				Name:     tag,
-			})
 		}
 	}
 
-	if len(payload.deleteInfoHashes) > 0 {
-		if blockErr := c.blockingManager.Block(ctx, payload.deleteInfoHashes, false); blockErr != nil {
-			return blockErr
+	tx, err := c.queries.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := c.queries.WithTx(tx)
+
+	for i := range contents {
+		if err := q.UpsertContent(ctx, db.ContentToUpsertParams(contents[i])); err != nil {
+			return fmt.Errorf("upsert content: %w", err)
 		}
 	}
 
-	return c.dao.Transaction(func(tx *dao.Query) error {
-		if len(contentsPtr) > 0 {
-			if createContentErr := tx.Content.WithContext(ctx).Clauses(
-				clause.OnConflict{
-					UpdateAll: true,
-				}).CreateInBatches(contentsPtr, 100); createContentErr != nil {
-				return createContentErr
-			}
+	for _, t := range payload.torrents {
+		if err := q.UpdateTorrentContent(ctx, db.TorrentToUpdateContentParams(t)); err != nil {
+			return fmt.Errorf("update torrent content: %w", err)
 		}
+	}
 
-		if len(payload.deleteIDs) > 0 {
-			if _, deleteErr := tx.TorrentContent.WithContext(ctx).Where(
-				c.dao.TorrentContent.ID.In(payload.deleteIDs...),
-			).Delete(); deleteErr != nil {
-				return deleteErr
-			}
-		}
-
-		if len(torrentContentsPtr) > 0 {
-			if createErr := tx.TorrentContent.WithContext(ctx).Clauses(
-				clause.OnConflict{
-					UpdateAll: true,
-				},
-			).CreateInBatches(torrentContentsPtr, 100); createErr != nil {
-				return createErr
-			}
-		}
-
-		if len(torrentTagsPtr) > 0 {
-			if createErr := tx.TorrentTag.WithContext(ctx).Clauses(
-				clause.OnConflict{
-					DoNothing: true,
-				},
-			).CreateInBatches(torrentTagsPtr, 100); createErr != nil {
-				return createErr
-			}
-		}
-
-		if len(payload.deleteInfoHashes) > 0 {
-			valuers := slice.Map(payload.deleteInfoHashes, func(infoHash protocol.ID) driver.Valuer {
-				return infoHash
-			})
-
-			if _, deleteErr := tx.Torrent.WithContext(ctx).Where(
-				c.dao.Torrent.InfoHash.In(valuers...),
-			).Delete(); deleteErr != nil {
-				return deleteErr
-			}
-		}
-
-		return nil
-	})
+	return tx.Commit(ctx)
 }

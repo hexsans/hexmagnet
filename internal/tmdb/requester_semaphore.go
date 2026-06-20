@@ -16,7 +16,7 @@ func (r requesterSemaphore) Request(
 	ctx context.Context,
 	path string,
 	queryParams map[string]string,
-	result interface{},
+	result any,
 ) (*resty.Response, error) {
 	if err := r.semaphore.Acquire(ctx, 1); err != nil {
 		return nil, err

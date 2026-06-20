@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 )
 
 type LastResponses struct {

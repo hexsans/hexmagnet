@@ -1,49 +1,11 @@
 package logging
 
 import (
-	"path"
 	"strings"
 	"time"
 
-	"github.com/adrg/xdg"
 	"go.uber.org/zap/zapcore"
 )
-
-type Config struct {
-	Level       string
-	Development bool
-	JSON        bool
-	FileRotator FileRotatorConfig
-}
-
-type FileRotatorConfig struct {
-	Enabled    bool
-	Level      string
-	Path       string
-	BaseName   string
-	MaxAge     time.Duration
-	MaxSize    int
-	MaxBackups int
-	BufferSize int
-}
-
-func NewDefaultConfig() Config {
-	return Config{
-		Level:       "info",
-		Development: false,
-		JSON:        false,
-		FileRotator: FileRotatorConfig{
-			Enabled:    false,
-			Level:      "debug",
-			Path:       path.Join(xdg.DataHome, "bitmagnet", "logs"),
-			BaseName:   "bitmagnet",
-			MaxAge:     time.Minute * 60,
-			MaxSize:    1_000_000 * 100,
-			BufferSize: 1_000,
-			MaxBackups: 5,
-		},
-	}
-}
 
 const (
 	timestamp  = "timestamp"
@@ -76,23 +38,39 @@ var jsonEncoderConfig = zapcore.EncoderConfig{
 	EncodeCaller:   zapcore.ShortCallerEncoder,
 }
 
-var consoleEncoderConfig = zapcore.EncoderConfig{
-	TimeKey:        "",
-	LevelKey:       "L",
-	NameKey:        "N",
-	CallerKey:      "C",
-	FunctionKey:    zapcore.OmitKey,
-	MessageKey:     "M",
-	StacktraceKey:  "S",
-	LineEnding:     zapcore.DefaultLineEnding,
-	EncodeLevel:    zapcore.CapitalColorLevelEncoder,
-	EncodeTime:     zapcore.ISO8601TimeEncoder,
-	EncodeDuration: zapcore.StringDurationEncoder,
-	EncodeCaller:   zapcore.ShortCallerEncoder,
+var fileConsoleEncoderConfig = zapcore.EncoderConfig{
+	TimeKey:          "T",
+	LevelKey:         "L",
+	NameKey:          "",
+	CallerKey:        "C",
+	FunctionKey:      zapcore.OmitKey,
+	MessageKey:       "M",
+	StacktraceKey:    "S",
+	LineEnding:       zapcore.DefaultLineEnding,
+	ConsoleSeparator: " ",
+	EncodeLevel:      zapcore.CapitalLevelEncoder,
+	EncodeTime:       timeEncoder(),
+	EncodeDuration:   zapcore.StringDurationEncoder,
+	EncodeCaller:     zapcore.ShortCallerEncoder,
 }
 
-// levelToZapLevel converts the given string to the appropriate zap level
-// value.
+var consoleEncoderConfig = zapcore.EncoderConfig{
+	TimeKey:          "T",
+	LevelKey:         "L",
+	NameKey:          "",
+	CallerKey:        "C",
+	FunctionKey:      zapcore.OmitKey,
+	MessageKey:       "M",
+	StacktraceKey:    "S",
+	LineEnding:       zapcore.DefaultLineEnding,
+	ConsoleSeparator: " ",
+	EncodeLevel:      zapcore.CapitalColorLevelEncoder,
+	EncodeTime:       timeEncoder(),
+	EncodeDuration:   zapcore.StringDurationEncoder,
+	EncodeCaller:     zapcore.ShortCallerEncoder,
+}
+
+// levelToZapLevel converts the given string to the appropriate zap level value.
 func levelToZapLevel(s string) zapcore.Level {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case levelDebug:
@@ -139,6 +117,6 @@ func levelEncoder() zapcore.LevelEncoder {
 // timeEncoder encodes the time as RFC3339 nano.
 func timeEncoder() zapcore.TimeEncoder {
 	return func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format(time.RFC3339Nano))
+		enc.AppendString(t.Format("2006-01-02T15:04:05.000Z07:00"))
 	}
 }

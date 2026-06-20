@@ -3,6 +3,7 @@ package btree
 import (
 	"encoding/hex"
 	"errors"
+	"strings"
 )
 
 // Btree is the binary tree implementation used by the Kademlia routing table.
@@ -59,44 +60,17 @@ func (b Bits) Cmp(other Bits) int {
 }
 
 func (b Bits) String() string {
-	str := ""
+	var str strings.Builder
 
 	for _, bit := range b {
 		if bit {
-			str += "1"
+			_, _ = str.WriteString("1")
 		} else {
-			str += "0"
+			_, _ = str.WriteString("0")
 		}
 	}
 
-	return str
-}
-
-func ParseBinaryNodeID(str string) (NodeID, error) {
-	if len(str)%8 != 0 {
-		return nil, errors.New("length must be multiple of 8")
-	}
-
-	id := make(NodeID, len(str)/8)
-
-	for i := range len(str) {
-		if str[i] == '1' {
-			id[i/8] |= 1 << (7 - uint(i%8))
-		} else if str[i] != '0' {
-			return nil, errors.New("invalid character")
-		}
-	}
-
-	return id, nil
-}
-
-func MustParseBinaryNodeID(str string) NodeID {
-	id, err := ParseBinaryNodeID(str)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
+	return str.String()
 }
 
 func (id NodeID) GetBit(n int) Bit {

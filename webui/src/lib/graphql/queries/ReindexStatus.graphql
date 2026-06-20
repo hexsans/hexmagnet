@@ -1,0 +1,9 @@
+query ReindexStatus {
+  reindexStatus {
+    total
+    indexed
+    done
+    running
+    error
+  }
+}

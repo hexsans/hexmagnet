@@ -3,10 +3,11 @@ package responder
 import (
 	"context"
 	"net/netip"
+	"sync"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"golang.org/x/time/rate"
 )
 
@@ -24,12 +25,23 @@ func (r responderLimiter) Respond(ctx context.Context, msg dht.RecvMsg) (ret dht
 	return r.responder.Respond(ctx, msg)
 }
 
+func (r responderLimiter) SetGlobalRateLimit(n int) {
+	r.limiter.SetGlobalRateLimit(n)
+}
+
+func (r responderLimiter) SetPerIPRateLimit(n int) {
+	r.limiter.SetPerIPRateLimit(n)
+}
+
 type Limiter interface {
 	Allow(addr netip.Addr) bool
+	SetGlobalRateLimit(n int)
+	SetPerIPRateLimit(n int)
 }
 
 type limiter struct {
 	keyedLimiter concurrency.KeyedLimiter
+	mu           sync.RWMutex
 	limiter      *rate.Limiter
 }
 
@@ -41,12 +53,43 @@ func NewLimiter(
 	perIPSize int,
 	perIPTTL time.Duration,
 ) Limiter {
-	return &limiter{
-		limiter:      rate.NewLimiter(overallRate, overallBurst),
-		keyedLimiter: concurrency.NewKeyedLimiter(perIPRate, perIPBurst, perIPSize, perIPTTL),
+	l := &limiter{
+		limiter: rate.NewLimiter(overallRate, overallBurst),
 	}
+	l.keyedLimiter = concurrency.NewKeyedLimiter(perIPRate, perIPBurst, perIPSize, perIPTTL)
+
+	return l
 }
 
 func (l *limiter) Allow(addr netip.Addr) bool {
-	return l.keyedLimiter.Allow(addr.String()) && l.limiter.Allow()
+	l.mu.RLock()
+	kl := l.keyedLimiter
+	l.mu.RUnlock()
+
+	return kl.Allow(addr.String()) && l.limiter.Allow()
+}
+
+func (l *limiter) SetGlobalRateLimit(n int) {
+	if n <= 0 {
+		l.limiter.SetLimit(rate.Inf)
+		l.limiter.SetBurst(20)
+	} else {
+		l.limiter.SetLimit(rate.Limit(n))
+		l.limiter.SetBurst(n)
+	}
+}
+
+func (l *limiter) SetPerIPRateLimit(n int) {
+	var rl rate.Limit
+
+	burst := 10
+
+	if n > 0 {
+		rl = rate.Limit(n)
+		burst = n
+	}
+
+	l.mu.Lock()
+	l.keyedLimiter = concurrency.NewKeyedLimiter(rl, burst, 1000, time.Second*20)
+	l.mu.Unlock()
 }

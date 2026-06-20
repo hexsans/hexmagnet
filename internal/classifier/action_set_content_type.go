@@ -1,8 +1,7 @@
 package classifier
 
 import (
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 const setContentTypeName = "set_content_type"
@@ -28,9 +27,10 @@ func (setContentTypeAction) compileAction(ctx compilerContext) (action, error) {
 	}
 
 	return action{
-		func(ctx executionContext) (classification.Result, error) {
+		func(ctx executionContext) (ClassificationResult, error) {
 			cl := ctx.result
 			cl.ContentType = contentType
+
 			return cl, nil
 		},
 	}, nil

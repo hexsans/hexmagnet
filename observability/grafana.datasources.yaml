@@ -8,17 +8,6 @@ datasources:
     basicAuth: false
     version: 1
     editable: false
-  - name: Pyroscope
-    type: phlare
-    basicAuth: false
-    editable: false
-    access: proxy
-    uid: phlare
-    url: http://pyroscope:4040
-    version: 1
-    jsonData:
-      minStep: "15s"
-      backendType: "pyroscope"
   - name: Postgres
     type: postgres
     url: postgres:5432
@@ -27,7 +16,7 @@ datasources:
     secureJsonData:
       password: postgres
     jsonData:
-      database: bitmagnet
+      database: hexmagnet
       sslmode: "disable" # disable/require/verify-ca/verify-full
       maxOpenConns: 100 # Grafana v5.4+
       maxIdleConns: 100 # Grafana v5.4+

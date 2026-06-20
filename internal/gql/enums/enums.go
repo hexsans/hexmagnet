@@ -1,9 +1,8 @@
 package enums
 
-import (
-	"github.com/bitmagnet-io/bitmagnet/internal/database/search"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-)
+import "github.com/hexsans/hexmagnet/internal/model"
+
+const orderBySizeValue = "size"
 
 type enum struct {
 	Name   string
@@ -21,14 +20,15 @@ var Enums = []enum{
 	newEnum("ContentType", model.ContentTypeNames()),
 	newEnum("FacetLogic", model.FacetLogicNames()),
 	newEnum("FileType", model.FileTypeNames()),
-	newEnum("FilesStatus", model.FilesStatusNames()),
 	newEnum("Language", model.LanguageValueStrings()),
-	newEnum("Video3D", model.Video3DNames()),
-	newEnum("VideoCodec", model.VideoCodecNames()),
-	newEnum("VideoModifier", model.VideoModifierNames()),
-	newEnum("VideoResolution", model.VideoResolutionNames()),
-	newEnum("VideoSource", model.VideoSourceNames()),
-	newEnum("TorrentContentOrderByField", search.TorrentContentOrderByNames()),
-	newEnum("TorrentFilesOrderByField", search.TorrentFilesOrderByNames()),
-	newEnum("QueueJobsOrderByField", search.QueueJobsOrderByNames()),
+	newEnum("TorrentContentOrderByField", []string{
+		"relevance", "created_at", "updated_at", orderBySizeValue,
+		"files_count", "seeders", "leechers", "name", "info_hash",
+	}),
+	newEnum("TorrentSearchOrderByField", []string{
+		"relevance", "created_at", "updated_at", orderBySizeValue,
+		"files_count", "seeders", "leechers", "name", "info_hash",
+	}),
+	newEnum("SortDirection", []string{"asc", "desc"}),
+	newEnum("TorrentFilesOrderByField", []string{"index", "extension", orderBySizeValue}),
 }

@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const maxPeersPerHash = 30
+
 type hashKeyspace struct {
 	keyspace[[]HashPeer, HashOption, Hash, *hash]
 }
@@ -39,27 +41,26 @@ func (h *hash) update(peers []HashPeer) {
 		h.peers[p.Addr.Addr().String()] = p
 		h.reverseMap.putAddrHashes(p.Addr.Addr(), h.id)
 	}
+
+	excess := len(h.peers) - maxPeersPerHash
+	for k, p := range h.peers {
+		if excess <= 0 {
+			break
+		}
+
+		delete(h.peers, k)
+		h.reverseMap.dropHashForAddrs(h.id, p.Addr.Addr())
+
+		excess--
+	}
 }
 
 func (h *hash) apply(option HashOption) {
 	option.apply(h)
 }
 
-func (h *hash) drop(reason error) {
-	h.droppedReason = reason
-	for _, addr := range h.peers {
-		if info, ok := h.reverseMap.addrs[addr.Addr.Addr().String()]; ok {
-			info.dropHashes(h.id)
-		}
-	}
-}
-
 func (h *hash) public() Hash {
 	return h
-}
-
-func (h *hash) hasPeers() bool {
-	return len(h.peers) > 0
 }
 
 func (h *hash) ID() ID {

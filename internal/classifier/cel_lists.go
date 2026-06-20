@@ -111,10 +111,10 @@ type namedCELType struct {
 }
 
 var summableTypes = []namedCELType{
-	{typeName: "int", celType: cel.IntType},
-	{typeName: "uint", celType: cel.UintType},
-	{typeName: "double", celType: cel.DoubleType},
-	{typeName: "duration", celType: cel.DurationType},
+	{typeName: celTypeInt, celType: cel.IntType},
+	{typeName: celTypeUint, celType: cel.UintType},
+	{typeName: celTypeDouble, celType: cel.DoubleType},
+	{typeName: celTypeDuration, celType: cel.DurationType},
 }
 
 var zeroValuesOfSummableTypes = map[string]ref.Val{
@@ -125,14 +125,14 @@ var zeroValuesOfSummableTypes = map[string]ref.Val{
 }
 
 var comparableTypes = []namedCELType{
-	{typeName: "int", celType: cel.IntType},
-	{typeName: "uint", celType: cel.UintType},
-	{typeName: "double", celType: cel.DoubleType},
-	{typeName: "bool", celType: cel.BoolType},
-	{typeName: "duration", celType: cel.DurationType},
-	{typeName: "timestamp", celType: cel.TimestampType},
-	{typeName: "string", celType: cel.StringType},
-	{typeName: "bytes", celType: cel.BytesType},
+	{typeName: celTypeInt, celType: cel.IntType},
+	{typeName: celTypeUint, celType: cel.UintType},
+	{typeName: celTypeDouble, celType: cel.DoubleType},
+	{typeName: celTypeBool, celType: cel.BoolType},
+	{typeName: celTypeDuration, celType: cel.DurationType},
+	{typeName: celTypeTimestamp, celType: cel.TimestampType},
+	{typeName: celTypeString, celType: cel.StringType},
+	{typeName: celTypeBytes, celType: cel.BytesType},
 }
 
 var listsLibraryDecls = map[string][]cel.FunctionOpt{
@@ -168,7 +168,7 @@ var listsLibraryDecls = map[string][]cel.FunctionOpt{
 }
 
 func (*lists) CompileOptions() []cel.EnvOption {
-	options := []cel.EnvOption{}
+	options := make([]cel.EnvOption, 0, len(listsLibraryDecls))
 	for name, overloads := range listsLibraryDecls {
 		options = append(options, cel.Function(name, overloads...))
 	}
@@ -303,7 +303,7 @@ func indexOf(list ref.Val, item ref.Val) ref.Val {
 	}
 
 	sz := lister.Size().(types.Int)
-	for i := types.Int(0); i < sz; i++ {
+	for i := range sz {
 		if lister.Get(i).Equal(item) == types.True {
 			return i
 		}

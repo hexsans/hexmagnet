@@ -1,63 +1,25 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/config/configresolver"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/iancoleman/strcase"
-	"go.uber.org/fx"
 )
 
-type Params struct {
-	fx.In
-	Specs     []Spec                    `group:"config_specs"`
-	Resolvers []configresolver.Resolver `group:"config_resolvers"`
-	Validate  *validator.Validate
-}
-
-type Result struct {
-	fx.Out
-	Resolved ResolvedConfig
-}
-
-func New(p Params) (r Result, err error) {
-	resolvers := p.Resolvers
-	sort.Slice(resolvers, func(i, j int) bool {
-		if resolvers[i].Priority() == resolvers[j].Priority() {
-			return strings.Compare(resolvers[i].Key(), resolvers[j].Key()) < 0
-		}
-
-		return resolvers[i].Priority() < resolvers[j].Priority()
-	})
-
-	res := &ResolvedConfig{
-		NodeMap: make(map[string]ResolvedNode),
-	}
-
-	for _, spec := range p.Specs {
-		resolved, resolveErr := resolveRootNode(resolvers, p.Validate, spec)
-		if resolveErr != nil {
-			err = resolveErr
-			return
-		}
-
-		res.NodeMap[spec.Key] = resolved
-	}
-
-	r.Resolved = *res
-
-	return
+type SpecEntry struct {
+	Key           string
+	DefaultValue  any
+	ValidatorOpts []ValidatorOption
 }
 
 type Spec struct {
 	Key          string
-	DefaultValue interface{}
+	DefaultValue any
 }
 
 type ResolvedConfig struct {
@@ -70,24 +32,28 @@ func (r ResolvedConfig) Nodes() []ResolvedNode {
 		nodes = append(nodes, node)
 	}
 
-	sortNodes(nodes)
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].IsStruct != nodes[j].IsStruct {
+			return !nodes[i].IsStruct
+		}
+
+		return strings.Compare(nodes[i].Key, nodes[j].Key) < 0
+	})
 
 	return nodes
 }
 
 type ResolvedNode struct {
 	Spec
-	IsStruct     bool
-	ResolverKey  string
-	Type         reflect.Type
-	ParentPath   []string
-	PathString   string
-	StructKey    string
-	Value        interface{}
-	ValueRaw     interface{}
-	ValueLabel   string
-	DefaultLabel string
-	ChildMap     map[string]ResolvedNode
+	IsStruct    bool
+	ResolverKey string
+	Type        reflect.Type
+	Path        []string
+	PathString  string
+	StructKey   string
+	Value       any
+	ValueRaw    any
+	ChildMap    map[string]ResolvedNode
 }
 
 func (r ResolvedNode) Children() []ResolvedNode {
@@ -96,126 +62,119 @@ func (r ResolvedNode) Children() []ResolvedNode {
 		children = append(children, child)
 	}
 
-	sortNodes(children)
+	sort.Slice(children, func(i, j int) bool {
+		if children[i].IsStruct != children[j].IsStruct {
+			return !children[i].IsStruct
+		}
+
+		return strings.Compare(children[i].Key, children[j].Key) < 0
+	})
 
 	return children
 }
 
-func sortNodes(nodes []ResolvedNode) {
-	sort.Slice(nodes, func(i, j int) bool {
-		if nodes[i].IsStruct != nodes[j].IsStruct {
-			return !nodes[i].IsStruct
+type StructResolver struct {
+	resolvers []Resolver
+	validate  *validator.Validate
+}
+
+func newStructResolver(resolvers []Resolver, validate *validator.Validate) *StructResolver {
+	return &StructResolver{resolvers: resolvers, validate: validate}
+}
+
+func Resolve(resolvers []Resolver, validate *validator.Validate, specs []SpecEntry) (*ResolvedConfig, error) {
+	resolved := &ResolvedConfig{
+		NodeMap: make(map[string]ResolvedNode),
+	}
+
+	for _, spec := range specs {
+		for _, opt := range spec.ValidatorOpts {
+			opt(validate)
 		}
 
-		return strings.Compare(nodes[i].Key, nodes[j].Key) < 0
+		resolvedNode, resolveErr := resolveRootNode(
+			sortResolvers(resolvers),
+			validate,
+			Spec{Key: spec.Key, DefaultValue: spec.DefaultValue},
+		)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+
+		resolved.NodeMap[spec.Key] = resolvedNode
+	}
+
+	return resolved, nil
+}
+
+func sortResolvers(resolvers []Resolver) []Resolver {
+	sorted := make([]Resolver, len(resolvers))
+	copy(sorted, resolvers)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Priority() == sorted[j].Priority() {
+			return strings.Compare(sorted[i].Key(), sorted[j].Key()) < 0
+		}
+
+		return sorted[i].Priority() < sorted[j].Priority()
 	})
+
+	return sorted
 }
 
 func resolveRootNode(
-	resolvers []configresolver.Resolver,
+	resolvers []Resolver,
 	val *validator.Validate,
 	spec Spec,
 ) (ResolvedNode, error) {
-	return resolveStructNode(resolvers, val, []string{}, spec.Key, "", reflect.ValueOf(spec.DefaultValue))
+	path := strings.Split(spec.Key, ".")
+	sr := newStructResolver(resolvers, val)
+
+	return sr.resolveStruct(path[:len(path)-1], path[len(path)-1], "", reflect.ValueOf(spec.DefaultValue))
 }
 
-func resolveStructNode(
-	resolvers []configresolver.Resolver,
-	val *validator.Validate,
+func (sr *StructResolver) resolveStruct(
 	parentPath []string,
 	key string,
 	structKey string,
 	value reflect.Value,
 ) (ResolvedNode, error) {
 	if value.Type().Kind() != reflect.Struct {
-		return ResolvedNode{}, errors.New("default value must be a struct")
+		return ResolvedNode{}, fmt.Errorf("default value for key %q must be a struct, got %v", key, value.Type())
 	}
 
-	thisPath := parentPath
-	thisPath = append(thisPath, key)
+	thisPath := copyAppend(parentPath, key)
 	defaultValue := value.Interface()
 	children := make(map[string]ResolvedNode)
 
 	for i := range value.Type().NumField() {
 		field := value.Type().Field(i)
+		if !field.IsExported() {
+			continue
+		}
+
 		fieldKey := strcase.ToSnake(field.Name)
 		fieldValue := value.FieldByName(field.Name)
 
-		switch field.Type.Kind() {
-		case reflect.Struct:
-			structResolved, err := resolveStructNode(
-				resolvers,
-				val,
-				thisPath,
-				fieldKey,
-				field.Name,
-				fieldValue,
-			)
-			if err != nil {
-				return ResolvedNode{}, err
-			}
-
-			children[fieldKey] = structResolved
-		default:
-			dv := fieldValue.Interface()
-			rv := dv
-
-			var rk string
-
-			for _, resolver := range resolvers {
-				if resolved, ok, err := resolver.Resolve(append(thisPath, fieldKey), field.Type); err != nil {
-					return ResolvedNode{}, err
-				} else if ok {
-					rv = resolved
-					rk = resolver.Key()
-
-					break
-				}
-			}
-
-			children[fieldKey] = ResolvedNode{
-				Spec: Spec{
-					Key:          fieldKey,
-					DefaultValue: dv,
-				},
-				ResolverKey:  rk,
-				Type:         field.Type,
-				ParentPath:   thisPath,
-				PathString:   strings.Join(append(thisPath, fieldKey), "."),
-				StructKey:    field.Name,
-				Value:        rv,
-				ValueRaw:     rv,
-				ValueLabel:   createValueLabel(rv),
-				DefaultLabel: createValueLabel(dv),
-			}
+		resolved, err := sr.resolveField(thisPath, fieldKey, field.Name, field.Type, fieldValue)
+		if err != nil {
+			return ResolvedNode{}, fmt.Errorf("field %q: %w", fieldKey, err)
 		}
+
+		children[fieldKey] = resolved
 	}
 
-	valueMap := make(map[string]interface{}, len(children))
+	resolvedValue, err := rebuildStruct(value.Type(), children)
+	if err != nil {
+		return ResolvedNode{}, fmt.Errorf("rebuild struct %q: %w", key, err)
+	}
+
+	if err := sr.validate.Struct(resolvedValue.Interface()); err != nil {
+		return ResolvedNode{}, fmt.Errorf("validate %q: %w", strings.Join(thisPath, "."), err)
+	}
+
+	valueMap := make(map[string]any, len(children))
 	for _, c := range children {
 		valueMap[c.StructKey] = c.ValueRaw
-	}
-
-	resolvedValue := reflect.New(value.Type())
-	decodeConfig := &mapstructure.DecoderConfig{
-		Metadata: nil,
-		Result:   resolvedValue.Interface(),
-		MatchName: func(mapKey, fieldName string) bool {
-			return mapKey == fieldName
-		},
-	}
-
-	decoder, decoderErr := mapstructure.NewDecoder(decodeConfig)
-	if decoderErr != nil {
-		return ResolvedNode{}, decoderErr
-	}
-
-	if decodeErr := decoder.Decode(valueMap); decodeErr != nil {
-		return ResolvedNode{}, decodeErr
-	}
-
-	if validateErr := val.Struct(resolvedValue.Interface()); validateErr != nil {
-		return ResolvedNode{}, validateErr
 	}
 
 	return ResolvedNode{
@@ -223,7 +182,7 @@ func resolveStructNode(
 			Key:          key,
 			DefaultValue: defaultValue,
 		},
-		ParentPath: parentPath,
+		Path:       thisPath,
 		PathString: strings.Join(thisPath, "."),
 		StructKey:  structKey,
 		IsStruct:   true,
@@ -234,19 +193,145 @@ func resolveStructNode(
 	}, nil
 }
 
-func createValueLabel(value interface{}) string {
-	var label string
+func (sr *StructResolver) resolveField(
+	parentPath []string,
+	fieldKey string,
+	structKey string,
+	fieldType reflect.Type,
+	fieldValue reflect.Value,
+) (ResolvedNode, error) {
+	switch fieldType.Kind() {
+	case reflect.Struct:
+		return sr.resolveStruct(parentPath, fieldKey, structKey, fieldValue)
 
-	switch value.(type) {
-	case string:
-		label = fmt.Sprintf("'%s'", value)
+	case reflect.Slice:
+		if fieldType.Elem().Kind() == reflect.Struct {
+			return sr.resolveStructSlice(parentPath, fieldKey, structKey, fieldType, fieldValue)
+		}
+
+		fallthrough
+
 	default:
-		label = fmt.Sprintf("%v", value)
+		return sr.resolveScalarField(parentPath, fieldKey, structKey, fieldType, fieldValue)
+	}
+}
+
+func (sr *StructResolver) resolveStructSlice(
+	parentPath []string,
+	fieldKey string,
+	structKey string,
+	fieldType reflect.Type,
+	fieldValue reflect.Value,
+) (ResolvedNode, error) {
+	dv := fieldValue.Interface()
+
+	for _, resolver := range sr.resolvers {
+		if resolved, ok, err := resolver.Resolve(copyAppend(parentPath, fieldKey), fieldType); err != nil {
+			return ResolvedNode{}, fmt.Errorf("resolve slice %q: %w", fieldKey, err)
+		} else if ok {
+			return ResolvedNode{
+				Spec:        Spec{Key: fieldKey, DefaultValue: dv},
+				ResolverKey: resolver.Key(),
+				Type:        fieldType,
+				Path:        parentPath,
+				PathString:  strings.Join(copyAppend(parentPath, fieldKey), "."),
+				StructKey:   structKey,
+				Value:       resolved,
+				ValueRaw:    resolved,
+			}, nil
+		}
 	}
 
-	if len(label) > 20 {
-		label = label[:20] + "..."
+	length := fieldValue.Len()
+	resolvedSlice := reflect.MakeSlice(fieldType, length, length)
+
+	for i := range length {
+		elemValue := fieldValue.Index(i)
+
+		elemNode, err := sr.resolveStruct(parentPath, fieldKey, structKey, elemValue)
+		if err != nil {
+			return ResolvedNode{}, fmt.Errorf("slice element [%d]: %w", i, err)
+		}
+
+		resolvedSlice.Index(i).Set(reflect.ValueOf(elemNode.Value))
 	}
 
-	return label
+	return ResolvedNode{
+		Spec:       Spec{Key: fieldKey, DefaultValue: dv},
+		Type:       fieldType,
+		Path:       parentPath,
+		PathString: strings.Join(copyAppend(parentPath, fieldKey), "."),
+		StructKey:  structKey,
+		Value:      resolvedSlice.Interface(),
+		ValueRaw:   resolvedSlice.Interface(),
+	}, nil
+}
+
+func (sr *StructResolver) resolveScalarField(
+	parentPath []string,
+	fieldKey string,
+	structKey string,
+	fieldType reflect.Type,
+	fieldValue reflect.Value,
+) (ResolvedNode, error) {
+	dv := fieldValue.Interface()
+	rv := dv
+
+	var rk string
+
+	for _, resolver := range sr.resolvers {
+		if resolved, ok, err := resolver.Resolve(copyAppend(parentPath, fieldKey), fieldType); err != nil {
+			return ResolvedNode{}, fmt.Errorf("resolve %q: %w", fieldKey, err)
+		} else if ok {
+			rv = resolved
+			rk = resolver.Key()
+
+			break
+		}
+	}
+
+	return ResolvedNode{
+		Spec:        Spec{Key: fieldKey, DefaultValue: dv},
+		ResolverKey: rk,
+		Type:        fieldType,
+		Path:        parentPath,
+		PathString:  strings.Join(copyAppend(parentPath, fieldKey), "."),
+		StructKey:   structKey,
+		Value:       rv,
+		ValueRaw:    rv,
+	}, nil
+}
+
+func copyAppend(base []string, extra string) []string {
+	out := make([]string, len(base)+1)
+	copy(out, base)
+	out[len(base)] = extra
+
+	return out
+}
+
+func rebuildStruct(structType reflect.Type, children map[string]ResolvedNode) (reflect.Value, error) {
+	valueMap := make(map[string]any, len(children))
+	for _, c := range children {
+		valueMap[c.StructKey] = c.ValueRaw
+	}
+
+	resolvedValue := reflect.New(structType)
+
+	decoder, decoderErr := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Metadata: nil,
+		Result:   resolvedValue.Interface(),
+		MatchName: func(mapKey, fieldName string) bool {
+			return mapKey == fieldName
+		},
+	})
+	if decoderErr != nil {
+		return reflect.Value{}, decoderErr
+	}
+
+	if decodeErr := decoder.Decode(valueMap); decodeErr != nil {
+		return reflect.Value{}, decodeErr
+	}
+
+	return resolvedValue, nil
 }

@@ -5,23 +5,30 @@ import (
 	"net"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 )
 
 func (c *crawler) reseedBootstrapNodes(ctx context.Context) {
 	interval := time.Duration(0)
 
 	for {
+		cfg := c.config.Load()
+
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(interval):
-			for _, strAddr := range c.bootstrapNodes {
+			for _, strAddr := range cfg.bootstrapNodes {
 				addr, err := net.ResolveUDPAddr("udp", strAddr)
 				if err != nil {
-					c.logger.Warnf("failed to resolve bootstrap node address: %s", err)
+					c.logger.Warnw("failed to resolve bootstrap node address",
+						"addr", strAddr,
+						"error", err,
+					)
+
 					continue
 				}
+
 				select {
 				case <-ctx.Done():
 					return
@@ -29,8 +36,12 @@ func (c *crawler) reseedBootstrapNodes(ctx context.Context) {
 					continue
 				}
 			}
+
+			c.logger.Infow("seeding routing table with bootstrap addresses",
+				"addresses", cfg.bootstrapNodes,
+			)
 		}
 
-		interval = c.reseedBootstrapNodesInterval
+		interval = cfg.reseedInterval
 	}
 }

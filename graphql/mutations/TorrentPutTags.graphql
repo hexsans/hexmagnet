@@ -1,5 +1,0 @@
-mutation TorrentPutTags($infoHashes: [Hash20!]!, $tagNames: [String!]!) {
-  torrent {
-    putTags(infoHashes: $infoHashes, tagNames: $tagNames)
-  }
-}

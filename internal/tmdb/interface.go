@@ -5,16 +5,15 @@ package tmdb
 import (
 	"context"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type Client interface {
-	ValidateAPIKey(context.Context) error
-	SearchMovie(context.Context, SearchMovieRequest) (SearchMovieResponse, error)
-	MovieDetails(context.Context, MovieDetailsRequest) (MovieDetailsResponse, error)
-	SearchTv(context.Context, SearchTvRequest) (SearchTvResponse, error)
-	TvDetails(context.Context, TvDetailsRequest) (TvDetailsResponse, error)
-	FindByID(context.Context, FindByIDRequest) (FindByIDResponse, error)
+	ValidateAccessToken(ctx context.Context) error
+	SearchMovie(ctx context.Context, request SearchMovieRequest) (SearchMovieResponse, error)
+	MovieDetails(ctx context.Context, request MovieDetailsRequest) (MovieDetailsResponse, error)
+	SearchTv(ctx context.Context, request SearchTvRequest) (SearchTvResponse, error)
+	TvDetails(ctx context.Context, request TvDetailsRequest) (TvDetailsResponse, error)
 }
 
 type SearchMovieRequest struct {
@@ -234,45 +233,5 @@ type TvDetailsResponse struct {
 		InstagramID string `json:"instagram_id"`
 		TwitterID   string `json:"twitter_id"`
 		ID          int64  `json:"id,omitempty"`
-	} `json:"external_ids,omitempty"`
-}
-
-type FindByIDRequest struct {
-	ExternalSource string
-	ExternalID     string
-	Language       model.NullString
-}
-
-type FindByIDResponse struct {
-	MovieResults []struct {
-		Adult            bool    `json:"adult"`
-		BackdropPath     string  `json:"backdrop_path"`
-		GenreIDs         []int64 `json:"genre_ids"`
-		ID               int64   `json:"id"`
-		OriginalLanguage string  `json:"original_language"`
-		OriginalTitle    string  `json:"original_title"`
-		Overview         string  `json:"overview"`
-		PosterPath       string  `json:"poster_path"`
-		ReleaseDate      string  `json:"release_date"`
-		Title            string  `json:"title"`
-		Video            bool    `json:"video"`
-		VoteAverage      float32 `json:"vote_average"`
-		VoteCount        int64   `json:"vote_count"`
-		Popularity       float32 `json:"popularity"`
-	} `json:"movie_results,omitempty"`
-	TvResults []struct {
-		OriginalName     string   `json:"original_name"`
-		ID               int64    `json:"id"`
-		Name             string   `json:"name"`
-		VoteCount        int64    `json:"vote_count"`
-		VoteAverage      float32  `json:"vote_average"`
-		FirstAirDate     string   `json:"first_air_date"`
-		PosterPath       string   `json:"poster_path"`
-		GenreIDs         []int64  `json:"genre_ids"`
-		OriginalLanguage string   `json:"original_language"`
-		BackdropPath     string   `json:"backdrop_path"`
-		Overview         string   `json:"overview"`
-		OriginCountry    []string `json:"origin_country"`
-		Popularity       float32  `json:"popularity"`
-	} `json:"tv_results,omitempty"`
+	} `json:"external_ids"`
 }

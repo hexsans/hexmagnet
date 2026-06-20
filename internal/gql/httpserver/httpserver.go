@@ -1,17 +1,15 @@
 package httpserver
 
 import (
-	"time"
-
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/bitmagnet-io/bitmagnet/internal/httpserver"
-	"github.com/bitmagnet-io/bitmagnet/internal/lazy"
 	"github.com/gin-gonic/gin"
+	"github.com/hexsans/hexmagnet/internal/httpserver"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/vektah/gqlparser/v2/ast"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -19,7 +17,7 @@ import (
 
 type Params struct {
 	fx.In
-	Schema lazy.Lazy[graphql.ExecutableSchema]
+	Schema utils.Lazy[graphql.ExecutableSchema]
 	Logger *zap.SugaredLogger
 }
 
@@ -32,12 +30,14 @@ func New(p Params) Result {
 	return Result{
 		Option: &builder{
 			schema: p.Schema,
+			logger: p.Logger.Named("graphql"),
 		},
 	}
 }
 
 type builder struct {
-	schema lazy.Lazy[graphql.ExecutableSchema]
+	schema utils.Lazy[graphql.ExecutableSchema]
+	logger *zap.SugaredLogger
 }
 
 func (builder) Key() string {
@@ -47,6 +47,7 @@ func (builder) Key() string {
 func (b builder) Apply(e *gin.Engine) error {
 	schema, err := b.schema.Get()
 	if err != nil {
+		b.logger.Errorw("failed to get graphql schema", "error", err)
 		return err
 	}
 
@@ -68,15 +69,12 @@ func (b builder) Apply(e *gin.Engine) error {
 func newServer(es graphql.ExecutableSchema) *handler.Server {
 	srv := handler.New(es)
 
-	srv.AddTransport(transport.Websocket{
-		KeepAlivePingInterval: 10 * time.Second,
-	})
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.MultipartForm{})
 
-	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](100))
 
 	srv.Use(extension.Introspection{})
 	srv.Use(extension.AutomaticPersistedQuery{

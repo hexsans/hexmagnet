@@ -3,12 +3,11 @@ package classifier
 import (
 	"fmt"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/keywords"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protobuf"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/ext"
+	"github.com/hexsans/hexmagnet/internal/database/fts"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 func celEnvOption(src Source, ctx *compilerContext) error {
@@ -17,10 +16,10 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 		Lists(),
 		cel.EagerlyValidateDeclarations(true),
 		cel.ExtendedValidations(),
-		ext.Strings(ext.StringsValidateFormatCalls(true)),
-		cel.Types(&protobuf.Torrent{}, &protobuf.Classification{}),
-		cel.Variable("torrent", cel.ObjectType("bitmagnet.Torrent")),
-		cel.Variable("result", cel.ObjectType("bitmagnet.Classification")),
+		ext.Strings(),
+		cel.CustomTypeProvider(&Provider{}),
+		cel.Variable("torrent", cel.ObjectType("Torrent")),
+		cel.Variable("result", cel.ObjectType("Classification")),
 	}
 	// `flags` is masquerading as a map of strings to regexes, but it's actually individual variables defined
 	// with a dot in the name, along with a placeholder map of strings to nulls. This achieves correct compile-time
@@ -38,7 +37,7 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 	)
 	// `keywords`, `extensions` etc use a similar trick.
 	for group, kws := range src.Keywords {
-		r, err := keywords.NewRegexFromKeywords(kws...)
+		r, err := fts.NewRegexFromKeywords(kws...)
 		if err != nil {
 			return err
 		}
@@ -70,7 +69,7 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 	)
 	options = append(
 		options,
-		cel.Constant("fileType.unknown", cel.IntType, types.Int(protobuf.Torrent_File_unknown)),
+		cel.Constant("fileType.unknown", cel.IntType, types.Int(FileTypeUnknown)),
 	)
 
 	for _, ft := range model.FileTypeValues() {
@@ -79,7 +78,7 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 			cel.Constant(
 				fmt.Sprintf("fileType.%s", ft.String()),
 				cel.IntType,
-				types.Int(protobuf.NewFileType(model.NullFileType{Valid: true, FileType: ft})),
+				types.Int(FileTypeToInt(model.NullFileType{Valid: true, FileType: ft})),
 			),
 		)
 	}
@@ -90,7 +89,7 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 	)
 	options = append(
 		options,
-		cel.Constant("contentType.unknown", cel.IntType, types.Int(protobuf.Classification_unknown)),
+		cel.Constant("contentType.unknown", cel.IntType, types.Int(ContentTypeUnknown)),
 	)
 
 	for _, ct := range model.ContentTypeValues() {
@@ -99,7 +98,7 @@ func celEnvOption(src Source, ctx *compilerContext) error {
 			cel.Constant(
 				fmt.Sprintf("contentType.%s", ct.String()),
 				cel.IntType,
-				types.Int(protobuf.NewContentType(model.NullContentType{Valid: true, ContentType: ct})),
+				types.Int(ContentTypeToInt(model.NullContentType{Valid: true, ContentType: ct})),
 			),
 		)
 	}

@@ -53,15 +53,6 @@ func (m reverseMap) putAddrHashes(addr netip.Addr, hashes ...ID) {
 	}
 }
 
-func (m reverseMap) getPeerIDForAddr(addr netip.Addr) (ID, bool) {
-	info, ok := m.addrs[addr.String()]
-	if ok && !info.peerID.IsZero() {
-		return info.peerID, ok
-	}
-
-	return ID{}, false
-}
-
 func (m reverseMap) dropAddr(addr netip.Addr) bool {
 	if _, ok := m.addrs[addr.String()]; ok {
 		delete(m.addrs, addr.String())
@@ -73,12 +64,13 @@ func (m reverseMap) dropAddr(addr netip.Addr) bool {
 
 func (m reverseMap) dropHashForAddrs(hash ID, addrs ...netip.Addr) {
 	for _, addr := range addrs {
-		if info, ok := m.addrs[addr.String()]; ok {
+		addrStr := addr.String()
+		if info, ok := m.addrs[addrStr]; ok {
 			info.dropHashes(hash)
+
+			if len(info.hashes) == 0 && info.peerID.IsZero() {
+				delete(m.addrs, addrStr)
+			}
 		}
 	}
-}
-
-func (m reverseMap) len() int {
-	return len(m.addrs)
 }

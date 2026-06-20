@@ -1,5 +1,0 @@
-mutation TorrentDeleteTags($infoHashes: [Hash20!], $tagNames: [String!]) {
-  torrent {
-    deleteTags(infoHashes: $infoHashes, tagNames: $tagNames)
-  }
-}

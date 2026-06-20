@@ -5,14 +5,11 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
-	"math"
-	"math/rand"
-	"net"
 	"reflect"
 
 	"github.com/anacrolix/missinggo/v2/slices"
 	"github.com/anacrolix/torrent/bencode"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
 
 type NodeInfo struct {
@@ -24,18 +21,6 @@ func (ni NodeInfo) String() string {
 	return fmt.Sprintf("{%x at %s}", ni.ID, ni.Addr)
 }
 
-func RandomNodeInfo(ipLen int) (ni NodeInfo) {
-	ni.ID = protocol.RandomNodeID()
-	ni.Addr.Port = rand.Intn(math.MaxUint16 + 1)
-	ni.Addr.IP = make(net.IP, ipLen)
-
-	for i := range ipLen {
-		ni.Addr.IP[i] = byte(rand.Intn(256))
-	}
-
-	return
-}
-
 var _ interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
@@ -43,6 +28,7 @@ var _ interface {
 
 func (ni NodeInfo) MarshalBinary() ([]byte, error) {
 	var w bytes.Buffer
+
 	_, _ = w.Write(ni.ID[:])
 	_, _ = w.Write(ni.Addr.IP)
 
@@ -65,13 +51,6 @@ type (
 func (CompactIPv4NodeInfo) ElemSize() int {
 	return 26
 }
-
-// func (me *CompactIPv4NodeInfo) Scrub() {
-// 	slices.FilterInPlace(me, func(ni *NodeInfo) bool {
-// 		ni.Addr.IP = ni.Addr.IP.To4()
-// 		return ni.Addr.IP != nil
-// 	})
-// }
 
 func (ni CompactIPv4NodeInfo) MarshalBinary() ([]byte, error) {
 	return marshalBinarySlice(slices.Map(func(ni NodeInfo) NodeInfo {
@@ -171,7 +150,7 @@ func bencodeBytesResult(b []byte, err error) ([]byte, error) {
 }
 
 // makes and sets a slice at *ptrTo, and type asserts all the elements from "from" to it.
-func makeInto(ptrTo interface{}, from interface{}) {
+func makeInto(ptrTo any, from any) {
 	fromSliceValue := reflect.ValueOf(from)
 
 	fromLen := fromSliceValue.Len()
@@ -180,7 +159,7 @@ func makeInto(ptrTo interface{}, from interface{}) {
 	}
 	// Deref the pointer to slice.
 	slicePtrValue := reflect.ValueOf(ptrTo)
-	if slicePtrValue.Kind() != reflect.Ptr {
+	if slicePtrValue.Kind() != reflect.Pointer {
 		panic("destination is not a pointer")
 	}
 

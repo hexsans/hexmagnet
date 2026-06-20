@@ -36,7 +36,7 @@ func RandomNodeID() (id ID) {
 
 // RandomNodeIDWithClientSuffix generates a node ID for the DHT client.
 // We use a random byte string with the client ID encoded at the end,
-// to allow identifying other bitmagnet instances in the wild.
+// to allow identifying other hexmagnet instances in the wild.
 // A suffix is used instead of a prefix, which would be incompatible with DHT,
 // where ID prefixes are used for computing the distance metric).
 func RandomNodeIDWithClientSuffix() (id ID) {
@@ -66,23 +66,6 @@ func ParseID(str string) (ID, error) {
 	copy(id[:], b)
 
 	return id, nil
-}
-
-func MustParseID(str string) ID {
-	id, err := ParseID(str)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
-}
-
-func NewIDFromRawString(s string) (id ID) {
-	if n := copy(id[:], s); n != 20 {
-		panic(n)
-	}
-
-	return
 }
 
 func NewIDFromByteSlice(b []byte) (id ID, _ error) {
@@ -122,7 +105,7 @@ func (id ID) Bytes() []byte {
 	return id[:]
 }
 
-func (id *ID) Scan(value interface{}) error {
+func (id *ID) Scan(value any) error {
 	v, ok := value.([]byte)
 	if !ok {
 		return errors.New("invalid bytes type")
@@ -188,7 +171,7 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (id *ID) UnmarshalGQL(input interface{}) error {
+func (id *ID) UnmarshalGQL(input any) error {
 	switch input := input.(type) {
 	case string:
 		tb, err := ParseID(input)
@@ -206,16 +189,6 @@ func (id *ID) UnmarshalGQL(input interface{}) error {
 
 func (id ID) MarshalGQL(w io.Writer) {
 	_, _ = w.Write([]byte(`"` + id.String() + `"`))
-}
-
-type MutableID ID
-
-func (id *MutableID) SetBit(i int, v bool) {
-	if v {
-		id[i/8] |= 1 << (7 - uint(i%8))
-	} else {
-		id[i/8] &= ^(1 << (7 - uint(i%8)))
-	}
 }
 
 func RandomPeerID() ID {

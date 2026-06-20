@@ -14,8 +14,8 @@ import (
 
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/peer_protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/metainfo"
 )
 
 type Requester interface {
@@ -80,7 +80,8 @@ type HandshakeInfo struct {
 
 type Response struct {
 	HandshakeInfo
-	Info metainfo.Info
+	Info         metainfo.Info
+	RawInfoBytes []byte
 }
 
 func (r requester) Request(ctx context.Context, infoHash protocol.ID, addr netip.AddrPort) (Response, error) {
@@ -115,6 +116,8 @@ func (r requester) Request(ctx context.Context, infoHash protocol.ID, addr netip
 		return Response{}, readAllPiecesErr
 	}
 
+	rawInfoBytes := pieces
+
 	parsed, parseErr := metainfo.ParseMetaInfoBytes(infoHash, pieces)
 	if parseErr != nil {
 		return Response{}, parseErr
@@ -123,6 +126,7 @@ func (r requester) Request(ctx context.Context, infoHash protocol.ID, addr netip
 	return Response{
 		HandshakeInfo: hsInfo,
 		Info:          parsed,
+		RawInfoBytes:  rawInfoBytes,
 	}, nil
 }
 
@@ -228,7 +232,7 @@ type extDict struct {
 const maxMetadataSize = 10 * 1024 * 1024
 
 func exHandshake(rw io.ReadWriter) (metadataSize uint, utMetadata uint8, err error) {
-	if _, writeErr := rw.Write([]byte("\x00\x00\x00\x1a\x14\x00d1:md11:ut_metadatai1eee")); err != nil {
+	if _, writeErr := rw.Write([]byte("\x00\x00\x00\x1a\x14\x00d1:md11:ut_metadatai1eee")); writeErr != nil {
 		err = writeErr
 		return
 	}

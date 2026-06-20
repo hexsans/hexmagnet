@@ -1,0 +1,20 @@
+type ActivityEntry {
+  id: String!
+  type: String!
+  message: String!
+  time: DateTime!
+}
+
+type DhtCrawlerStatus {
+  active: Boolean!
+  torrentsCrawled: Uint64!
+  peersConnected: Uint64!
+  peersDiscovered: Uint64!
+  uptime: Uint64!
+  startedAt: DateTime
+  recentActivity: [ActivityEntry!]!
+}
+
+extend type Query {
+  dhtCrawler: DhtCrawlerStatus!
+}

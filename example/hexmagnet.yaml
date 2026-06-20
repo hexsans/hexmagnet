@@ -1,0 +1,93 @@
+# HexMagnet runtime configuration
+# Path: ./hexmagnet.yaml (or $HEXMAGNET_CONFIG_FILE)
+#
+# Copy this file to start customizing. Unrecognized keys are silently ignored.
+# All values shown are the defaults — omit any field to keep the default.
+
+# --- HTTP server ---
+server:
+  ip: ""                   # listen address; "" = all interfaces (IPv4+IPv6 dual-stack),
+                           # "0.0.0.0" = IPv4 only, "::" = IPv6 only
+  port: 3333               # HTTP listen port
+  embed_trackers: []       # optional trackers to embed in scraped torrents
+  torrent_file_path: "/data/torrents" # directory to store .torrent files on disk
+  log:
+    console_level: info    # one of: debug, info, warn, error
+    file_output_level: off # write logs to file; one of: debug, info, warn, error, off
+    file_rotator:
+      path: "./logs"       # log directory
+      max_backups: 5       # rotated log files to keep (0 = unlimited)
+      format: text         # one of: text, json
+
+# --- DHT crawler network settings ---
+dht:
+  port: 3334                              # UDP listen port for the DHT node
+  bootstrap_nodes:                        # initial nodes to join the network
+    - router.utorrent.com:6881
+    - router.bittorrent.com:6881
+    - dht.transmissionbt.com:6881
+    - dht.aelitis.com:6881
+    - router.silotis.us:6881
+    - dht.libtorrent.org:25401
+  reseed_bootstrap_nodes_interval: 60    # how often to re-query bootstrap nodes (seconds)
+  requester:                             # DHT requester (crawler + metadata) settings
+    request_limit: 50                    # global QPS limit for both metadata (TCP) and DHT (UDP) requests
+    rescrape_threshold: 2592000          # scrape interval for known infohashes (30d in seconds)
+    hash_discover_limit: 10              # max hashes to discover per scrape cycle
+  responder:                             # DHT query responder settings
+    enabled: true                        # set false to disable responding to DHT queries
+    global_rate_limit: 50                # max incoming queries per second (0 = unlimited)
+    per_ip_rate_limit: 1                 # max incoming queries per second per IP (0 = unlimited)
+
+# --- Classifier (torrent categorization engine) ---
+classifier:
+  concurrency: 10        # max concurrent classification runs
+  torrent_filter:        # optional pre-classification filter
+    mode: off            # off | process | discard
+    title_patterns: []   # regex matched against torrent name
+    filename_patterns: [] # regex matched against file paths (checked if title doesn't match)
+  llm:
+    enabled: false       # enable LLM-based classification
+    endpoint: https://api.openai.com/v1
+    api_key: ""          # your API key
+    model: gpt-4o-mini
+    timeout: 30          # request timeout (seconds)
+    max_retries: 2
+    temperature: 0.1
+    reasoning_effort: "" # one of: low, medium, high (empty = default)
+    max_files: 30        # max torrent files sent to the LLM for analysis
+  tmdb:                    # --- TMDB (The Movie Database) integration ---
+    enabled: false
+    access_token: ""       # get yours at https://www.themoviedb.org/settings/api
+    rate_limit: 20
+
+# --- Storage backends ---
+storage:
+  postgres:
+    host: localhost
+    username: postgres
+    port: 5432
+    database: hexmagnet
+    password: ""
+    ssl_mode: disable          # disable | allow | prefer | require | verify-ca | verify-full
+    connection_timeout: 0      # seconds (0 = no timeout)
+    ssl_cert_path: ""
+    ssl_key_path: ""
+    ssl_root_cert_path: ""
+    max_connections: 25
+  queue:                       # message queue for async processing
+    backend: memory            # memory | kafka
+    kafka:
+      brokers:
+        - localhost:9092
+  search:
+    backend: postgresql        # postgresql | elasticsearch
+    elasticsearch:
+      addresses:
+        - http://localhost:9200
+      embedding:
+        endpoint: http://localhost:11434/v1
+        api_key: ""
+        model: bge-m3
+        dimensions: 1024
+        instruction_enabled: false

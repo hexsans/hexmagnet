@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"go.uber.org/zap"
 )
 
@@ -17,9 +17,9 @@ func (r responderLogger) Respond(ctx context.Context, msg dht.RecvMsg) (dht.Retu
 	start := time.Now()
 	ret, err := r.responder.Respond(ctx, msg)
 
-	var logData []interface{}
+	var logData []any
 
-	log := func(k string, v interface{}) {
+	log := func(k string, v any) {
 		logData = append(logData, k, v)
 	}
 	message := msg.Msg.Q

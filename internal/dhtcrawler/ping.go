@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 )
+
+var ErrMismatchingNodeID = errors.New("node responded with a mismatching ID")
 
 func (c *crawler) runPing(ctx context.Context) {
 	_ = c.nodesForPing.Run(ctx, func(n ktable.Node) {
 		if n.Dropped() || n.Time().After(time.Now().Add(-c.oldPeerThreshold)) {
-			// Either the node was already dropped or it succeeded after being added to the channel.
-			// In either case we can continue.
 			return
 		}
 
@@ -25,17 +25,34 @@ func (c *crawler) runPing(ctx context.Context) {
 		if err == nil {
 			nodeID = res.ID
 			if !n.ID().IsZero() && n.ID() != nodeID {
+				c.logger.Debugw(
+					"node identity changed, removing stale routing table entry",
+					"expected",
+					n.ID(),
+					"got",
+					res.ID,
+					"node",
+					n.Addr(),
+				)
 				nodeID = n.ID()
-				err = errors.New("node responded with a mismatching ID")
+				err = ErrMismatchingNodeID
 			}
 		}
 
 		if err != nil {
+			if !errors.Is(err, ErrMismatchingNodeID) {
+				c.logger.Debugw("ping failed", "node", n.Addr(), "error", err)
+			}
+
 			c.kTable.BatchCommand(ktable.DropNode{
 				ID:     nodeID,
 				Reason: fmt.Errorf("failed to respond to ping: %w", err),
 			})
 		} else {
+			if !c.runtime.SeenConnectedPeers.TestAndAdd(n.Addr().Addr()) {
+				c.runtime.PeersConnected.Update(func(v uint64) uint64 { return v + 1 })
+			}
+
 			c.kTable.BatchCommand(ktable.PutNode{
 				ID:      nodeID,
 				Addr:    n.Addr(),

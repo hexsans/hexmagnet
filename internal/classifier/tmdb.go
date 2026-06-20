@@ -3,9 +3,8 @@ package classifier
 import (
 	"errors"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/tmdb"
 )
 
 func (c executionContext) tmdbSearchMovie(title string, year model.Year) (model.Content, error) {
@@ -19,7 +18,11 @@ func (c executionContext) tmdbSearchMovie(title string, year model.Year) (model.
 
 	searchResult, searchErr := c.tmdbClient.SearchMovie(c.Context, req)
 	if searchErr != nil {
-		return model.Content{}, searchErr
+		if c.logger != nil {
+			c.logger.Warnw("tmdb search movie failed", "title", title, "error", searchErr)
+		}
+
+		return model.Content{}, ErrUnmatched
 	}
 
 	bestMatch, ok := levenshteinFindBestMatch[tmdb.SearchMovieResult](
@@ -31,7 +34,15 @@ func (c executionContext) tmdbSearchMovie(title string, year model.Year) (model.
 	)
 
 	if !ok {
-		return model.Content{}, classification.ErrUnmatched
+		if c.logger != nil {
+			c.logger.Infow("tmdb search unmatched", "type", "movie", "query", title)
+		}
+
+		return model.Content{}, ErrUnmatched
+	}
+
+	if c.logger != nil {
+		c.logger.Infow("tmdb search matched", "type", "movie", "query", title, "matched_id", bestMatch.ID)
 	}
 
 	return c.tmdbGetMovieByTMDBID(bestMatch.ID)
@@ -48,7 +59,11 @@ func (c executionContext) tmdbSearchTVShow(title string, year model.Year) (model
 
 	searchResult, searchErr := c.tmdbClient.SearchTv(c.Context, req)
 	if searchErr != nil {
-		return model.Content{}, searchErr
+		if c.logger != nil {
+			c.logger.Warnw("tmdb search tv show failed", "title", title, "error", searchErr)
+		}
+
+		return model.Content{}, ErrUnmatched
 	}
 
 	bestMatch, ok := levenshteinFindBestMatch[tmdb.SearchTvResult](
@@ -60,7 +75,15 @@ func (c executionContext) tmdbSearchTVShow(title string, year model.Year) (model
 	)
 
 	if !ok {
-		return model.Content{}, classification.ErrUnmatched
+		if c.logger != nil {
+			c.logger.Infow("tmdb search unmatched", "type", "tv", "query", title)
+		}
+
+		return model.Content{}, ErrUnmatched
+	}
+
+	if c.logger != nil {
+		c.logger.Infow("tmdb search matched", "type", "tv", "query", title, "matched_id", bestMatch.ID)
 	}
 
 	return c.tmdbGetTVShowByTMDBID(bestMatch.ID)
@@ -71,8 +94,12 @@ func (c executionContext) tmdbGetMovieByTMDBID(id int64) (movie model.Content, e
 		ID: id,
 	})
 	if getDetailsErr != nil {
+		if c.logger != nil && !errors.Is(getDetailsErr, tmdb.ErrNotFound) {
+			c.logger.Warnw("tmdb movie details failed", "tmdb_id", id, "error", getDetailsErr)
+		}
+
 		if errors.Is(getDetailsErr, tmdb.ErrNotFound) {
-			getDetailsErr = classification.ErrUnmatched
+			getDetailsErr = ErrUnmatched
 		}
 
 		err = getDetailsErr
@@ -89,8 +116,12 @@ func (c executionContext) tmdbGetTVShowByTMDBID(id int64) (movie model.Content, 
 		AppendToResponse: []string{"external_ids"},
 	})
 	if getDetailsErr != nil {
+		if c.logger != nil && !errors.Is(getDetailsErr, tmdb.ErrNotFound) {
+			c.logger.Warnw("tmdb tv show details failed", "tmdb_id", id, "error", getDetailsErr)
+		}
+
 		if errors.Is(getDetailsErr, tmdb.ErrNotFound) {
-			getDetailsErr = classification.ErrUnmatched
+			getDetailsErr = ErrUnmatched
 		}
 
 		err = getDetailsErr
@@ -99,36 +130,4 @@ func (c executionContext) tmdbGetTVShowByTMDBID(id int64) (movie model.Content, 
 	}
 
 	return tmdb.TvShowDetailsToTvShowModel(d)
-}
-
-func (c executionContext) tmdbGetTMDBIDByExternalID(ref model.ContentRef) (int64, error) {
-	externalSource, externalID, externalSourceErr := tmdb.ExternalSource(ref)
-	if externalSourceErr != nil {
-		return 0, externalSourceErr
-	}
-
-	byIDResult, byIDErr := c.tmdbClient.FindByID(c.Context, tmdb.FindByIDRequest{
-		ExternalSource: externalSource,
-		ExternalID:     externalID,
-	})
-	if byIDErr != nil {
-		return 0, byIDErr
-	}
-
-	switch ref.Type {
-	case model.ContentTypeMovie, model.ContentTypeXxx:
-		if len(byIDResult.MovieResults) == 0 {
-			return 0, classification.ErrUnmatched
-		}
-
-		return byIDResult.MovieResults[0].ID, nil
-	case model.ContentTypeTvShow:
-		if len(byIDResult.TvResults) == 0 {
-			return 0, classification.ErrUnmatched
-		}
-
-		return byIDResult.TvResults[0].ID, nil
-	default:
-		return 0, classification.ErrUnmatched
-	}
 }

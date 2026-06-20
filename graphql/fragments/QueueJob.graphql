@@ -1,13 +1,5 @@
 fragment QueueJob on QueueJob {
   id
   queue
-  status
   payload
-  priority
-  retries
-  maxRetries
-  runAfter
-  ranAt
-  error
-  createdAt
 }

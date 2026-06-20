@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/lazy"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/fx"
@@ -22,56 +22,56 @@ type Params struct {
 
 type Result struct {
 	fx.Out
-	PgxPool     lazy.Lazy[*pgxpool.Pool]
-	SQLDB       lazy.Lazy[*sql.DB]
+	PgxPool     utils.Lazy[*pgxpool.Pool]
+	SQLDB       utils.Lazy[*sql.DB]
 	PgxPoolWait *sync.WaitGroup `name:"pgx_pool_wait"`
 	AppHook     fx.Hook         `group:"app_hooks"`
+	PoolRef     *PoolRef
+	Runtime     *Runtime
 }
 
 func New(p Params) (Result, error) {
-	stopped := make(chan struct{})
 	waitGroup := &sync.WaitGroup{}
-	lazyPool := lazy.New(func() (*pgxpool.Pool, error) {
-		ctx, cancel := context.WithCancel(context.Background())
-		pl, plErr := pgxpool.New(ctx, p.Config.CreateDSN())
+	runtime := &Runtime{
+		poolRef: NewPoolRef(nil),
+		cfg:     p.Config,
+	}
 
-		if plErr != nil {
-			cancel()
-			return nil, plErr
+	lazyPool := utils.NewLazy(func() (*pgxpool.Pool, error) {
+		pool, err := newPool(context.Background(), p.Config, p.Logger)
+		if err != nil {
+			return nil, err
 		}
 
-		if pingErr := waitForPing(ctx, p.Logger, pl); pingErr != nil {
-			cancel()
-			return nil, pingErr
-		}
+		runtime.poolRef.Replace(pool)
 
-		go func() {
-			<-stopped
-			// wait for services to be finished with the pool before closing
-			waitGroup.Wait()
-			cancel()
-			pl.Close()
-		}()
-
-		return pl, nil
+		return pool, nil
 	})
 
 	return Result{
 		PgxPool: lazyPool,
-		SQLDB: lazy.New(func() (*sql.DB, error) {
+		SQLDB: utils.NewLazy(func() (*sql.DB, error) {
 			pool, err := lazyPool.Get()
 			if err != nil {
 				return nil, err
 			}
+
 			return stdlib.OpenDBFromPool(pool), nil
 		}),
 		PgxPoolWait: waitGroup,
 		AppHook: fx.Hook{
 			OnStop: func(context.Context) error {
-				close(stopped)
+				waitGroup.Wait()
+
+				if pool := runtime.poolRef.Get(); pool != nil {
+					pool.Close()
+				}
+
 				return nil
 			},
 		},
+		PoolRef: runtime.PoolRef(),
+		Runtime: runtime,
 	}, nil
 }
 
@@ -88,6 +88,7 @@ func waitForPing(ctx context.Context, logger *zap.SugaredLogger, pool *pgxpool.P
 
 		err = pool.Ping(ctx)
 		if err == nil {
+			logger.Infow("connected to database")
 			return nil
 		}
 
@@ -95,12 +96,12 @@ func waitForPing(ctx context.Context, logger *zap.SugaredLogger, pool *pgxpool.P
 		if i > 10 {
 			break
 		}
+
 		select {
 		case <-ctx.Done():
-			break
+			return ctx.Err()
 		case <-time.After(time.Second):
 			logger.Warnw("failed to ping database, retrying...", "error", err)
-			break
 		}
 	}
 

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/netip"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/server"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/server"
 )
 
 type serverAdapter struct {
@@ -57,6 +57,8 @@ func (a serverAdapter) GetPeers(
 	}, nil
 }
 
+var ErrNoScrapeSupport = errors.New("missing bloom filter in scrape response")
+
 func (a serverAdapter) GetPeersScrape(
 	ctx context.Context,
 	addr netip.AddrPort,
@@ -68,7 +70,7 @@ func (a serverAdapter) GetPeersScrape(
 	}
 
 	if res.Msg.R.BFpe == nil || res.Msg.R.BFsd == nil {
-		return GetPeersScrapeResult{}, errors.New("missing bloom filter in scrape response")
+		return GetPeersScrapeResult{}, ErrNoScrapeSupport
 	}
 
 	return GetPeersScrapeResult{

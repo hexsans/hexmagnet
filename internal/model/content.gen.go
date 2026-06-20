@@ -7,33 +7,26 @@ package model
 import (
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/database/fts"
+	"github.com/hexsans/hexmagnet/internal/database/fts"
 )
 
 const TableNameContent = "content"
 
 // Content mapped from table <content>
 type Content struct {
-	Type             ContentType         `gorm:"column:type;primaryKey;<-:create" json:"type"`
-	Source           string              `gorm:"column:source;primaryKey;<-:create" json:"source"`
-	ID               string              `gorm:"column:id;primaryKey;<-:create" json:"id"`
-	Title            string              `gorm:"column:title;not null" json:"title"`
-	ReleaseDate      Date                `gorm:"column:release_date" json:"releaseDate"`
-	ReleaseYear      Year                `gorm:"column:release_year" json:"releaseYear"`
-	Adult            NullBool            `gorm:"column:adult" json:"adult"`
-	OriginalLanguage NullLanguage        `gorm:"column:original_language" json:"originalLanguage"`
-	OriginalTitle    NullString          `gorm:"column:original_title" json:"originalTitle"`
-	Overview         NullString          `gorm:"column:overview" json:"overview"`
-	Runtime          NullUint16          `gorm:"column:runtime" json:"runtime"`
-	Popularity       NullFloat32         `gorm:"column:popularity" json:"popularity"`
-	VoteAverage      NullFloat32         `gorm:"column:vote_average" json:"voteAverage"`
-	VoteCount        NullUint            `gorm:"column:vote_count" json:"voteCount"`
-	CreatedAt        time.Time           `gorm:"column:created_at;not null;<-:create" json:"createdAt"`
-	UpdatedAt        time.Time           `gorm:"column:updated_at;not null" json:"updatedAt"`
-	Tsv              fts.Tsvector        `gorm:"column:tsv" json:"tsv"`
-	Collections      []ContentCollection `gorm:"many2many:content_collections_content" json:"collections"`
-	Attributes       []ContentAttribute  `json:"attributes"`
-	MetadataSource   MetadataSource      `gorm:"foreignKey:Source" json:"metadata_source"`
+	Type        ContentType  `gorm:"column:type;primaryKey;<-:create" json:"type"`
+	Source      string       `gorm:"column:source;primaryKey;<-:create" json:"source"`
+	ID          string       `gorm:"column:id;primaryKey;<-:create" json:"id"`
+	Title       string       `gorm:"column:title;not null" json:"title"`
+	ReleaseDate Date         `gorm:"column:release_date" json:"releaseDate"`
+	Adult       NullBool     `gorm:"column:adult" json:"adult"`
+	Overview    NullString   `gorm:"column:overview" json:"overview"`
+	Popularity  NullFloat32  `gorm:"column:popularity" json:"popularity"`
+	VoteAverage NullFloat32  `gorm:"column:vote_average" json:"voteAverage"`
+	VoteCount   NullUint     `gorm:"column:vote_count" json:"voteCount"`
+	CreatedAt   time.Time    `gorm:"column:created_at;not null;<-:create" json:"createdAt"`
+	UpdatedAt   time.Time    `gorm:"column:updated_at;not null" json:"updatedAt"`
+	Tsv         fts.Tsvector `gorm:"column:tsv" json:"tsv"`
 }
 
 // TableName Content's table name

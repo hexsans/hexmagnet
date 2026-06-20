@@ -45,6 +45,7 @@ func (ch *batchingChannel[T]) batch() {
 	var ok bool
 
 	defer close(ch.output)
+	defer func() { _ = recover() }()
 
 	for {
 		select {
@@ -70,5 +71,6 @@ func (ch *batchingChannel[T]) flush() {
 	batch := ch.buffer
 	ch.buffer = nil
 	ch.ticker.Reset(ch.maxWaitTime)
+
 	ch.output <- batch
 }

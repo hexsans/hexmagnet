@@ -72,8 +72,16 @@ linters:
     - usetesting
     - wastedassign
     - whitespace
-    - wsl
+    - wsl_v5
   settings:
+    goconst:
+      ignore-tests: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+    tagalign:
+      align: false
     revive:
       rules:
         - name: argument-limit
@@ -105,7 +113,7 @@ linters:
         - name: indent-error-flow
         - name: line-length-limit
           arguments:
-            - 120
+            - 140
         - name: nested-structs
         - name: package-comments
         - name: range
@@ -141,7 +149,8 @@ linters:
     paths:
       - third_party$
       - builtin$
-      - examples$
+      - example$
+      - webui(/|$)
 formatters:
   enable:
     - gci
@@ -151,12 +160,15 @@ formatters:
     - golines
   settings:
     golines:
-      max-len: 120
-      tab-len: 8
+      max-len: 140
+      tab-len: 4
       shorten-comments: true
+      reformat-tags: false
   exclusions:
     generated: lax
     paths:
       - third_party$
       - builtin$
-      - examples$
+      - example$
+      - webui(/|$)
+      - webui/node_modules(/|$)

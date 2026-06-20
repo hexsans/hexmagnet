@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/keywords"
 	"github.com/hedhyw/rex/pkg/dialect"
 	"github.com/hedhyw/rex/pkg/rex"
+	"github.com/hexsans/hexmagnet/internal/database/fts"
 )
 
 func rangeToken(runes string) dialect.Token {
@@ -40,7 +40,7 @@ func rangeToken(runes string) dialect.Token {
 
 var seasonToken = rex.Group.Define(
 	rex.Group.Composite(
-		keywords.MustNewRexTokensFromKeywords("season", "s")...,
+		fts.MustNewRexTokensFromKeywords("season", "s")...,
 	).NonCaptured(),
 	rex.Chars.Whitespace().Repeat().ZeroOrOne(),
 	rangeToken("sS"),
@@ -49,7 +49,7 @@ var seasonToken = rex.Group.Define(
 
 var episodeToken = rex.Group.Define(
 	rex.Group.Composite(
-		keywords.MustNewRexTokensFromKeywords("episode", "ep", "e")...,
+		fts.MustNewRexTokensFromKeywords("episode", "ep", "e")...,
 	).NonCaptured(),
 	rex.Chars.Whitespace().Repeat().ZeroOrOne(),
 	rangeToken("eE"),
@@ -78,12 +78,6 @@ var EpisodesToken = rex.Group.Composite(
 	episodesRegularTokens,
 	episodesXFormatTokens,
 )
-
-var episodesRegex = rex.New(
-	rex.Chars.Begin(),
-	EpisodesToken,
-	rex.Chars.End(),
-).MustCompile()
 
 func EpisodesMatchToEpisodes(match []string) Episodes {
 	if len(match) < 12 {
@@ -155,8 +149,4 @@ func EpisodesMatchToEpisodes(match []string) Episodes {
 	}
 
 	return episodes
-}
-
-func ParseEpisodes(input string) Episodes {
-	return EpisodesMatchToEpisodes(episodesRegex.FindStringSubmatch(input))
 }

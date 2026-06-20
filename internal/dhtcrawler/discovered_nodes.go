@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 	"go.uber.org/fx"
 )
 
@@ -23,10 +23,10 @@ type DiscoveredNodesResult struct {
 // NewDiscoveredNodes creates the channel for discovered nodes.
 // It receives nodes discovered by the crawler, as well as nodes from incoming requests to the DHT server.
 // It is provided as a separate service to avoid a circular dependency with the DHT server.
-func NewDiscoveredNodes(params DiscoveredNodesParams) DiscoveredNodesResult {
+func NewDiscoveredNodes(_ DiscoveredNodesParams) DiscoveredNodesResult {
 	return DiscoveredNodesResult{
 		DiscoveredNodes: concurrency.NewBatchingChannel[ktable.Node](
-			int(100*params.Config.ScalingFactor), 10, time.Second/100),
+			1000, 10, time.Second/100),
 	}
 }
 

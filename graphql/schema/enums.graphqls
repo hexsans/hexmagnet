@@ -7,7 +7,9 @@ enum ContentType {
   audiobook
   game
   software
-  xxx
+  other
+  unknown
+  adult
 }
 
 enum FacetLogic {
@@ -24,13 +26,6 @@ enum FileType {
   software
   subtitles
   video
-}
-
-enum FilesStatus {
-  no_info
-  single
-  multi
-  over_threshold
 }
 
 enum Language {
@@ -98,57 +93,9 @@ enum Language {
   zu
 }
 
-enum Video3D {
-  V3D
-  V3DSBS
-  V3DOU
-}
-
-enum VideoCodec {
-  H264
-  x264
-  x265
-  XviD
-  DivX
-  MPEG2
-  MPEG4
-}
-
-enum VideoModifier {
-  REGIONAL
-  SCREENER
-  RAWHD
-  BRDISK
-  REMUX
-}
-
-enum VideoResolution {
-  V360p
-  V480p
-  V540p
-  V576p
-  V720p
-  V1080p
-  V1440p
-  V2160p
-  V4320p
-}
-
-enum VideoSource {
-  CAM
-  TELESYNC
-  TELECINE
-  WORKPRINT
-  DVD
-  TV
-  WEBDL
-  WEBRip
-  BluRay
-}
-
 enum TorrentContentOrderByField {
   relevance
-  published_at
+  created_at
   updated_at
   size
   files_count
@@ -158,15 +105,25 @@ enum TorrentContentOrderByField {
   info_hash
 }
 
-enum TorrentFilesOrderByField {
-  index
-  path
-  extension
+enum TorrentSearchOrderByField {
+  relevance
+  created_at
+  updated_at
   size
+  files_count
+  seeders
+  leechers
+  name
+  info_hash
 }
 
-enum QueueJobsOrderByField {
-  created_at
-  ran_at
-  priority
+enum SortDirection {
+  asc
+  desc
+}
+
+enum TorrentFilesOrderByField {
+  index
+  extension
+  size
 }

@@ -1,2 +1,4 @@
 data
 webui/node_modules
+webui/dist
+.testing

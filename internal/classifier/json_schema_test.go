@@ -16,7 +16,7 @@ var metaSchemaJSON []byte
 func TestJSONSchema(t *testing.T) {
 	t.Parallel()
 
-	schemaJSON, err := DefaultJSONSchema().MarshalJSON()
+	schemaJSON, err := defaultFeatures.JSONSchema().MarshalJSON()
 	require.NoError(t, err)
 
 	schemaLoader := gojsonschema.NewBytesLoader(schemaJSON)

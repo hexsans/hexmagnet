@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 type (
@@ -61,11 +63,6 @@ func (*JSONResultWriter) Write(result *CheckerResult, statusCode int, w http.Res
 	return err
 }
 
-// NewJSONResultWriter creates a new instance of a JSONResultWriter.
-func NewJSONResultWriter() *JSONResultWriter {
-	return &JSONResultWriter{}
-}
-
 // NewHandler creates a new health check http.Handler.
 func NewHandler(checker Checker, options ...HandlerOption) http.HandlerFunc {
 	cfg := createConfig(options)
@@ -118,10 +115,5 @@ func createConfig(options []HandlerOption) HandlerConfig {
 }
 
 func withMiddleware(interceptors []Middleware, target MiddlewareFunc) MiddlewareFunc {
-	chain := target
-	for idx := len(interceptors) - 1; idx >= 0; idx-- {
-		chain = interceptors[idx](chain)
-	}
-
-	return chain
+	return utils.BuildChain(interceptors, target)
 }

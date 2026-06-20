@@ -13,7 +13,7 @@ var andConditionPayloadSpec = payloadSingleKeyValue[[]any]{
 	valueSpec: payloadMustSucceed[[]any]{payloadList[any]{
 		itemSpec: payloadGeneric[any]{
 			jsonSchema: map[string]any{
-				"$ref": "#/definitions/condition",
+				schemaRef: refCondition,
 			},
 		},
 		description: "A condition that is satisfied if all conditions in a list are satisfied",
@@ -46,6 +46,7 @@ func (andCondition) compileCondition(ctx compilerContext) (condition, error) {
 					return false, nil
 				}
 			}
+
 			return true, nil
 		},
 	}, nil

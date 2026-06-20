@@ -21,14 +21,6 @@ func NewDateFromTime(t time.Time) Date {
 	}
 }
 
-func NewDateFromParts(year Year, month time.Month, day uint8) Date {
-	return Date{
-		Year:  year,
-		Month: month,
-		Day:   day,
-	}
-}
-
 func NewDateFromIsoString(str string) (Date, error) {
 	t, err := time.Parse("2006-01-02", str)
 	if err != nil {
@@ -65,7 +57,7 @@ func (d Date) IsValid() bool {
 		d.Day <= numDaysInMonth(d.Year, d.Month)
 }
 
-func (d *Date) Scan(value interface{}) error {
+func (d *Date) Scan(value any) error {
 	t, tOk := value.(time.Time)
 	if tOk {
 		if !t.IsZero() {
@@ -95,7 +87,7 @@ func (d Date) YearString() string {
 	return d.Time().Format("2006")
 }
 
-func (d *Date) UnmarshalGQL(v interface{}) error {
+func (d *Date) UnmarshalGQL(v any) error {
 	str, strOk := v.(string)
 	if !strOk {
 		return errors.New("must be a string")

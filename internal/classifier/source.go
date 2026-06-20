@@ -1,5 +1,7 @@
 package classifier
 
+import "maps"
+
 type Source struct {
 	Schema          string          `json:"$schema,omitempty" yaml:"$schema,omitempty"`
 	Workflows       workflowSources `json:"workflows"`
@@ -36,39 +38,27 @@ func (s Source) workflowNames() map[string]struct{} {
 type keywordGroups map[string][]string
 
 func (g keywordGroups) merge(other keywordGroups) keywordGroups {
-	result := make(keywordGroups)
-
-	for k, v := range g {
-		if _, ok := other[k]; ok {
-			result[k] = append(v, other[k]...)
-		} else {
-			result[k] = v
-		}
-	}
-
-	for k, v := range other {
-		if _, ok := result[k]; !ok {
-			result[k] = v
-		}
-	}
-
-	return result
+	return keywordGroups(mergeStringSliceMap(g, other))
 }
 
 type extensionGroups map[string][]string
 
 func (g extensionGroups) merge(other extensionGroups) extensionGroups {
-	result := make(extensionGroups)
+	return extensionGroups(mergeStringSliceMap(g, other))
+}
 
-	for k, v := range g {
-		if _, ok := other[k]; ok {
-			result[k] = append(v, other[k]...)
+func mergeStringSliceMap[K comparable](a, b map[K][]string) map[K][]string {
+	result := make(map[K][]string)
+
+	for k, v := range a {
+		if _, ok := b[k]; ok {
+			result[k] = append(v, b[k]...)
 		} else {
 			result[k] = v
 		}
 	}
 
-	for k, v := range other {
+	for k, v := range b {
 		if _, ok := result[k]; !ok {
 			result[k] = v
 		}
@@ -81,13 +71,9 @@ type workflowSources map[string]any
 
 func (s workflowSources) merge(other workflowSources) workflowSources {
 	result := make(workflowSources)
-	for k, v := range s {
-		result[k] = v
-	}
+	maps.Copy(result, s)
 
-	for k, v := range other {
-		result[k] = v
-	}
+	maps.Copy(result, other)
 
 	return result
 }

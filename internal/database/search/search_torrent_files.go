@@ -1,29 +1,57 @@
-package search
+package dbsearch
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/database/dao"
-	"github.com/bitmagnet-io/bitmagnet/internal/database/query"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/database/db"
+	search "github.com/hexsans/hexmagnet/internal/search"
 )
 
-type TorrentFilesResult = query.GenericResult[model.TorrentFile]
+func (s *pgSearch) TorrentFiles(ctx context.Context, params search.TorrentFilesSearchParams) (search.TorrentFilesResult, error) {
+	result := search.TorrentFilesResult{Items: []db.TorrentFile{}}
 
-type TorrentFilesSearch interface {
-	TorrentFiles(ctx context.Context, options ...query.Option) (TorrentFilesResult, error)
-}
+	limit := int32(params.Limit)
+	offset := int32(params.Offset)
 
-func (s search) TorrentFiles(ctx context.Context, options ...query.Option) (TorrentFilesResult, error) {
-	return query.GenericQuery[model.TorrentFile](
-		ctx,
-		s.q,
-		query.Options(append([]query.Option{query.SelectAll()}, options...)...),
-		model.TableNameTorrentFile,
-		func(ctx context.Context, q *dao.Query) query.SubQuery {
-			return query.GenericSubQuery[dao.ITorrentFileDo]{
-				SubQuery: q.TorrentFile.WithContext(ctx).ReadDB(),
-			}
-		},
-	)
+	if limit > 0 {
+		rows, err := s.q.ListTorrentFilesPaginated(ctx, db.ListTorrentFilesPaginatedParams{
+			InfoHash: params.InfoHash,
+			Limit:    limit,
+			Offset:   offset,
+		})
+		if err != nil {
+			return result, fmt.Errorf("query torrent files: %w", err)
+		}
+
+		result.Items = rows
+	} else {
+		rows, err := s.q.ListTorrentFiles(ctx, params.InfoHash)
+		if err != nil {
+			return result, fmt.Errorf("query torrent files: %w", err)
+		}
+
+		result.Items = rows
+	}
+
+	if params.TotalCount {
+		count, err := s.q.CountTorrentFiles(ctx, params.InfoHash)
+		if err != nil {
+			return result, fmt.Errorf("count torrent files: %w", err)
+		}
+
+		result.TotalCount = uint(count)
+	}
+
+	if params.HasNextPage && len(result.Items) > 0 {
+		nextExists, err := s.q.TorrentFileExists(ctx, db.TorrentFileExistsParams{
+			InfoHash: params.InfoHash,
+			Offset:   offset + int32(len(result.Items)),
+		})
+		if err == nil {
+			result.HasNextPage = nextExists
+		}
+	}
+
+	return result, nil
 }

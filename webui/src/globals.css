@@ -1,0 +1,290 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Geist Sans", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-green: var(--green);
+  --color-cyan: var(--cyan);
+  --color-amber: var(--amber);
+  --color-sky: var(--sky);
+  --color-violet: var(--violet);
+  --color-pink: var(--pink);
+  --color-emerald: var(--emerald);
+  --color-orange: var(--orange);
+  --color-fuchsia: var(--fuchsia);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.52 0.18 158);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --muted: oklch(0.94 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.52 0.18 158);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.94 0 0);
+  --ring: oklch(0.52 0.18 158);
+  --green: oklch(0.52 0.18 158);
+  --cyan: oklch(0.5 0.14 200);
+  --amber: oklch(0.52 0.16 75);
+  --sky: oklch(0.55 0.12 225);
+  --violet: oklch(0.48 0.14 280);
+  --pink: oklch(0.58 0.16 340);
+  --emerald: oklch(0.55 0.14 170);
+  --orange: oklch(0.6 0.14 50);
+  --fuchsia: oklch(0.55 0.18 310);
+  --radius: 0.375rem;
+  --chart-1: oklch(0.52 0.18 158);
+  --chart-2: oklch(0.5 0.14 200);
+  --chart-3: oklch(0.52 0.16 75);
+  --chart-4: oklch(0.55 0.22 25);
+  --chart-5: oklch(0.5 0.12 280);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: oklch(0.52 0.18 158);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.52 0.18 158);
+  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-ring: oklch(0.52 0.18 158);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.88 0 0);
+  --card: oklch(0.11 0 0);
+  --card-foreground: oklch(0.88 0 0);
+  --popover: oklch(0.11 0 0);
+  --popover-foreground: oklch(0.88 0 0);
+  --primary: oklch(0.72 0.19 158);
+  --primary-foreground: oklch(0.08 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.88 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: oklch(0.15 0 0);
+  --accent-foreground: oklch(0.72 0.19 158);
+  --destructive: oklch(0.62 0.22 25);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.15 0 0);
+  --ring: oklch(0.72 0.19 158);
+  --green: oklch(0.72 0.19 158);
+  --cyan: oklch(0.78 0.12 200);
+  --amber: oklch(0.78 0.14 75);
+  --sky: oklch(0.72 0.12 225);
+  --violet: oklch(0.65 0.14 280);
+  --pink: oklch(0.72 0.16 340);
+  --emerald: oklch(0.72 0.14 170);
+  --orange: oklch(0.75 0.14 50);
+  --fuchsia: oklch(0.72 0.18 310);
+  --radius: 0.375rem;
+  --chart-1: oklch(0.72 0.19 158);
+  --chart-2: oklch(0.78 0.12 200);
+  --chart-3: oklch(0.78 0.14 75);
+  --chart-4: oklch(0.62 0.22 25);
+  --chart-5: oklch(0.52 0.12 280);
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-foreground: oklch(0.88 0 0);
+  --sidebar-primary: oklch(0.72 0.19 158);
+  --sidebar-primary-foreground: oklch(0.08 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.72 0.19 158);
+  --sidebar-border: oklch(0.22 0 0);
+  --sidebar-ring: oklch(0.72 0.19 158);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .terminal-scanline {
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, oklch(0 0 0 / 0.03) 2px, oklch(0 0 0 / 0.03) 4px);
+  }
+
+  .text-green {
+    color: var(--green);
+  }
+  .text-cyan {
+    color: var(--cyan);
+  }
+  .text-amber {
+    color: var(--amber);
+  }
+
+  .hover\:text-green:hover {
+    color: var(--green);
+  }
+  .hover\:text-cyan:hover {
+    color: var(--cyan);
+  }
+  .hover\:text-amber:hover {
+    color: var(--amber);
+  }
+
+  .border-green {
+    border-color: var(--green);
+  }
+  .border-cyan {
+    border-color: var(--cyan);
+  }
+  .border-amber {
+    border-color: var(--amber);
+  }
+
+  .bg-green {
+    background-color: var(--green);
+  }
+  .bg-cyan {
+    background-color: var(--cyan);
+  }
+  .bg-amber {
+    background-color: var(--amber);
+  }
+
+  .bg-green\/10 {
+    background-color: color-mix(in oklch, var(--green) 10%, transparent);
+  }
+  .bg-green\/20 {
+    background-color: color-mix(in oklch, var(--green) 20%, transparent);
+  }
+  .bg-green\/30 {
+    background-color: color-mix(in oklch, var(--green) 30%, transparent);
+  }
+  .bg-cyan\/10 {
+    background-color: color-mix(in oklch, var(--cyan) 10%, transparent);
+  }
+  .bg-cyan\/20 {
+    background-color: color-mix(in oklch, var(--cyan) 20%, transparent);
+  }
+  .bg-amber\/10 {
+    background-color: color-mix(in oklch, var(--amber) 10%, transparent);
+  }
+
+  .text-sky {
+    color: var(--sky);
+  }
+  .text-violet {
+    color: var(--violet);
+  }
+  .text-pink {
+    color: var(--pink);
+  }
+  .text-emerald {
+    color: var(--emerald);
+  }
+  .text-orange {
+    color: var(--orange);
+  }
+  .text-fuchsia {
+    color: var(--fuchsia);
+  }
+
+  .bg-sky\/10 {
+    background-color: color-mix(in oklch, var(--sky) 10%, transparent);
+  }
+  .bg-violet\/10 {
+    background-color: color-mix(in oklch, var(--violet) 10%, transparent);
+  }
+  .bg-pink\/10 {
+    background-color: color-mix(in oklch, var(--pink) 10%, transparent);
+  }
+  .bg-emerald\/10 {
+    background-color: color-mix(in oklch, var(--emerald) 10%, transparent);
+  }
+  .bg-orange\/10 {
+    background-color: color-mix(in oklch, var(--orange) 10%, transparent);
+  }
+  .bg-fuchsia\/10 {
+    background-color: color-mix(in oklch, var(--fuchsia) 10%, transparent);
+  }
+
+  .border-sky\/30 {
+    border-color: color-mix(in oklch, var(--sky) 30%, transparent);
+  }
+  .border-violet\/30 {
+    border-color: color-mix(in oklch, var(--violet) 30%, transparent);
+  }
+  .border-pink\/30 {
+    border-color: color-mix(in oklch, var(--pink) 30%, transparent);
+  }
+  .border-emerald\/30 {
+    border-color: color-mix(in oklch, var(--emerald) 30%, transparent);
+  }
+  .border-orange\/30 {
+    border-color: color-mix(in oklch, var(--orange) 30%, transparent);
+  }
+  .border-fuchsia\/30 {
+    border-color: color-mix(in oklch, var(--fuchsia) 30%, transparent);
+  }
+
+  .hover\:bg-green\/30:hover {
+    background-color: color-mix(in oklch, var(--green) 30%, transparent);
+  }
+
+  .border-green\/40 {
+    border-color: color-mix(in oklch, var(--green) 40%, transparent);
+  }
+  .border-green\/50 {
+    border-color: color-mix(in oklch, var(--green) 50%, transparent);
+  }
+}

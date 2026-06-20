@@ -2,38 +2,19 @@ type Query {
   version: String!
   workers: WorkersQuery!
   health: HealthQuery!
-  queue: QueueQuery!
   torrent: TorrentQuery!
-  torrentContent: TorrentContentQuery!
+  torrentSearch: TorrentSearchQuery!
+  queue: QueueQuery!
+  reindexStatus: ReindexProgress!
 }
 
 type TorrentQuery {
   files(input: TorrentFilesQueryInput!): TorrentFilesQueryResult!
-  listSources: TorrentListSourcesResult!
-  suggestTags(input: SuggestTagsQueryInput): TorrentSuggestTagsResult!
   metrics(input: TorrentMetricsQueryInput!): TorrentMetricsQueryResult!
 }
 
-input SuggestTagsQueryInput {
-  prefix: String
-  exclusions: [String!]
-}
-
-type TorrentSuggestTagsResult {
-  suggestions: [SuggestedTag!]!
-}
-
-type TorrentListSourcesResult {
-  sources: [TorrentSource!]!
-}
-
-type SuggestedTag {
-  name: String!
-  count: Int!
-}
-
-type TorrentContentQuery {
-  search(input: TorrentContentSearchQueryInput!): TorrentContentSearchResult!
+type TorrentSearchQuery {
+  search(input: TorrentSearchQueryInput!): TorrentSearchResult!
 }
 
 type Worker {

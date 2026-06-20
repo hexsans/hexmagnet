@@ -19,7 +19,7 @@ func (r requesterLogger) Request(
 	result any,
 ) (*resty.Response, error) {
 	res, err := r.requester.Request(ctx, path, queryParams, result)
-	kvs := []interface{}{"path", path, "queryParams", queryParams}
+	kvs := []any{"path", path, "queryParams", queryParams}
 
 	if res != nil {
 		kvs = append(kvs, "status", res.Status(), "trace", res.Request.TraceInfo())

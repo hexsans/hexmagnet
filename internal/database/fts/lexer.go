@@ -2,16 +2,14 @@ package fts
 
 import (
 	"errors"
-
-	"github.com/bitmagnet-io/bitmagnet/internal/lexer"
 )
 
 func newLexer(str string) ftsLexer {
-	return ftsLexer{lexer.NewLexer(str)}
+	return ftsLexer{NewLexer(str)}
 }
 
 type ftsLexer struct {
-	lexer.Lexer
+	Lexer
 }
 
 func (l *ftsLexer) readQuotedString(quoteChar rune) (string, error) {

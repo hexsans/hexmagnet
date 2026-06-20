@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/netip"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
 
 type Client interface {

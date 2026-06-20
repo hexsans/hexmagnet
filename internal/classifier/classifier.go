@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protobuf"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type Compiler interface {
@@ -18,12 +16,13 @@ type Compiler interface {
 }
 
 type Runner interface {
-	Run(ctx context.Context, workflow string, flags Flags, t model.Torrent) (classification.Result, error)
+	Run(ctx context.Context, workflow string, flags Flags, t model.Torrent) (ClassificationResult, error)
 }
 
 type compiler struct {
-	options      []compilerOption
-	dependencies dependencies
+	options          []compilerOption
+	dependencies     dependencies
+	defaultLLMConfig LLMConfig
 }
 
 type compilerContext struct {
@@ -42,14 +41,14 @@ type executionContext struct {
 	flags     map[string]ref.Val
 	workflows map[string]action
 	torrent   model.Torrent
-	torrentPb *protobuf.Torrent
-	result    classification.Result
-	resultPb  *protobuf.Classification
+	torrentPb map[string]any
+	result    ClassificationResult
+	resultPb  map[string]any
 }
 
-func (c executionContext) withResult(result classification.Result) executionContext {
+func (c executionContext) withResult(result ClassificationResult) executionContext {
 	c.result = result
-	c.resultPb = protobuf.NewClassification(result)
+	c.resultPb = NewClassificationFromResult(result)
 
 	return c
 }
@@ -90,8 +89,8 @@ func (c compiler) Compile(source Source) (Runner, error) {
 		source:        source,
 		workflowNames: source.workflowNames(),
 	}
-	source, sourceErr := decode[Source](*ctx)
 
+	source, sourceErr := decode[Source](*ctx)
 	if sourceErr != nil {
 		return nil, ctx.fatal(sourceErr)
 	}
@@ -112,6 +111,26 @@ func (c compiler) Compile(source Source) (Runner, error) {
 		}
 
 		workflows[name] = a
+	}
+
+	llmCfg := c.defaultLLMConfig
+	c.dependencies.llmClient = nil
+
+	c.dependencies.llmEnabled = false
+	if llmCfg.IsActive() {
+		c.dependencies.llmClient = NewClient(llmCfg, c.dependencies.logger)
+		c.dependencies.llmEnabled = true
+	}
+
+	if c.dependencies.logger != nil {
+		if llmCfg.IsActive() {
+			c.dependencies.logger.Infow("llm classifier configured",
+				"endpoint", llmCfg.Endpoint,
+				"model", llmCfg.Model,
+			)
+		} else {
+			c.dependencies.logger.Info("llm classifier not configured, using rule-based classification only")
+		}
 	}
 
 	cfs := make(compiledFlags, len(source.FlagDefinitions))
@@ -149,6 +168,7 @@ func decodeTo[T any](ctx compilerContext, target *T) error {
 
 func decode[T any](ctx compilerContext) (T, error) {
 	var target T
+
 	err := decodeTo(ctx, &target)
 
 	return target, err
@@ -168,8 +188,7 @@ func (e compilerError) Unwrap() error {
 }
 
 func asCompilerError(err error) *compilerError {
-	ue := &compilerError{}
-	if ok := errors.As(err, ue); ok {
+	if ue, ok := errors.AsType[*compilerError](err); ok {
 		return ue
 	}
 
@@ -185,8 +204,7 @@ func (e fatalCompilerError) Unwrap() error {
 }
 
 func asFatalCompilerError(err error) *fatalCompilerError {
-	ue := &fatalCompilerError{}
-	if ok := errors.As(err, ue); ok {
+	if ue, ok := errors.AsType[*fatalCompilerError](err); ok {
 		return ue
 	}
 

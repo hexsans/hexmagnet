@@ -96,25 +96,8 @@ func (n *rootNode) Drop(id NodeID) bool {
 	return ok
 }
 
-func (n *rootNode) furthest(thresholdXor NodeID) (NodeID, bool) {
-	xor, ok := n.node.furthestXor()
-	if ok {
-		if xor.Bits().Cmp(thresholdXor.Bits()) <= 0 {
-			return nil, false
-		}
-
-		return xor.MustXor(n.origin), true
-	}
-
-	return nil, false
-}
-
 func (n *rootNode) Count() int {
 	return n.node.count()
-}
-
-func (n *rootNode) countCloserThan(id NodeID) int {
-	return n.node.countCloserThanSubpath(id.Bits())
 }
 
 func (n *rootNode) Closest(id NodeID, count int) []NodeID {
@@ -132,12 +115,9 @@ type iNode interface {
 	has(NodeID) bool
 	put(NodeID) (iNode, PutResult)
 	drop(NodeID) (iNode, bool)
-	furthestXor() (NodeID, bool)
 	allXors() []NodeID
-	any() bool
 	count() int
 	countCloserThanSubpath(Bits) int
-	countAtSubpath(Bits) int
 	xorsClosestToSubpath(Bits, int) []NodeID
 }
 
@@ -160,16 +140,8 @@ func (n emptyNode) drop(NodeID) (iNode, bool) {
 	return n, false
 }
 
-func (emptyNode) furthestXor() (NodeID, bool) {
-	return nil, false
-}
-
 func (emptyNode) allXors() []NodeID {
 	return nil
-}
-
-func (emptyNode) any() bool {
-	return false
 }
 
 func (emptyNode) count() int {
@@ -177,10 +149,6 @@ func (emptyNode) count() int {
 }
 
 func (emptyNode) countCloserThanSubpath(Bits) int {
-	return 0
-}
-
-func (emptyNode) countAtSubpath(Bits) int {
 	return 0
 }
 
@@ -245,16 +213,8 @@ func (n leafNode) drop(xor NodeID) (iNode, bool) {
 	return n, false
 }
 
-func (n leafNode) furthestXor() (NodeID, bool) {
-	return n.xor, true
-}
-
 func (n leafNode) allXors() []NodeID {
 	return []NodeID{n.xor}
-}
-
-func (leafNode) any() bool {
-	return true
 }
 
 func (leafNode) count() int {
@@ -264,16 +224,6 @@ func (leafNode) count() int {
 func (n leafNode) countCloserThanSubpath(path Bits) int {
 	for i, bit := range path {
 		if bit && !n.xor.GetBit(i+len(n.path)) {
-			return 0
-		}
-	}
-
-	return 1
-}
-
-func (n leafNode) countAtSubpath(path Bits) int {
-	for i, bit := range path {
-		if n.xor.GetBit(i+len(n.path)) != bit {
 			return 0
 		}
 	}
@@ -344,25 +294,15 @@ func (n branchNode) drop(xor NodeID) (iNode, bool) {
 	return n, ok
 }
 
-func (n branchNode) furthestXor() (NodeID, bool) {
-	xor, ok := n.branches[Bit1].furthestXor()
-	if ok {
-		return xor, true
-	}
-
-	return n.branches[Bit0].furthestXor()
-}
-
 func (n branchNode) allXors() []NodeID {
 	var xors []NodeID
+
+	xors = make([]NodeID, 0, n.counts[Bit0]+n.counts[Bit1])
+
 	xors = append(xors, n.branches[Bit0].allXors()...)
 	xors = append(xors, n.branches[Bit1].allXors()...)
 
 	return xors
-}
-
-func (n branchNode) any() bool {
-	return n.branches[Bit0].any() || n.branches[Bit1].any()
 }
 
 func (n branchNode) count() int {
@@ -388,14 +328,6 @@ func (n branchNode) countCloserThanSubpath(path Bits) int {
 	}
 
 	return n.counts[Bit0] + n.branches[Bit1].countCloserThanSubpath(path[1:])
-}
-
-func (n branchNode) countAtSubpath(path Bits) int {
-	if len(path) == 0 {
-		return n.count()
-	}
-
-	return n.branches[path[0]].countAtSubpath(path[1:])
 }
 
 func (n branchNode) xorsClosestToSubpath(path Bits, count int) []NodeID {

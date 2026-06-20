@@ -1,15 +1,13 @@
-$schema: "https://bitmagnet.io/schemas/classifier-0.1.json"
+$schema: "https://hexmagnet.local/schemas/classifier-0.1.json"
 workflows:
   default:
-    # delete torrents containing banned keywords:
-    - if_else:
-        condition: "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches(keywords.banned)"
-        if_action: delete
     # try to identify content type for torrents without a hinted content type:
     - if_else:
         condition: "result.contentType == contentType.unknown"
         if_action:
           find_match:
+            # try LLM first (falls back to rules on failure):
+            - llm_classify
             # match audiobooks:
             - if_else:
                 condition:
@@ -50,38 +48,30 @@ workflows:
                 if_action:
                   set_content_type: software
                 else_action: unmatched
-            # match xxx:
+            # match adult:
             - if_else:
                 condition:
                   and:
                     - "torrent.files.map(f, (f.extension in extensions.video || f.extension in extensions.image) ? f.size : - f.size).sum() > 0"
-                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches(keywords.xxx)"
+                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches(keywords.adult)"
                 if_action:
-                  set_content_type: xxx
+                  set_content_type: adult
                 else_action: unmatched
     # if the name contains a full date, attach it to the result as it's a good indicator of content type:
-    - find_match:
-        - parse_date
-    # if we know a content ID that isn't already attached, try to attach it, either from the local `content` table or an API integration:
+    - if_else:
+        condition: "result.date == 0"
+        if_action:
+          find_match:
+            - parse_date
+    # parse video-related attributes for video torrents (including the base title, needed for the next step):
+    # skip if LLM already extracted these attributes:
     - if_else:
         condition:
           and:
-            - "torrent.hasHintedContentId && !result.hasAttachedContent"
-            # we might as well save work by restricting this to content types that have an API integration:
-            - "result.contentType in [contentType.movie, contentType.tv_show, contentType.xxx]"
-        if_action:
-          find_match:
-            - attach_local_content_by_id
-            - if_else:
-                condition: "flags.apis_enabled && flags.tmdb_enabled"
-                if_action: attach_tmdb_content_by_id
-                else_action: unmatched
-    # parse video-related attributes for video torrents (including the base title, needed for the next step):
-    - if_else:
-        condition:
-          or:
-            - "result.contentType in [contentType.movie, contentType.tv_show]"
-            - "torrent.files.map(f, f.extension in extensions.video ? f.size : - f.size).sum() > 100*mb"
+            - "!result.hasBaseTitle"
+            - or:
+                - "result.contentType in [contentType.movie, contentType.tv_show]"
+                - "torrent.files.map(f, f.extension in extensions.video ? f.size : - f.size).sum() > 100*mb"
         if_action:
           find_match:
             # parse video-related attributes from the torrent name;
@@ -89,7 +79,7 @@ workflows:
             - parse_video_content
     # if content isn't already attached, and a base title has been parsed, then search for the content, either from the local `content` table or an API integration:
     - if_else:
-        condition: "!result.hasAttachedContent && result.hasBaseTitle"
+        condition: "!result.hasAttachedContent && result.hasBaseTitle && result.contentType in [contentType.movie, contentType.tv_show, contentType.other]"
         if_action:
           find_match:
             - if_else:
@@ -100,13 +90,7 @@ workflows:
                 condition: "flags.apis_enabled && flags.tmdb_enabled"
                 if_action: attach_tmdb_content_by_search
                 else_action: unmatched
-    # delete specific content types based on the configured flags:
-    - if_else:
-        condition:
-          or:
-            - "result.contentType in flags.delete_content_types"
-            - "flags.delete_xxx && result.contentType == contentType.xxx"
-        if_action: delete
+
 extensions:
   audio:
     - mp3
@@ -218,7 +202,7 @@ keywords:
     - reggae
     - rock
     - trance
-  xxx:
+  adult:
     - anal
     - ass
     - blowjobs?
@@ -246,34 +230,13 @@ keywords:
     - threesome
     - "*wank*"
     - "*xxx*"
-  banned:
-    - pa?edo(fil*|phil*)?
-    - preteen
-    - pthc
-    - ptsc
-    - lsbar
-    - lsm
-    - underage
-    - hebefilia
-    - opva
-    - child ?porn*
-    - child ?lover*
-    - porno ?child*
-    - kidd(y*|ie*) ?porn
-    - young ?video ?models
-    - childfugga
-    - kinderkutje
-    - yvm
-    - (#|10|11|12|13|14|15|16|17) ?y ?o
 flag_definitions:
   local_search_enabled: bool
   apis_enabled: bool
   tmdb_enabled: bool
-  delete_content_types: content_type_list
-  delete_xxx: bool
+  llm_enabled: bool
 flags:
   local_search_enabled: true
   apis_enabled: true
   tmdb_enabled: true
-  delete_content_types: []
-  delete_xxx: false
+  llm_enabled: true

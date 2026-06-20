@@ -1,12 +1,9 @@
 package model
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"io"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type Year uint16
@@ -30,7 +27,7 @@ func (y Year) IsNil() bool {
 	return y == 0
 }
 
-func (y *Year) Scan(src interface{}) error {
+func (y *Year) Scan(src any) error {
 	switch src := src.(type) {
 	case nil:
 		*y = 0
@@ -56,35 +53,19 @@ func (y *Year) Scan(src interface{}) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	return nil
 }
 
-func (y Year) Value() (interface{}, error) {
+func (y Year) Value() (any, error) {
 	if y.IsNil() {
 		//nolint:nilnil
 		return nil, nil
 	}
 
 	return int(y), nil
-}
-
-func (Year) GormDataType() string {
-	return "int"
-}
-
-func (y Year) GormValue(context.Context, *gorm.DB) clause.Expr {
-	if y.IsNil() {
-		return clause.Expr{
-			SQL: "NULL",
-		}
-	}
-
-	return clause.Expr{
-		SQL: y.String(),
-	}
 }
 
 func (y Year) MarshalGQL(w io.Writer) {
@@ -96,7 +77,7 @@ func (y Year) MarshalGQL(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "%d", y)
 }
 
-func (y *Year) UnmarshalGQL(v interface{}) error {
+func (y *Year) UnmarshalGQL(v any) error {
 	switch v := v.(type) {
 	case int:
 		*y = Year(v)
@@ -120,7 +101,7 @@ func (y *Year) UnmarshalGQL(v interface{}) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	return nil

@@ -3,17 +3,53 @@
 package gen
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/bitmagnet-io/bitmagnet/internal/metrics/queuemetrics"
-	"github.com/bitmagnet-io/bitmagnet/internal/metrics/torrentmetrics"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/metrics/queuemetrics"
+	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
+	"github.com/hexsans/hexmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
+
+type ActivityEntry struct {
+	ID      string    `json:"id"`
+	Type    string    `json:"type"`
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
+}
+
+type ClassifierConfig struct {
+	Concurrency   uint64              `json:"concurrency"`
+	Llm           LLMConfig           `json:"llm"`
+	TorrentFilter TorrentFilterConfig `json:"torrentFilter"`
+	Tmdb          TMDBConfig          `json:"tmdb"`
+}
+
+type ClassifierConfigInput struct {
+	Concurrency   graphql.Omittable[*uint64]                   `json:"concurrency,omitempty"`
+	Llm           graphql.Omittable[*LLMConfigInput]           `json:"llm,omitempty"`
+	TorrentFilter graphql.Omittable[*TorrentFilterConfigInput] `json:"torrentFilter,omitempty"`
+	Tmdb          graphql.Omittable[*TMDBConfigInput]          `json:"tmdb,omitempty"`
+}
+
+type Config struct {
+	Dht        DHTConfig        `json:"dht"`
+	Server     ServerConfig     `json:"server"`
+	Classifier ClassifierConfig `json:"classifier"`
+	Storage    StorageConfig    `json:"storage"`
+}
+
+type ConfigInput struct {
+	Dht        graphql.Omittable[*DHTConfigInput]        `json:"dht,omitempty"`
+	Server     graphql.Omittable[*ServerConfigInput]     `json:"server,omitempty"`
+	Classifier graphql.Omittable[*ClassifierConfigInput] `json:"classifier,omitempty"`
+	Storage    graphql.Omittable[*StorageConfigInput]    `json:"storage,omitempty"`
+}
 
 type ContentTypeAgg struct {
 	Value      *model.ContentType `json:"value,omitempty"`
@@ -27,17 +63,70 @@ type ContentTypeFacetInput struct {
 	Filter    graphql.Omittable[[]*model.ContentType] `json:"filter,omitempty"`
 }
 
-type GenreAgg struct {
-	Value      string `json:"value"`
-	Label      string `json:"label"`
-	Count      int    `json:"count"`
-	IsEstimate bool   `json:"isEstimate"`
+type DHTConfig struct {
+	Port                         uint64             `json:"port"`
+	Responder                    DHTResponderConfig `json:"responder"`
+	Requester                    DHTRequesterConfig `json:"requester"`
+	BootstrapNodes               []string           `json:"bootstrapNodes"`
+	ReseedBootstrapNodesInterval uint64             `json:"reseedBootstrapNodesInterval"`
 }
 
-type GenreFacetInput struct {
-	Aggregate graphql.Omittable[*bool]             `json:"aggregate,omitempty"`
-	Logic     graphql.Omittable[*model.FacetLogic] `json:"logic,omitempty"`
-	Filter    graphql.Omittable[[]string]          `json:"filter,omitempty"`
+type DHTConfigInput struct {
+	Port                         graphql.Omittable[*uint64]                  `json:"port,omitempty"`
+	Responder                    graphql.Omittable[*DHTResponderConfigInput] `json:"responder,omitempty"`
+	Requester                    graphql.Omittable[*DHTRequesterInput]       `json:"requester,omitempty"`
+	BootstrapNodes               graphql.Omittable[[]string]                 `json:"bootstrapNodes,omitempty"`
+	ReseedBootstrapNodesInterval graphql.Omittable[*uint64]                  `json:"reseedBootstrapNodesInterval,omitempty"`
+}
+
+type DHTRequesterConfig struct {
+	RequestLimit      uint64 `json:"requestLimit"`
+	RescrapeThreshold uint64 `json:"rescrapeThreshold"`
+	HashDiscoverLimit uint64 `json:"hashDiscoverLimit"`
+}
+
+type DHTRequesterInput struct {
+	RequestLimit      graphql.Omittable[*uint64] `json:"requestLimit,omitempty"`
+	RescrapeThreshold graphql.Omittable[*uint64] `json:"rescrapeThreshold,omitempty"`
+	HashDiscoverLimit graphql.Omittable[*uint64] `json:"hashDiscoverLimit,omitempty"`
+}
+
+type DHTResponderConfig struct {
+	Enabled         bool   `json:"enabled"`
+	GlobalRateLimit uint64 `json:"globalRateLimit"`
+	PerIPRateLimit  uint64 `json:"perIPRateLimit"`
+}
+
+type DHTResponderConfigInput struct {
+	Enabled         graphql.Omittable[*bool]   `json:"enabled,omitempty"`
+	GlobalRateLimit graphql.Omittable[*uint64] `json:"globalRateLimit,omitempty"`
+	PerIPRateLimit  graphql.Omittable[*uint64] `json:"perIPRateLimit,omitempty"`
+}
+
+type ElasticsearchConfig struct {
+	Addresses []string        `json:"addresses"`
+	Embedding EmbeddingConfig `json:"embedding"`
+}
+
+type ElasticsearchConfigInput struct {
+	Addresses graphql.Omittable[[]string]              `json:"addresses,omitempty"`
+	Embedding graphql.Omittable[*EmbeddingConfigInput] `json:"embedding,omitempty"`
+}
+
+type EmbeddingConfig struct {
+	Endpoint           string `json:"endpoint"`
+	Apikey             string `json:"apikey"`
+	Model              string `json:"model"`
+	Dimensions         int    `json:"dimensions"`
+	InstructionEnabled bool   `json:"instructionEnabled"`
+}
+
+type EmbeddingConfigInput struct {
+	Endpoint           graphql.Omittable[*string] `json:"endpoint,omitempty"`
+	Apikey             graphql.Omittable[*string] `json:"apikey,omitempty"`
+	Model              graphql.Omittable[*string] `json:"model,omitempty"`
+	Dimensions         graphql.Omittable[*int]    `json:"dimensions,omitempty"`
+	InstructionEnabled graphql.Omittable[*bool]   `json:"instructionEnabled,omitempty"`
 }
 
 type HealthCheck struct {
@@ -50,6 +139,38 @@ type HealthCheck struct {
 type HealthQuery struct {
 	Status HealthStatus  `json:"status"`
 	Checks []HealthCheck `json:"checks"`
+}
+
+type KafkaConfig struct {
+	Brokers []string `json:"brokers"`
+}
+
+type KafkaConfigInput struct {
+	Brokers graphql.Omittable[[]string] `json:"brokers,omitempty"`
+}
+
+type LLMConfig struct {
+	Endpoint        string  `json:"endpoint"`
+	APIKey          string  `json:"apiKey"`
+	Model           string  `json:"model"`
+	Timeout         int     `json:"timeout"`
+	MaxRetries      int     `json:"maxRetries"`
+	Temperature     float64 `json:"temperature"`
+	ReasoningEffort string  `json:"reasoningEffort"`
+	MaxFiles        int     `json:"maxFiles"`
+	Enabled         bool    `json:"enabled"`
+}
+
+type LLMConfigInput struct {
+	Endpoint        graphql.Omittable[*string]  `json:"endpoint,omitempty"`
+	APIKey          graphql.Omittable[*string]  `json:"apiKey,omitempty"`
+	Model           graphql.Omittable[*string]  `json:"model,omitempty"`
+	Timeout         graphql.Omittable[*int]     `json:"timeout,omitempty"`
+	MaxRetries      graphql.Omittable[*int]     `json:"maxRetries,omitempty"`
+	Temperature     graphql.Omittable[*float64] `json:"temperature,omitempty"`
+	ReasoningEffort graphql.Omittable[*string]  `json:"reasoningEffort,omitempty"`
+	MaxFiles        graphql.Omittable[*int]     `json:"maxFiles,omitempty"`
+	Enabled         graphql.Omittable[*bool]    `json:"enabled,omitempty"`
 }
 
 type LanguageAgg struct {
@@ -67,7 +188,52 @@ type LanguageFacetInput struct {
 type Mutation struct {
 }
 
+type PostgresConfig struct {
+	Host              string `json:"host"`
+	Username          string `json:"username"`
+	Port              uint64 `json:"port"`
+	Database          string `json:"database"`
+	Password          string `json:"password"`
+	SslMode           string `json:"sslMode"`
+	ConnectionTimeout uint64 `json:"connectionTimeout"`
+	SslCertPath       string `json:"sslCertPath"`
+	SslKeyPath        string `json:"sslKeyPath"`
+	SslRootCertPath   string `json:"sslRootCertPath"`
+	MaxConnections    uint64 `json:"maxConnections"`
+}
+
+type PostgresConfigInput struct {
+	Host              graphql.Omittable[*string] `json:"host,omitempty"`
+	Username          graphql.Omittable[*string] `json:"username,omitempty"`
+	Port              graphql.Omittable[*uint64] `json:"port,omitempty"`
+	Database          graphql.Omittable[*string] `json:"database,omitempty"`
+	Password          graphql.Omittable[*string] `json:"password,omitempty"`
+	SslMode           graphql.Omittable[*string] `json:"sslMode,omitempty"`
+	ConnectionTimeout graphql.Omittable[*uint64] `json:"connectionTimeout,omitempty"`
+	SslCertPath       graphql.Omittable[*string] `json:"sslCertPath,omitempty"`
+	SslKeyPath        graphql.Omittable[*string] `json:"sslKeyPath,omitempty"`
+	SslRootCertPath   graphql.Omittable[*string] `json:"sslRootCertPath,omitempty"`
+	MaxConnections    graphql.Omittable[*uint64] `json:"maxConnections,omitempty"`
+}
+
 type Query struct {
+}
+
+type QueueConfig struct {
+	Backend string      `json:"backend"`
+	Kafka   KafkaConfig `json:"kafka"`
+}
+
+type QueueConfigInput struct {
+	Backend graphql.Omittable[*string]           `json:"backend,omitempty"`
+	Kafka   graphql.Omittable[*KafkaConfigInput] `json:"kafka,omitempty"`
+}
+
+type QueueJob struct {
+	ID        string    `json:"id"`
+	Queue     string    `json:"queue"`
+	Payload   string    `json:"payload"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type QueueJobQueueAgg struct {
@@ -77,29 +243,12 @@ type QueueJobQueueAgg struct {
 }
 
 type QueueJobQueueFacetInput struct {
-	Aggregate graphql.Omittable[*bool]    `json:"aggregate,omitempty"`
-	Filter    graphql.Omittable[[]string] `json:"filter,omitempty"`
-}
-
-type QueueJobStatusAgg struct {
-	Value model.QueueJobStatus `json:"value"`
-	Label string               `json:"label"`
-	Count int                  `json:"count"`
-}
-
-type QueueJobStatusFacetInput struct {
-	Aggregate graphql.Omittable[*bool]                  `json:"aggregate,omitempty"`
-	Filter    graphql.Omittable[[]model.QueueJobStatus] `json:"filter,omitempty"`
+	Values []string         `json:"values"`
+	Logic  model.FacetLogic `json:"logic"`
 }
 
 type QueueJobsAggregations struct {
-	Queue  []QueueJobQueueAgg  `json:"queue,omitempty"`
-	Status []QueueJobStatusAgg `json:"status,omitempty"`
-}
-
-type QueueJobsFacetsInput struct {
-	Status graphql.Omittable[*QueueJobStatusFacetInput] `json:"status,omitempty"`
-	Queue  graphql.Omittable[*QueueJobQueueFacetInput]  `json:"queue,omitempty"`
+	Queue []QueueJobQueueAgg `json:"queue,omitempty"`
 }
 
 type QueueJobsOrderByInput struct {
@@ -107,16 +256,38 @@ type QueueJobsOrderByInput struct {
 	Descending graphql.Omittable[*bool] `json:"descending,omitempty"`
 }
 
+type QueueJobsQueryInput struct {
+	Queues  graphql.Omittable[*QueueJobQueueFacetInput] `json:"queues,omitempty"`
+	OrderBy graphql.Omittable[*QueueJobsOrderByInput]   `json:"orderBy,omitempty"`
+	Limit   graphql.Omittable[*int]                     `json:"limit,omitempty"`
+	Offset  graphql.Omittable[*int]                     `json:"offset,omitempty"`
+}
+
+type QueueJobsQueryResult struct {
+	TotalCount   int                   `json:"totalCount"`
+	HasNextPage  *bool                 `json:"hasNextPage,omitempty"`
+	Items        []QueueJob            `json:"items"`
+	Aggregations QueueJobsAggregations `json:"aggregations"`
+}
+
 type QueueMetricsQueryInput struct {
-	BucketDuration MetricsBucketDuration                     `json:"bucketDuration"`
-	Statuses       graphql.Omittable[[]model.QueueJobStatus] `json:"statuses,omitempty"`
-	Queues         graphql.Omittable[[]string]               `json:"queues,omitempty"`
-	StartTime      graphql.Omittable[*time.Time]             `json:"startTime,omitempty"`
-	EndTime        graphql.Omittable[*time.Time]             `json:"endTime,omitempty"`
+	BucketDuration MetricsBucketDuration               `json:"bucketDuration"`
+	Queues         graphql.Omittable[[]string]         `json:"queues,omitempty"`
+	Statuses       graphql.Omittable[[]QueueJobStatus] `json:"statuses,omitempty"`
+	StartTime      graphql.Omittable[*time.Time]       `json:"startTime,omitempty"`
+	EndTime        graphql.Omittable[*time.Time]       `json:"endTime,omitempty"`
 }
 
 type QueueMetricsQueryResult struct {
 	Buckets []queuemetrics.Bucket `json:"buckets"`
+}
+
+type ReindexProgress struct {
+	Total   int     `json:"total"`
+	Indexed int     `json:"indexed"`
+	Done    bool    `json:"done"`
+	Running bool    `json:"running"`
+	Error   *string `json:"error,omitempty"`
 }
 
 type ReleaseYearAgg struct {
@@ -131,38 +302,78 @@ type ReleaseYearFacetInput struct {
 	Filter    graphql.Omittable[[]*model.Year] `json:"filter,omitempty"`
 }
 
-type SuggestTagsQueryInput struct {
-	Prefix     graphql.Omittable[*string]  `json:"prefix,omitempty"`
-	Exclusions graphql.Omittable[[]string] `json:"exclusions,omitempty"`
+type SearchConfig struct {
+	Backend       string              `json:"backend"`
+	Elasticsearch ElasticsearchConfig `json:"elasticsearch"`
 }
 
-type TorrentContentAggregations struct {
-	ContentType     []ContentTypeAgg     `json:"contentType,omitempty"`
-	TorrentSource   []TorrentSourceAgg   `json:"torrentSource,omitempty"`
-	TorrentTag      []TorrentTagAgg      `json:"torrentTag,omitempty"`
-	TorrentFileType []TorrentFileTypeAgg `json:"torrentFileType,omitempty"`
-	Language        []LanguageAgg        `json:"language,omitempty"`
-	Genre           []GenreAgg           `json:"genre,omitempty"`
-	ReleaseYear     []ReleaseYearAgg     `json:"releaseYear,omitempty"`
-	VideoResolution []VideoResolutionAgg `json:"videoResolution,omitempty"`
-	VideoSource     []VideoSourceAgg     `json:"videoSource,omitempty"`
+type SearchConfigInput struct {
+	Backend       graphql.Omittable[*string]                   `json:"backend,omitempty"`
+	Elasticsearch graphql.Omittable[*ElasticsearchConfigInput] `json:"elasticsearch,omitempty"`
 }
 
-type TorrentContentFacetsInput struct {
-	ContentType     graphql.Omittable[*ContentTypeFacetInput]     `json:"contentType,omitempty"`
-	TorrentSource   graphql.Omittable[*TorrentSourceFacetInput]   `json:"torrentSource,omitempty"`
-	TorrentTag      graphql.Omittable[*TorrentTagFacetInput]      `json:"torrentTag,omitempty"`
-	TorrentFileType graphql.Omittable[*TorrentFileTypeFacetInput] `json:"torrentFileType,omitempty"`
-	Language        graphql.Omittable[*LanguageFacetInput]        `json:"language,omitempty"`
-	Genre           graphql.Omittable[*GenreFacetInput]           `json:"genre,omitempty"`
-	ReleaseYear     graphql.Omittable[*ReleaseYearFacetInput]     `json:"releaseYear,omitempty"`
-	VideoResolution graphql.Omittable[*VideoResolutionFacetInput] `json:"videoResolution,omitempty"`
-	VideoSource     graphql.Omittable[*VideoSourceFacetInput]     `json:"videoSource,omitempty"`
+type ServerConfig struct {
+	IP              string          `json:"ip"`
+	Port            uint64          `json:"port"`
+	Log             ServerLogConfig `json:"log"`
+	EmbedTrackers   []string        `json:"embedTrackers"`
+	TorrentFilePath string          `json:"torrentFilePath"`
 }
 
-type TorrentContentOrderByInput struct {
-	Field      TorrentContentOrderByField `json:"field"`
-	Descending graphql.Omittable[*bool]   `json:"descending,omitempty"`
+type ServerConfigInput struct {
+	IP              graphql.Omittable[*string]               `json:"ip,omitempty"`
+	Port            graphql.Omittable[*uint64]               `json:"port,omitempty"`
+	Log             graphql.Omittable[*ServerLogConfigInput] `json:"log,omitempty"`
+	EmbedTrackers   graphql.Omittable[[]string]              `json:"embedTrackers,omitempty"`
+	TorrentFilePath graphql.Omittable[*string]               `json:"torrentFilePath,omitempty"`
+}
+
+type ServerFileRotatorConfig struct {
+	Path       string `json:"path"`
+	MaxBackups uint64 `json:"maxBackups"`
+	Format     string `json:"format"`
+}
+
+type ServerFileRotatorConfigInput struct {
+	Path       graphql.Omittable[*string] `json:"path,omitempty"`
+	MaxBackups graphql.Omittable[*uint64] `json:"maxBackups,omitempty"`
+	Format     graphql.Omittable[*string] `json:"format,omitempty"`
+}
+
+type ServerLogConfig struct {
+	ConsoleLevel    string                  `json:"consoleLevel"`
+	FileOutputLevel string                  `json:"fileOutputLevel"`
+	FileRotator     ServerFileRotatorConfig `json:"fileRotator"`
+}
+
+type ServerLogConfigInput struct {
+	ConsoleLevel    graphql.Omittable[*string]                       `json:"consoleLevel,omitempty"`
+	FileOutputLevel graphql.Omittable[*string]                       `json:"fileOutputLevel,omitempty"`
+	FileRotator     graphql.Omittable[*ServerFileRotatorConfigInput] `json:"fileRotator,omitempty"`
+}
+
+type StorageConfig struct {
+	Postgres PostgresConfig `json:"postgres"`
+	Queue    QueueConfig    `json:"queue"`
+	Search   SearchConfig   `json:"search"`
+}
+
+type StorageConfigInput struct {
+	Postgres graphql.Omittable[*PostgresConfigInput] `json:"postgres,omitempty"`
+	Queue    graphql.Omittable[*QueueConfigInput]    `json:"queue,omitempty"`
+	Search   graphql.Omittable[*SearchConfigInput]   `json:"search,omitempty"`
+}
+
+type TMDBConfig struct {
+	Enabled     bool   `json:"enabled"`
+	AccessToken string `json:"accessToken"`
+	RateLimit   uint64 `json:"rateLimit"`
+}
+
+type TMDBConfigInput struct {
+	Enabled     graphql.Omittable[*bool]   `json:"enabled,omitempty"`
+	AccessToken graphql.Omittable[*string] `json:"accessToken,omitempty"`
+	RateLimit   graphql.Omittable[*uint64] `json:"rateLimit,omitempty"`
 }
 
 type TorrentFileTypeAgg struct {
@@ -183,13 +394,20 @@ type TorrentFilesOrderByInput struct {
 	Descending graphql.Omittable[*bool] `json:"descending,omitempty"`
 }
 
-type TorrentListSourcesResult struct {
-	Sources []model.TorrentSource `json:"sources"`
+type TorrentFilterConfig struct {
+	Mode             string   `json:"mode"`
+	TitlePatterns    []string `json:"titlePatterns"`
+	FilenamePatterns []string `json:"filenamePatterns"`
+}
+
+type TorrentFilterConfigInput struct {
+	Mode             graphql.Omittable[*string]  `json:"mode,omitempty"`
+	TitlePatterns    graphql.Omittable[[]string] `json:"titlePatterns,omitempty"`
+	FilenamePatterns graphql.Omittable[[]string] `json:"filenamePatterns,omitempty"`
 }
 
 type TorrentMetricsQueryInput struct {
 	BucketDuration MetricsBucketDuration         `json:"bucketDuration"`
-	Sources        graphql.Omittable[[]string]   `json:"sources,omitempty"`
 	StartTime      graphql.Omittable[*time.Time] `json:"startTime,omitempty"`
 	EndTime        graphql.Omittable[*time.Time] `json:"endTime,omitempty"`
 }
@@ -199,11 +417,30 @@ type TorrentMetricsQueryResult struct {
 }
 
 type TorrentReprocessInput struct {
-	InfoHashes          []protocol.ID              `json:"infoHashes"`
-	ClassifierRematch   graphql.Omittable[*bool]   `json:"classifierRematch,omitempty"`
-	ClassifierWorkflow  graphql.Omittable[*string] `json:"classifierWorkflow,omitempty"`
-	ApisDisabled        graphql.Omittable[*bool]   `json:"apisDisabled,omitempty"`
-	LocalSearchDisabled graphql.Omittable[*bool]   `json:"localSearchDisabled,omitempty"`
+	InfoHashes        []protocol.ID                         `json:"infoHashes"`
+	ClassifierRematch graphql.Omittable[*bool]              `json:"classifierRematch,omitempty"`
+	ContentType       graphql.Omittable[*model.ContentType] `json:"contentType,omitempty"`
+}
+
+type TorrentSearchAggregations struct {
+	ContentType     []ContentTypeAgg     `json:"contentType,omitempty"`
+	TorrentSource   []TorrentSourceAgg   `json:"torrentSource,omitempty"`
+	TorrentFileType []TorrentFileTypeAgg `json:"torrentFileType,omitempty"`
+	Language        []LanguageAgg        `json:"language,omitempty"`
+	ReleaseYear     []ReleaseYearAgg     `json:"releaseYear,omitempty"`
+}
+
+type TorrentSearchFacetsInput struct {
+	ContentType     graphql.Omittable[*ContentTypeFacetInput]     `json:"contentType,omitempty"`
+	TorrentSource   graphql.Omittable[*TorrentSourceFacetInput]   `json:"torrentSource,omitempty"`
+	TorrentFileType graphql.Omittable[*TorrentFileTypeFacetInput] `json:"torrentFileType,omitempty"`
+	Language        graphql.Omittable[*LanguageFacetInput]        `json:"language,omitempty"`
+	ReleaseYear     graphql.Omittable[*ReleaseYearFacetInput]     `json:"releaseYear,omitempty"`
+}
+
+type TorrentSearchOrderByInput struct {
+	Field     TorrentSearchOrderByField `json:"field"`
+	Direction SortDirection             `json:"direction"`
 }
 
 type TorrentSourceAgg struct {
@@ -217,43 +454,6 @@ type TorrentSourceFacetInput struct {
 	Aggregate graphql.Omittable[*bool]             `json:"aggregate,omitempty"`
 	Logic     graphql.Omittable[*model.FacetLogic] `json:"logic,omitempty"`
 	Filter    graphql.Omittable[[]string]          `json:"filter,omitempty"`
-}
-
-type TorrentTagAgg struct {
-	Value      string `json:"value"`
-	Label      string `json:"label"`
-	Count      int    `json:"count"`
-	IsEstimate bool   `json:"isEstimate"`
-}
-
-type TorrentTagFacetInput struct {
-	Aggregate graphql.Omittable[*bool]             `json:"aggregate,omitempty"`
-	Logic     graphql.Omittable[*model.FacetLogic] `json:"logic,omitempty"`
-	Filter    graphql.Omittable[[]string]          `json:"filter,omitempty"`
-}
-
-type VideoResolutionAgg struct {
-	Value      *model.VideoResolution `json:"value,omitempty"`
-	Label      string                 `json:"label"`
-	Count      int                    `json:"count"`
-	IsEstimate bool                   `json:"isEstimate"`
-}
-
-type VideoResolutionFacetInput struct {
-	Aggregate graphql.Omittable[*bool]                    `json:"aggregate,omitempty"`
-	Filter    graphql.Omittable[[]*model.VideoResolution] `json:"filter,omitempty"`
-}
-
-type VideoSourceAgg struct {
-	Value      *model.VideoSource `json:"value,omitempty"`
-	Label      string             `json:"label"`
-	Count      int                `json:"count"`
-	IsEstimate bool               `json:"isEstimate"`
-}
-
-type VideoSourceFacetInput struct {
-	Aggregate graphql.Omittable[*bool]                `json:"aggregate,omitempty"`
-	Filter    graphql.Omittable[[]*model.VideoSource] `json:"filter,omitempty"`
 }
 
 type Worker struct {
@@ -314,6 +514,20 @@ func (e HealthStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *HealthStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e HealthStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type MetricsBucketDuration string
 
 const (
@@ -357,11 +571,84 @@ func (e MetricsBucketDuration) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *MetricsBucketDuration) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MetricsBucketDuration) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type QueueJobStatus string
+
+const (
+	QueueJobStatusPending   QueueJobStatus = "pending"
+	QueueJobStatusProcessed QueueJobStatus = "processed"
+	QueueJobStatusFailed    QueueJobStatus = "failed"
+	QueueJobStatusRetry     QueueJobStatus = "retry"
+)
+
+var AllQueueJobStatus = []QueueJobStatus{
+	QueueJobStatusPending,
+	QueueJobStatusProcessed,
+	QueueJobStatusFailed,
+	QueueJobStatusRetry,
+}
+
+func (e QueueJobStatus) IsValid() bool {
+	switch e {
+	case QueueJobStatusPending, QueueJobStatusProcessed, QueueJobStatusFailed, QueueJobStatusRetry:
+		return true
+	}
+	return false
+}
+
+func (e QueueJobStatus) String() string {
+	return string(e)
+}
+
+func (e *QueueJobStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = QueueJobStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid QueueJobStatus", str)
+	}
+	return nil
+}
+
+func (e QueueJobStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *QueueJobStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e QueueJobStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type QueueJobsOrderByField string
 
 const (
-	QueueJobsOrderByFieldCreatedAt QueueJobsOrderByField = "created_at"
-	QueueJobsOrderByFieldRanAt     QueueJobsOrderByField = "ran_at"
+	QueueJobsOrderByFieldCreatedAt QueueJobsOrderByField = "createdAt"
+	QueueJobsOrderByFieldRanAt     QueueJobsOrderByField = "ranAt"
 	QueueJobsOrderByFieldPriority  QueueJobsOrderByField = "priority"
 )
 
@@ -400,23 +687,92 @@ func (e QueueJobsOrderByField) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *QueueJobsOrderByField) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e QueueJobsOrderByField) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type SortDirection string
+
+const (
+	SortDirectionAsc  SortDirection = "asc"
+	SortDirectionDesc SortDirection = "desc"
+)
+
+var AllSortDirection = []SortDirection{
+	SortDirectionAsc,
+	SortDirectionDesc,
+}
+
+func (e SortDirection) IsValid() bool {
+	switch e {
+	case SortDirectionAsc, SortDirectionDesc:
+		return true
+	}
+	return false
+}
+
+func (e SortDirection) String() string {
+	return string(e)
+}
+
+func (e *SortDirection) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SortDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SortDirection", str)
+	}
+	return nil
+}
+
+func (e SortDirection) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SortDirection) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SortDirection) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type TorrentContentOrderByField string
 
 const (
-	TorrentContentOrderByFieldRelevance   TorrentContentOrderByField = "relevance"
-	TorrentContentOrderByFieldPublishedAt TorrentContentOrderByField = "published_at"
-	TorrentContentOrderByFieldUpdatedAt   TorrentContentOrderByField = "updated_at"
-	TorrentContentOrderByFieldSize        TorrentContentOrderByField = "size"
-	TorrentContentOrderByFieldFilesCount  TorrentContentOrderByField = "files_count"
-	TorrentContentOrderByFieldSeeders     TorrentContentOrderByField = "seeders"
-	TorrentContentOrderByFieldLeechers    TorrentContentOrderByField = "leechers"
-	TorrentContentOrderByFieldName        TorrentContentOrderByField = "name"
-	TorrentContentOrderByFieldInfoHash    TorrentContentOrderByField = "info_hash"
+	TorrentContentOrderByFieldRelevance  TorrentContentOrderByField = "relevance"
+	TorrentContentOrderByFieldCreatedAt  TorrentContentOrderByField = "created_at"
+	TorrentContentOrderByFieldUpdatedAt  TorrentContentOrderByField = "updated_at"
+	TorrentContentOrderByFieldSize       TorrentContentOrderByField = "size"
+	TorrentContentOrderByFieldFilesCount TorrentContentOrderByField = "files_count"
+	TorrentContentOrderByFieldSeeders    TorrentContentOrderByField = "seeders"
+	TorrentContentOrderByFieldLeechers   TorrentContentOrderByField = "leechers"
+	TorrentContentOrderByFieldName       TorrentContentOrderByField = "name"
+	TorrentContentOrderByFieldInfoHash   TorrentContentOrderByField = "info_hash"
 )
 
 var AllTorrentContentOrderByField = []TorrentContentOrderByField{
 	TorrentContentOrderByFieldRelevance,
-	TorrentContentOrderByFieldPublishedAt,
+	TorrentContentOrderByFieldCreatedAt,
 	TorrentContentOrderByFieldUpdatedAt,
 	TorrentContentOrderByFieldSize,
 	TorrentContentOrderByFieldFilesCount,
@@ -428,7 +784,7 @@ var AllTorrentContentOrderByField = []TorrentContentOrderByField{
 
 func (e TorrentContentOrderByField) IsValid() bool {
 	switch e {
-	case TorrentContentOrderByFieldRelevance, TorrentContentOrderByFieldPublishedAt, TorrentContentOrderByFieldUpdatedAt, TorrentContentOrderByFieldSize, TorrentContentOrderByFieldFilesCount, TorrentContentOrderByFieldSeeders, TorrentContentOrderByFieldLeechers, TorrentContentOrderByFieldName, TorrentContentOrderByFieldInfoHash:
+	case TorrentContentOrderByFieldRelevance, TorrentContentOrderByFieldCreatedAt, TorrentContentOrderByFieldUpdatedAt, TorrentContentOrderByFieldSize, TorrentContentOrderByFieldFilesCount, TorrentContentOrderByFieldSeeders, TorrentContentOrderByFieldLeechers, TorrentContentOrderByFieldName, TorrentContentOrderByFieldInfoHash:
 		return true
 	}
 	return false
@@ -455,25 +811,37 @@ func (e TorrentContentOrderByField) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+func (e *TorrentContentOrderByField) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TorrentContentOrderByField) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type TorrentFilesOrderByField string
 
 const (
 	TorrentFilesOrderByFieldIndex     TorrentFilesOrderByField = "index"
-	TorrentFilesOrderByFieldPath      TorrentFilesOrderByField = "path"
 	TorrentFilesOrderByFieldExtension TorrentFilesOrderByField = "extension"
 	TorrentFilesOrderByFieldSize      TorrentFilesOrderByField = "size"
 )
 
 var AllTorrentFilesOrderByField = []TorrentFilesOrderByField{
 	TorrentFilesOrderByFieldIndex,
-	TorrentFilesOrderByFieldPath,
 	TorrentFilesOrderByFieldExtension,
 	TorrentFilesOrderByFieldSize,
 }
 
 func (e TorrentFilesOrderByField) IsValid() bool {
 	switch e {
-	case TorrentFilesOrderByFieldIndex, TorrentFilesOrderByFieldPath, TorrentFilesOrderByFieldExtension, TorrentFilesOrderByFieldSize:
+	case TorrentFilesOrderByFieldIndex, TorrentFilesOrderByFieldExtension, TorrentFilesOrderByFieldSize:
 		return true
 	}
 	return false
@@ -498,4 +866,87 @@ func (e *TorrentFilesOrderByField) UnmarshalGQL(v any) error {
 
 func (e TorrentFilesOrderByField) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TorrentFilesOrderByField) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TorrentFilesOrderByField) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TorrentSearchOrderByField string
+
+const (
+	TorrentSearchOrderByFieldRelevance  TorrentSearchOrderByField = "relevance"
+	TorrentSearchOrderByFieldCreatedAt  TorrentSearchOrderByField = "created_at"
+	TorrentSearchOrderByFieldUpdatedAt  TorrentSearchOrderByField = "updated_at"
+	TorrentSearchOrderByFieldSize       TorrentSearchOrderByField = "size"
+	TorrentSearchOrderByFieldFilesCount TorrentSearchOrderByField = "files_count"
+	TorrentSearchOrderByFieldSeeders    TorrentSearchOrderByField = "seeders"
+	TorrentSearchOrderByFieldLeechers   TorrentSearchOrderByField = "leechers"
+	TorrentSearchOrderByFieldName       TorrentSearchOrderByField = "name"
+	TorrentSearchOrderByFieldInfoHash   TorrentSearchOrderByField = "info_hash"
+)
+
+var AllTorrentSearchOrderByField = []TorrentSearchOrderByField{
+	TorrentSearchOrderByFieldRelevance,
+	TorrentSearchOrderByFieldCreatedAt,
+	TorrentSearchOrderByFieldUpdatedAt,
+	TorrentSearchOrderByFieldSize,
+	TorrentSearchOrderByFieldFilesCount,
+	TorrentSearchOrderByFieldSeeders,
+	TorrentSearchOrderByFieldLeechers,
+	TorrentSearchOrderByFieldName,
+	TorrentSearchOrderByFieldInfoHash,
+}
+
+func (e TorrentSearchOrderByField) IsValid() bool {
+	switch e {
+	case TorrentSearchOrderByFieldRelevance, TorrentSearchOrderByFieldCreatedAt, TorrentSearchOrderByFieldUpdatedAt, TorrentSearchOrderByFieldSize, TorrentSearchOrderByFieldFilesCount, TorrentSearchOrderByFieldSeeders, TorrentSearchOrderByFieldLeechers, TorrentSearchOrderByFieldName, TorrentSearchOrderByFieldInfoHash:
+		return true
+	}
+	return false
+}
+
+func (e TorrentSearchOrderByField) String() string {
+	return string(e)
+}
+
+func (e *TorrentSearchOrderByField) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TorrentSearchOrderByField(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TorrentSearchOrderByField", str)
+	}
+	return nil
+}
+
+func (e TorrentSearchOrderByField) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TorrentSearchOrderByField) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TorrentSearchOrderByField) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

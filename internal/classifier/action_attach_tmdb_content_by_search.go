@@ -1,8 +1,7 @@
 package classifier
 
 import (
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 const attachTmdbContentBySearchName = "attach_tmdb_content_by_search"
@@ -24,30 +23,33 @@ func (attachTmdbContentBySearchAction) compileAction(ctx compilerContext) (actio
 	}
 
 	return action{
-		run: func(ctx executionContext) (classification.Result, error) {
+		run: func(ctx executionContext) (ClassificationResult, error) {
 			cl := ctx.result
 			if !cl.BaseTitle.Valid {
-				return cl, classification.ErrUnmatched
+				return cl, ErrUnmatched
 			}
+
 			var content *model.Content
+
 			switch cl.ContentType.ContentType {
 			case model.ContentTypeTvShow:
 				result, searchErr := ctx.tmdbSearchTVShow(cl.BaseTitle.String, cl.Date.Year)
 				if searchErr != nil {
 					return cl, searchErr
 				}
+
 				content = &result
 			default:
-				if len(cl.Episodes) > 0 {
-					return cl, classification.ErrUnmatched
-				}
 				result, searchErr := ctx.tmdbSearchMovie(cl.BaseTitle.String, cl.Date.Year)
 				if searchErr != nil {
 					return cl, searchErr
 				}
+
 				content = &result
 			}
+
 			cl.AttachContent(content)
+
 			return cl, nil
 		},
 	}, nil

@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -18,7 +18,7 @@ type prometheusCollector struct {
 }
 
 const (
-	namespace = "bitmagnet"
+	namespace = "hexmagnet"
 	subsystem = "meta_info_requester"
 )
 

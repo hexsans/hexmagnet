@@ -2,8 +2,6 @@ package classifier
 
 import (
 	"fmt"
-
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
 )
 
 const runWorkflowName = "run_workflow"
@@ -19,7 +17,7 @@ var runWorkflowPayloadSpec = payloadSingleKeyValue[[]string]{
 	valueSpec: payloadMustSucceed[[]string]{
 		payloadList[string]{
 			itemSpec: payloadGeneric[string]{
-				jsonSchema: map[string]interface{}{
+				jsonSchema: map[string]any{
 					"type":      "string",
 					"minLength": 1,
 				},
@@ -42,8 +40,9 @@ func (runWorkflowAction) compileAction(ctx compilerContext) (action, error) {
 	}
 
 	return action{
-		func(ctx executionContext) (classification.Result, error) {
+		func(ctx executionContext) (ClassificationResult, error) {
 			var err error
+
 			cl := ctx.result
 			for _, name := range names {
 				cl, err = ctx.workflows[name].run(ctx.withResult(cl))
@@ -51,6 +50,7 @@ func (runWorkflowAction) compileAction(ctx compilerContext) (action, error) {
 					return cl, err
 				}
 			}
+
 			return cl, nil
 		},
 	}, nil

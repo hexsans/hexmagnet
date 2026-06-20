@@ -1,76 +1,147 @@
 package appfx
 
 import (
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cli"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cli/args"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cli/hooks"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cmd/classifiercmd"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cmd/configcmd"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cmd/processcmd"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cmd/reprocesscmd"
-	"github.com/bitmagnet-io/bitmagnet/internal/app/cmd/workercmd"
-	"github.com/bitmagnet-io/bitmagnet/internal/blocking/blockingfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classifierfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/config/configfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/database/databasefx"
-	"github.com/bitmagnet-io/bitmagnet/internal/database/migrations"
-	"github.com/bitmagnet-io/bitmagnet/internal/dhtcrawler/dhtcrawlerfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/gql/gqlfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/health/healthfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/httpserver/httpserverfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/importer/importerfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/logging/loggingfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/metrics/metricsfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/processor/processorfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/dhtfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo/metainfofx"
-	"github.com/bitmagnet-io/bitmagnet/internal/queue/queuefx"
-	"github.com/bitmagnet-io/bitmagnet/internal/telemetry/telemetryfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/tmdb/tmdbfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/torznab/torznabfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/validation/validationfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/version/versionfx"
-	"github.com/bitmagnet-io/bitmagnet/internal/webui"
-	"github.com/bitmagnet-io/bitmagnet/internal/worker/workerfx"
+	"github.com/hexsans/hexmagnet/internal/blocking"
+	"github.com/hexsans/hexmagnet/internal/classifier"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/configmgr"
+	"github.com/hexsans/hexmagnet/internal/database"
+	"github.com/hexsans/hexmagnet/internal/database/postgres"
+	"github.com/hexsans/hexmagnet/internal/dht/pipelinefx"
+	dhtcrawlerPkg "github.com/hexsans/hexmagnet/internal/dhtcrawler"
+	"github.com/hexsans/hexmagnet/internal/elasticsearch"
+	"github.com/hexsans/hexmagnet/internal/elasticsearch/elasticsearchfx"
+	"github.com/hexsans/hexmagnet/internal/gql/gqlfx"
+	"github.com/hexsans/hexmagnet/internal/health"
+	"github.com/hexsans/hexmagnet/internal/httpserver"
+	"github.com/hexsans/hexmagnet/internal/logging"
+	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
+	"github.com/hexsans/hexmagnet/internal/processor"
+	"github.com/hexsans/hexmagnet/internal/processor/enrich/indexer"
+	dhtPkg "github.com/hexsans/hexmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/dhtfx"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/responder"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/server"
+	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainfofx"
+	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
+	"github.com/hexsans/hexmagnet/internal/queue"
+	search "github.com/hexsans/hexmagnet/internal/search"
+	"github.com/hexsans/hexmagnet/internal/search/searchfx"
+	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/telemetry"
+	"github.com/hexsans/hexmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/torrent"
+	"github.com/hexsans/hexmagnet/internal/torrentstore"
+	"github.com/hexsans/hexmagnet/internal/utils"
+	"github.com/hexsans/hexmagnet/internal/version"
+	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
+	"golang.org/x/time/rate"
 )
 
-func New() fx.Option {
+func New(queueCfg queue.Config) fx.Option {
 	return fx.Module(
 		"app",
-		blockingfx.New(),
-		classifierfx.New(),
-		configfx.New(),
-		dhtcrawlerfx.New(),
+		blocking.NewModule(),
+		classifier.NewModule(),
+		dhtcrawlerPkg.NewModule(),
 		dhtfx.New(),
-		databasefx.New(),
-		gqlfx.New(),
-		healthfx.New(),
-		httpserverfx.New(),
-		importerfx.New(),
-		loggingfx.New(),
-		metainfofx.New(),
-		metricsfx.New(),
-		processorfx.New(),
-		queuefx.New(),
-		telemetryfx.New(),
-		tmdbfx.New(),
-		torznabfx.New(),
-		validationfx.New(),
-		versionfx.New(),
-		workerfx.New(),
+		pipelinefx.New(),
+		database.NewModule(),
+		servercfg.NewModule(),
+		elasticsearchfx.New(),
+		torrentstore.NewModule(),
 		fx.Provide(
-			args.New,
-			cli.New,
-			hooks.New,
-			// cli commands:
-			classifiercmd.New,
-			configcmd.New,
-			reprocesscmd.New,
-			processcmd.New,
-			workercmd.New,
+			func(cfg dhtPkg.Config) pipelinefx.Config {
+				return pipelinefx.Config{
+					Port:                         cfg.Port,
+					Responder:                    pipelinefx.ResponderConfig(cfg.Responder),
+					BootstrapNodes:               cfg.BootstrapNodes,
+					ReseedBootstrapNodesInterval: cfg.ReseedBootstrapNodesInterval,
+				}
+			},
+			func(cfg indexer.SearchConfig) elasticsearch.Config {
+				return cfg.Elasticsearch
+			},
+			func(c pipelinefx.Config) server.Config {
+				return server.Config{
+					Port:             c.Port,
+					ResponderEnabled: c.Responder.Enabled,
+				}
+			},
+			func(c pipelinefx.Config) responder.Config {
+				return responder.Config{
+					GlobalRateLimit: c.Responder.GlobalRateLimit,
+					PerIPRateLimit:  c.Responder.PerIPRateLimit,
+				}
+			},
+			func(c pipelinefx.Config, req metainforequester.Config, srv servercfg.Config) dhtcrawlerPkg.Config {
+				return dhtcrawlerPkg.Config{
+					BootstrapNodes:               c.BootstrapNodes,
+					ReseedBootstrapNodesInterval: c.ReseedBootstrapNodesInterval,
+					RescrapeThreshold:            req.RescrapeThreshold,
+					HashDiscoverLimit:            req.HashDiscoverLimit,
+					EmbedTrackers:                srv.EmbedTrackers,
+				}
+			},
+			fx.Annotated{
+				Name: "global_request_limiter",
+				Target: func(req metainforequester.Config) *rate.Limiter {
+					if req.RequestLimit <= 0 {
+						return nil
+					}
+
+					return rate.NewLimiter(rate.Limit(req.RequestLimit), req.RequestLimit)
+				},
+			},
+			indexer.NewConfigNotifier,
+			indexer.NewReindexTracker,
 		),
-		fx.Provide(webui.New),
-		fx.Decorate(migrations.NewDecorator),
+		fx.Provide(newConfigManager),
+		fx.Provide(searchfx.New),
+		fx.Provide(func(r *search.Runtime) *concurrency.AtomicValue[indexer.SearchConfig] {
+			return r.SearchConfig
+		}),
+		fx.Invoke(func(s utils.Lazy[search.Search]) {
+			_, _ = s.Get()
+		}),
+		gqlfx.New(),
+		health.NewModule(),
+		httpserver.NewModule(),
+		logging.NewModule(),
+		metainfofx.New(),
+		fx.Provide(torrentmetrics.New),
+		processor.NewProcessorFxModule(),
+		queue.NewModule(queueCfg),
+		telemetry.NewModule(),
+		tmdb.NewModule(),
+		torrent.NewModule(),
+
+		version.NewModule(),
+		worker.NewModule(),
+		fx.Provide(httpserver.NewWebUI),
 	)
+}
+
+func newConfigManager(
+	serverCfg servercfg.Config,
+	dhtCfg dhtPkg.Config,
+	classifierCfg classifier.Config,
+	postgresCfg postgres.Config,
+	searchCfg indexer.SearchConfig,
+	queueCfg queue.Config,
+	dhtRequesterCfg metainforequester.Config,
+) *configmgr.Manager {
+	initial := &configmgr.Snapshot{
+		DHTRequester: dhtRequesterCfg,
+		DHT:          dhtCfg,
+		Server:       serverCfg,
+		Classifier:   classifierCfg,
+		Postgres:     postgresCfg,
+		Queue:        queueCfg,
+		Search:       searchCfg,
+	}
+
+	return configmgr.NewManager(initial, "./hexmagnet.yaml",
+		configmgr.WriteSnapshotToYAML, nil)
 }

@@ -23,11 +23,6 @@ jobs:
       - name: Run webui lint and typecheck
         run: cd webui && npm ci --prefer-offline && npm run lint && npm run typecheck
 
-      - name: Create dummy webui dist
-        run: |
-          mkdir -p webui/dist
-          touch webui/dist/index.html
-
       - name: Run golangci lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -43,10 +38,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run tests
-        run: |
-          mkdir -p webui/dist
-          touch webui/dist/index.html
-          go test -count=1 -timeout 180s -v ./internal/...
+        run: go test -count=1 -timeout 180s -v ./internal/...
 
   # Generate code and build again
   build:

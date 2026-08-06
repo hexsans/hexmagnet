@@ -44,3 +44,4 @@ testem.log
 Thumbs.db
 .testing
 webui/dist
+webui/tsconfig.tsbuildinfo

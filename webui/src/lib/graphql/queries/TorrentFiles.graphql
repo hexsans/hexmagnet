@@ -1,0 +1,14 @@
+query TorrentFiles($input: TorrentFilesQueryInput!) {
+  torrent {
+    files(input: $input) {
+      items {
+        infoHash
+        index
+        pathParts
+        size
+        fileType
+      }
+      totalCount
+    }
+  }
+}

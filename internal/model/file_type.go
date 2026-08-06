@@ -1,10 +1,5 @@
 package model
 
-import (
-	"sort"
-	"strings"
-)
-
 // FileType represents the general type of a file
 /* ENUM(
   archive,
@@ -111,33 +106,6 @@ var extensionToFileTypeMap = map[string]FileType{
 	"mpeg": FileTypeVideo,
 	"ts":   FileTypeVideo,
 	"vob":  FileTypeVideo,
-}
-
-var fileTypeToExtensionsMap map[FileType][]string
-
-func init() {
-	m := make(map[FileType][]string)
-	for ext, ft := range extensionToFileTypeMap {
-		if _, ok := m[ft]; !ok {
-			m[ft] = make([]string, 0)
-		}
-
-		m[ft] = append(m[ft], ext)
-	}
-
-	for ft := range m {
-		sort.Strings(m[ft])
-	}
-
-	fileTypeToExtensionsMap = m
-}
-
-func (ft FileType) Extensions() []string {
-	return fileTypeToExtensionsMap[ft]
-}
-
-func (ft FileType) Label() string {
-	return strings.ToUpper(string(ft[0])) + string(ft[1:])
 }
 
 func FileTypeFromExtension(ext string) NullFileType {

@@ -12,76 +12,60 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install web UI
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Run webui lint and typecheck
+        run: cd webui && npm ci --prefer-offline && npm run lint && npm run typecheck
+
+      - name: Create dummy webui dist
         run: |
-          nix develop --ignore-environment --command task install-webui
-      - name: Run linters
-        run: |
-          nix develop --ignore-environment --keep HOME . --command task lint
-      # Adding golang-ci lint as a separate step as the Nix package is currently broken
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+          mkdir -p webui/dist
+          touch webui/dist/index.html
+
+      - name: Run golangci lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.1.6
+          version: v2.12
           args: --timeout=10m
 
   test:
-    # The Ubuntu image has been downgraded and pinned for the `test` and `generated` jobs as they are broken on 24.04
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install web UI
-        run: |
-          nix develop --ignore-environment --command task install-webui
+          go-version-file: go.mod
       - name: Run tests
         run: |
-          nix develop --ignore-environment --keep HOME . --command task test
+          mkdir -p webui/dist
+          touch webui/dist/index.html
+          go test -count=1 -timeout 180s -v ./internal/...
 
-  # This job runs all code generations and builds the WebUI, to check that everything is correctly committed
-  generated:
-    runs-on: ubuntu-22.04
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres:16-alpine
-        # Provide the password for postgres
-        env:
-          PGUSER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: bitmagnet
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+  # Generate code and build again
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install web UI, apply database migrations, generate code, extract translations and build web app
-        run: |
-          nix develop --ignore-environment --command task install-webui
-          nix develop --ignore-environment --keep HOME --keep POSTGRES_PASSWORD . --command task migrate
-          nix develop --ignore-environment --keep HOME --keep POSTGRES_PASSWORD . --command task gen
-          nix develop --ignore-environment --keep HOME . --command go fmt ./...
-          nix develop --ignore-environment . --command task i18n-extract
-          nix develop --ignore-environment . --command task build-webui
-        env:
-          POSTGRES_PASSWORD: postgres
-      - name: Check nothing changed
-        # excluding the 3rdpartylicenses file in a horrible hack:
-        run: git diff --exit-code -- . ':(exclude)webui/dist/bitmagnet/3rdpartylicenses.txt'
+          go-version-file: go.mod
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: webui/package-lock.json
+      - name: Install webui dependencies
+        run: cd webui && npm ci --prefer-offline
+      - name: Build web app
+        run: make gen-webui-graphql && make build-webui
+      - name: Build golang app
+        run: make gen-go gen-schema gen-sqlc gen-gql-enums gen-gql && make build-go
+

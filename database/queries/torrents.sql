@@ -1,0 +1,47 @@
+-- name: GetTorrent :one
+SELECT * FROM torrents WHERE info_hash = $1;
+
+-- name: ListTorrentsByInfoHashes :many
+SELECT * FROM torrents WHERE info_hash = ANY($1::text[]);
+
+-- name: ListTorrentsPaginated :many
+SELECT * FROM torrents ORDER BY created_at LIMIT $1 OFFSET $2;
+
+-- name: CountTorrents :one
+SELECT COUNT(*) FROM torrents;
+
+-- name: CountTorrentsBefore :one
+SELECT COUNT(*) FROM torrents WHERE created_at <= $1::timestamptz;
+
+-- name: ListTorrentsPaginatedBefore :many
+SELECT * FROM torrents WHERE created_at <= $1::timestamptz ORDER BY created_at LIMIT $2 OFFSET $3;
+
+-- name: UpsertTorrent :exec
+INSERT INTO torrents (info_hash, name, size, private, files_count, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+ON CONFLICT (info_hash) DO UPDATE SET
+  name = EXCLUDED.name,
+  size = EXCLUDED.size,
+  private = EXCLUDED.private,
+  files_count = EXCLUDED.files_count,
+  updated_at = NOW();
+
+-- name: UpdateTorrentContent :exec
+UPDATE torrents SET
+  content_type = $2,
+  content_source = $3,
+  content_id = $4,
+  languages = $5,
+  tsv = $6,
+  updated_at = NOW()
+WHERE info_hash = $1;
+
+-- name: UpdateTorrentSeeders :exec
+UPDATE torrents SET
+  seeders = GREATEST(torrents.seeders, $2),
+  leechers = GREATEST(torrents.leechers, $3),
+  updated_at = NOW()
+WHERE info_hash = $1;
+
+-- name: DeleteTorrent :exec
+DELETE FROM torrents WHERE info_hash = $1;

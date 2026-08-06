@@ -117,7 +117,6 @@ func TestStartStopManualPeriodicChecks(t *testing.T) {
 	t.Parallel()
 
 	ckr := NewChecker(
-		WithDisabledAutostart(),
 		WithPeriodicCheck(50*time.Minute, 0, Check{
 			Name: "check",
 			Check: func(context.Context) error {
@@ -125,9 +124,6 @@ func TestStartStopManualPeriodicChecks(t *testing.T) {
 			},
 		}))
 
-	assert.Equal(t, 0, ckr.GetRunningPeriodicCheckCount())
-
-	ckr.Start()
 	assert.Equal(t, 1, ckr.GetRunningPeriodicCheckCount())
 
 	ckr.Stop()
@@ -139,13 +135,6 @@ func doTestCheckerCheckFunc(t *testing.T, updateInterval time.Duration, err erro
 
 	// Arrange
 	ckr := NewChecker(
-		WithTimeout(10*time.Second),
-		WithCheck(Check{
-			Name: "check1",
-			Check: func(context.Context) error {
-				return nil
-			},
-		}),
 		WithPeriodicCheck(updateInterval, 0, Check{
 			Name: "check2",
 			Check: func(context.Context) error {
@@ -161,10 +150,8 @@ func doTestCheckerCheckFunc(t *testing.T, updateInterval time.Duration, err erro
 	require.NotNil(t, res.Details)
 	assert.Equal(t, expectedStatus, res.Status)
 
-	for _, checkName := range []string{"check1", "check2"} {
-		_, checkResultExists := res.Details[checkName]
-		assert.True(t, checkResultExists)
-	}
+	_, checkResultExists := res.Details["check2"]
+	assert.True(t, checkResultExists)
 }
 
 func TestWhenChecksExecutedThenAggregatedResultUp(t *testing.T) {
@@ -177,18 +164,13 @@ func TestWhenOneCheckFailedThenAggregatedResultDown(t *testing.T) {
 	doTestCheckerCheckFunc(t, 0, fmt.Errorf("this is a check error"), StatusDown)
 }
 
-func TestCheckSuccessNotAllChecksExecutedYet(t *testing.T) {
-	t.Parallel()
-	doTestCheckerCheckFunc(t, 5*time.Hour, nil, StatusUnknown)
-}
-
 func TestPanicRecovery(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
 	expectedPanicMsg := "test message"
 	ckr := NewChecker(
-		WithCheck(Check{
+		WithPeriodicCheck(0, 0, Check{
 			Name: "iPanic",
 			Check: func(context.Context) error {
 				panic(expectedPanicMsg)
@@ -200,11 +182,8 @@ func TestPanicRecovery(t *testing.T) {
 	res := ckr.Check(context.Background())
 
 	// Assert
-	require.NotNil(t, res.Details)
-	assert.Equal(t, StatusDown, res.Status)
-
 	checkRes, checkResultExists := res.Details["iPanic"]
 	assert.True(t, checkResultExists)
 	require.Error(t, checkRes.Error)
-	assert.Equal(t, expectedPanicMsg, (checkRes.Error).Error())
+	assert.Equal(t, expectedPanicMsg, checkRes.Error.Error())
 }

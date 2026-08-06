@@ -3,8 +3,8 @@ package banning
 import (
 	"errors"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo"
-	"github.com/bitmagnet-io/bitmagnet/internal/slice"
+	"github.com/hexsans/hexmagnet/internal/protocol/metainfo"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/fx"
 )
 
@@ -25,6 +25,7 @@ func New(p Params) Result {
 		nameLengthChecker{min: 8},
 		sizeChecker{min: 1024},
 		utf8Checker{},
+		contentChecker{},
 	)
 
 	return Result{
@@ -43,7 +44,7 @@ type combinedChecker struct {
 }
 
 func (c combinedChecker) Check(info metainfo.Info) error {
-	return errors.Join(slice.Map(c.checkers, func(checker Checker) error {
+	return errors.Join(utils.Map(c.checkers, func(checker Checker) error {
 		return checker.Check(info)
 	})...)
 }

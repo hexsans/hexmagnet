@@ -3,11 +3,10 @@ package classifier
 import (
 	"fmt"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protobuf"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type flagDefinitions map[string]FlagType
@@ -103,7 +102,7 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 		}
 	case FlagTypeContentTypeList:
 		if sliceVal, ok := rawVal.([]any); ok {
-			celVal := make([]protobuf.Classification_ContentType, len(sliceVal))
+			celVal := make([]int32, len(sliceVal))
 
 			for i, v := range sliceVal {
 				strVal, ok := v.(string)
@@ -113,7 +112,7 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 
 				var ct model.NullContentType
 
-				if strVal != "unknown" {
+				if strVal != contentTypeUnknown {
 					parsed, parseErr := model.ParseContentType(strVal)
 					if parseErr != nil {
 						return nil, fmt.Errorf(
@@ -126,7 +125,7 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 					ct = model.NewNullContentType(parsed)
 				}
 
-				celVal[i] = protobuf.NewContentType(ct)
+				celVal[i] = ContentTypeToInt(ct)
 			}
 
 			return types.NewDynamicList(types.DefaultTypeAdapter, celVal), nil

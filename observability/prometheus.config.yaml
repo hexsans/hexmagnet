@@ -4,9 +4,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: bitmagnet
+  - job_name: hexmagnet
     static_configs:
-      - targets: ["bitmagnet:3333"]
+      - targets: ["hexmagnet:3333"]
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter:9187"]

@@ -1,45 +1,35 @@
+project_name: hexmagnet
+version: 2
+
 before:
   hooks:
     - go mod tidy
+    - npm ci --prefix webui
+    - npm run build --prefix webui
 
 builds:
-  - id: bitmagnet
+  - id: hexmagnet
     env:
       - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-      - darwin
-      - freebsd
-    goarch:
-      - amd64
-      - arm
-      - arm64
-    goarm:
-      - 6
-    ignore:
-      - goos: windows
-        goarch: arm
-      - goos: windows
-        goarch: arm64
-      - goos: darwin
-        goarch: arm
-      - goos: freebsd
-        goarch: arm
-      - goos: freebsd
-        goarch: arm64
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
     main: ./main.go
-    binary: bitmagnet
+    binary: hexmagnet
     ldflags:
-      - "-s -w -X github.com/bitmagnet-io/bitmagnet/internal/version.GitTag={{.Version}}"
+      - "-s -w -X github.com/hexsans/hexmagnet/internal/version.GitTag={{.Version}}"
 
 archives:
-  - id: bitmagnet
-    builds:
-      - bitmagnet
+  - id: hexmagnet
+    ids:
+      - hexmagnet
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -48,48 +38,35 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
 
 release:
-  prerelease: auto
+  draft: true
+  mode: append
   footer: |
-    **Full Changelog**: https://github.com/bitmagnet-io/bitmagnet/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/hexsans/hexmagnet/compare/{{ .PreviousTag }}...{{ .Tag }}
 
     ## Docker images
 
-    - `docker pull ghcr.io/bitmagnet-io/bitmagnet:{{ .Tag }}`
-
-    ## What to do next?
-
-    - Read the [documentation](https://bitmagnet.io)
-    - Join our [Discord server](https://discord.gg/6mFNszX8qM)
+    - `docker pull ghcr.io/hexsans/hexmagnet:{{ .Tag }}`
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
 changelog:
-  sort: asc
   use: github
+  sort: "" # left empty for use the same order of output of `git log`
   filters:
     exclude:
       - Merge pull request
       - Merge remote-tracking branch
       - Merge branch
   groups:
-    - title: "New Features"
-      regexp: "^.*feat[(\\w)]*:+.*$"
-      order: 0
-    - title: "Bug fixes"
-      regexp: "^.*fix[(\\w)]*:+.*$"
-      order: 10
-    - title: Other work
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 000
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: Refactors
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: Others
       order: 999
-
-nfpms:
-  - package_name: bitmagnet
-    homepage: https://bitmagnet.io
-    maintainer: bitmagnet <packages@bitmagnet.io>
-    description: |-
-      bitmagnet is a self-hosted BitTorrent indexer.
-    formats:
-      - apk
-      - deb
-      - rpm
-      - archlinux

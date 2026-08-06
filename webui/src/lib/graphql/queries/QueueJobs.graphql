@@ -1,0 +1,20 @@
+query QueueJobs($input: QueueJobsQueryInput!) {
+  queue {
+    jobs(input: $input) {
+      totalCount
+      hasNextPage
+      items {
+        id
+        queue
+        payload
+      }
+      aggregations {
+        queue {
+          value
+          label
+          count
+        }
+      }
+    }
+  }
+}

@@ -4,18 +4,12 @@ fragment Torrent on Torrent {
   infoHash
   name
   size
-  filesStatus
   filesCount
   hasFilesInfo
   singleFile
   fileType
-  sources {
-    key
-    name
-  }
   seeders
   leechers
-  tagNames
   magnetUri
   createdAt
   updatedAt

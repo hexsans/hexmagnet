@@ -8,18 +8,19 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hexsans/hexmagnet/internal/servercfg"
 )
 
+const defaultBaseName = "hexmagnet"
+
 func newFileRotator(
-	config FileRotatorConfig,
+	config servercfg.FileRotatorConfig,
 ) *fileRotator {
 	return &fileRotator{
 		path:       config.Path,
-		baseName:   config.BaseName,
-		maxAge:     config.MaxAge,
-		maxSize:    config.MaxSize,
+		baseName:   defaultBaseName,
 		maxBackups: config.MaxBackups,
-		bufferSize: config.BufferSize,
 	}
 }
 
@@ -28,12 +29,8 @@ type fileRotator struct {
 	path        string
 	pathCreated bool
 	baseName    string
-	maxAge      time.Duration
-	maxSize     int
 	maxBackups  int
-	bufferSize  int
-	size        int
-	nextTime    time.Time
+	fileDate    string
 	file        *fileRotatorFile
 	closed      bool
 }
@@ -55,18 +52,11 @@ func (r *fileRotator) Write(output []byte) (int, error) {
 		r.pathCreated = true
 	}
 
-	if err := r.checkRotate(len(output)); err != nil {
+	if err := r.checkRotate(); err != nil {
 		return 0, err
 	}
 
-	n, err := r.file.Write(output)
-	if err != nil {
-		return 0, err
-	}
-
-	r.size += n
-
-	return n, nil
+	return r.file.Write(output)
 }
 
 func (r *fileRotator) Sync() error {
@@ -92,28 +82,20 @@ func (r *fileRotator) Close() error {
 	return r.file.Close()
 }
 
-func (r *fileRotator) checkRotate(n int) error {
-	if !r.shouldRotate(n) {
+func (r *fileRotator) checkRotate() error {
+	if !r.shouldRotate() {
 		return nil
 	}
 
 	return r.rotate()
 }
 
-func (r *fileRotator) shouldRotate(n int) bool {
+func (r *fileRotator) shouldRotate() bool {
 	if r.file == nil {
 		return true
 	}
 
-	if r.maxAge > 0 && time.Now().After(r.nextTime) {
-		return true
-	}
-
-	if r.maxSize > 0 && r.size+n > r.maxSize {
-		return true
-	}
-
-	return false
+	return time.Now().Format(timeFormat) != r.fileDate
 }
 
 func (r *fileRotator) rotate() error {
@@ -128,19 +110,18 @@ func (r *fileRotator) rotate() error {
 
 	now := time.Now()
 
-	fp, err := newFileRotatorFile(r.newFilePath(now), r.bufferSize)
+	fp, err := newFileRotatorFile(r.newFilePath(now))
 	if err != nil {
 		return err
 	}
 
 	r.file = fp
-	r.size = 0
-	r.nextTime = now.Add(r.maxAge)
+	r.fileDate = now.Format(timeFormat)
 
 	return r.pruneBackups(now)
 }
 
-const timeFormat = "2006-01-02-15-04-05"
+const timeFormat = "2006-01-02"
 
 func (r *fileRotator) newFilePath(now time.Time) string {
 	return path.Join(r.path, fmt.Sprintf("%s.%s.log", r.baseName, now.Format(timeFormat)))
@@ -152,7 +133,6 @@ func (r *fileRotator) pruneBackups(now time.Time) error {
 		return err
 	}
 
-	//nolint:prealloc
 	var backupFiles []string
 
 	strNow := now.Format(timeFormat)
@@ -193,14 +173,14 @@ func (r *fileRotator) pruneBackups(now time.Time) error {
 	return nil
 }
 
-func newFileRotatorFile(path string, bufferSize int) (*fileRotatorFile, error) {
-	f, err := os.Create(path)
+func newFileRotatorFile(path string) (*fileRotatorFile, error) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, err
 	}
 
 	return &fileRotatorFile{
-		writer: bufio.NewWriterSize(f, bufferSize),
+		writer: bufio.NewWriterSize(f, 1000),
 		file:   f,
 	}, nil
 }

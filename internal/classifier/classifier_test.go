@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	classifier_mocks "github.com/bitmagnet-io/bitmagnet/internal/classifier/mocks"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/tmdb"
-	tmdb_mocks "github.com/bitmagnet-io/bitmagnet/internal/tmdb/mocks"
+	classifier_mocks "github.com/hexsans/hexmagnet/internal/classifier/mocks"
+	"github.com/hexsans/hexmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/tmdb"
+	tmdb_mocks "github.com/hexsans/hexmagnet/internal/tmdb/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -26,15 +25,13 @@ func TestClassifier(t *testing.T) {
 		torrent      model.Torrent
 		flags        Flags
 		prepareMocks func(mocks testClassifierMocks)
-		expected     classification.Result
+		expected     ClassificationResult
 		expectedErr  error
 	}{
 		{
 			torrent: model.Torrent{
-				Name:        "The Regular Movie (2000).mkv",
-				FilesStatus: model.FilesStatusSingle,
-				Extension:   model.NewNullString("mkv"),
-				Size:        1000000000,
+				Name: "The Regular Movie (2000).mkv",
+				Size: 1000000000,
 			},
 			prepareMocks: func(mocks testClassifierMocks) {
 				mocks.search.On(
@@ -44,7 +41,7 @@ func TestClassifier(t *testing.T) {
 					"The Regular Movie",
 					model.Year(2000),
 				).
-					Return(model.Content{}, classification.ErrUnmatched)
+					Return(model.Content{}, ErrUnmatched)
 				mocks.tmdbClient.On(
 					"SearchMovie",
 					matchContext,
@@ -56,8 +53,8 @@ func TestClassifier(t *testing.T) {
 				).
 					Return(tmdb.SearchMovieResponse{}, nil)
 			},
-			expected: classification.Result{
-				ContentAttributes: classification.ContentAttributes{
+			expected: ClassificationResult{
+				ContentAttributes: ContentAttributes{
 					ContentType: model.NewNullContentType(model.ContentTypeMovie),
 					BaseTitle:   model.NewNullString("The Regular Movie"),
 					Date: model.Date{
@@ -68,10 +65,8 @@ func TestClassifier(t *testing.T) {
 		},
 		{
 			torrent: model.Torrent{
-				Name:        "The Regular Local Movie (2000).mkv",
-				FilesStatus: model.FilesStatusSingle,
-				Extension:   model.NewNullString("mkv"),
-				Size:        1000000000,
+				Name: "The Regular Local Movie (2000).mkv",
+				Size: 1000000000,
 			},
 			prepareMocks: func(mocks testClassifierMocks) {
 				mocks.search.On(
@@ -82,15 +77,14 @@ func TestClassifier(t *testing.T) {
 					model.Year(2000),
 				).
 					Return(model.Content{
-						Type:        model.ContentTypeMovie,
-						Source:      "local",
-						ID:          "123",
-						Title:       "The Regular Local Movie",
-						ReleaseYear: 2000,
+						Type:   model.ContentTypeMovie,
+						Source: "local",
+						ID:     "123",
+						Title:  "The Regular Local Movie",
 					}, nil)
 			},
-			expected: classification.Result{
-				ContentAttributes: classification.ContentAttributes{
+			expected: ClassificationResult{
+				ContentAttributes: ContentAttributes{
 					ContentType: model.NewNullContentType(model.ContentTypeMovie),
 					BaseTitle:   model.NewNullString("The Regular Local Movie"),
 					Date: model.Date{
@@ -98,20 +92,17 @@ func TestClassifier(t *testing.T) {
 					},
 				},
 				Content: &model.Content{
-					Type:        model.ContentTypeMovie,
-					Source:      "local",
-					ID:          "123",
-					Title:       "The Regular Local Movie",
-					ReleaseYear: 2000,
+					Type:   model.ContentTypeMovie,
+					Source: "local",
+					ID:     "123",
+					Title:  "The Regular Local Movie",
 				},
 			},
 		},
 		{
 			torrent: model.Torrent{
-				Name:        "The Regular TMDB Movie (2000).mkv",
-				FilesStatus: model.FilesStatusSingle,
-				Extension:   model.NewNullString("mkv"),
-				Size:        1000000000,
+				Name: "The Regular TMDB Movie (2000).mkv",
+				Size: 1000000000,
 			},
 			prepareMocks: func(mocks testClassifierMocks) {
 				mocks.search.On(
@@ -121,7 +112,7 @@ func TestClassifier(t *testing.T) {
 					"The Regular TMDB Movie",
 					model.Year(2000),
 				).
-					Return(model.Content{}, classification.ErrUnmatched)
+					Return(model.Content{}, ErrUnmatched)
 				mocks.tmdbClient.On(
 					"SearchMovie",
 					matchContext,
@@ -154,8 +145,8 @@ func TestClassifier(t *testing.T) {
 						ReleaseDate:   "2000-01-01",
 					}, nil)
 			},
-			expected: classification.Result{
-				ContentAttributes: classification.ContentAttributes{
+			expected: ClassificationResult{
+				ContentAttributes: ContentAttributes{
 					ContentType: model.NewNullContentType(model.ContentTypeMovie),
 					BaseTitle:   model.NewNullString("The Regular TMDB Movie"),
 					Date: model.Date{
@@ -172,26 +163,10 @@ func TestClassifier(t *testing.T) {
 						Month: 1,
 						Day:   1,
 					},
-					ReleaseYear:   2000,
-					Adult:         model.NewNullBool(false),
-					OriginalTitle: model.NewNullString("The Regular TMDB Movie Original"),
-					Popularity:    model.NewNullFloat32(0),
-					VoteAverage:   model.NewNullFloat32(0),
-					VoteCount:     model.NewNullUint(0),
-				},
-			},
-		},
-		{
-			torrent: model.Torrent{
-				Name:        "The XXX Movie 1080p.mkv",
-				FilesStatus: model.FilesStatusSingle,
-				Extension:   model.NewNullString("mkv"),
-				Size:        1000000000,
-			},
-			expected: classification.Result{
-				ContentAttributes: classification.ContentAttributes{
-					ContentType:     model.NewNullContentType(model.ContentTypeXxx),
-					VideoResolution: model.NewNullVideoResolution(model.VideoResolutionV1080p),
+					Adult:       model.NewNullBool(false),
+					Popularity:  model.NewNullFloat32(0),
+					VoteAverage: model.NewNullFloat32(0),
+					VoteCount:   model.NewNullUint(0),
 				},
 			},
 		},

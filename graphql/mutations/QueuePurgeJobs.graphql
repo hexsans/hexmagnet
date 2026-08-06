@@ -1,5 +1,0 @@
-mutation QueuePurgeJobs($input: QueuePurgeJobsInput!) {
-  queue {
-    purgeJobs(input: $input)
-  }
-}

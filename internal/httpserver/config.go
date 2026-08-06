@@ -1,10 +1,14 @@
 package httpserver
 
+import "time"
+
 type Config struct {
-	LocalAddress string
-	GinMode      string
+	GinMode      string `validate:"oneof=release debug test"`
 	Cors         CorsConfig
 	Options      []string
+	ReadTimeout  time.Duration `validate:"gte=0s"`
+	WriteTimeout time.Duration `validate:"gte=0s"`
+	IdleTimeout  time.Duration `validate:"gte=0s"`
 }
 
 type CorsConfig struct {
@@ -50,14 +54,11 @@ type CorsConfig struct {
 
 func NewDefaultConfig() Config {
 	return Config{
-		LocalAddress: ":3333",
 		GinMode:      "release",
-		// todo review
-		Cors: CorsConfig{
-			AllowedOrigins: []string{"*"},
-			AllowedHeaders: []string{"*"},
-			Debug:          true,
-		},
-		Options: []string{"*"},
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		Cors:         CorsConfig{},
+		Options:      []string{"*"},
 	}
 }

@@ -1,0 +1,257 @@
+extend type Query {
+  config: Config!
+}
+
+extend type Mutation {
+  updateConfig(input: ConfigInput!): Config!
+}
+
+type Config {
+  dht: DHTConfig!
+  server: ServerConfig!
+  classifier: ClassifierConfig!
+  storage: StorageConfig!
+}
+
+type DHTConfig {
+  port: Uint64!
+  responder: DHTResponderConfig!
+  requester: DHTRequesterConfig!
+  bootstrapNodes: [String!]!
+  reseedBootstrapNodesInterval: Uint64!
+}
+
+type DHTResponderConfig {
+  enabled: Boolean!
+  globalRateLimit: Uint64!
+  perIPRateLimit: Uint64!
+}
+
+type ServerConfig {
+  ip: String!
+  port: Uint64!
+  log: ServerLogConfig!
+  embedTrackers: [String!]!
+  torrentFilePath: String!
+}
+
+type ServerLogConfig {
+  consoleLevel: String!
+  fileOutputLevel: String!
+  fileRotator: ServerFileRotatorConfig!
+}
+
+type ServerFileRotatorConfig {
+  path: String!
+  maxBackups: Uint64!
+  format: String!
+}
+
+type ClassifierConfig {
+  concurrency: Uint64!
+  llm: LLMConfig!
+  torrentFilter: TorrentFilterConfig!
+  tmdb: TMDBConfig!
+}
+
+type LLMConfig {
+  endpoint: String!
+  apiKey: String!
+  model: String!
+  timeout: Int!
+  maxRetries: Int!
+  temperature: Float!
+  reasoningEffort: String!
+  maxFiles: Int!
+  enabled: Boolean!
+}
+
+type TorrentFilterConfig {
+  mode: String!
+  titlePatterns: [String!]!
+  filenamePatterns: [String!]!
+}
+
+type TMDBConfig {
+  enabled: Boolean!
+  accessToken: String!
+  rateLimit: Uint64!
+}
+
+type DHTRequesterConfig {
+  requestLimit: Uint64!
+  rescrapeThreshold: Uint64!
+  hashDiscoverLimit: Uint64!
+}
+
+type StorageConfig {
+  postgres: PostgresConfig!
+  queue: QueueConfig!
+  search: SearchConfig!
+}
+
+type PostgresConfig {
+  host: String!
+  username: String!
+  port: Uint64!
+  database: String!
+  password: String!
+  sslMode: String!
+  connectionTimeout: Uint64!
+  sslCertPath: String!
+  sslKeyPath: String!
+  sslRootCertPath: String!
+  maxConnections: Uint64!
+}
+
+type QueueConfig {
+  backend: String!
+  kafka: KafkaConfig!
+}
+
+type KafkaConfig {
+  brokers: [String!]!
+}
+
+type SearchConfig {
+  backend: String!
+  elasticsearch: ElasticsearchConfig!
+}
+
+type ElasticsearchConfig {
+  addresses: [String!]!
+  embedding: EmbeddingConfig!
+}
+
+type EmbeddingConfig {
+  endpoint: String!
+  apikey: String!
+  model: String!
+  dimensions: Int!
+  instructionEnabled: Boolean!
+}
+
+input ConfigInput {
+  dht: DHTConfigInput
+  server: ServerConfigInput
+  classifier: ClassifierConfigInput
+  storage: StorageConfigInput
+}
+
+input DHTConfigInput {
+  port: Uint64
+  responder: DHTResponderConfigInput
+  requester: DHTRequesterInput
+  bootstrapNodes: [String!]
+  reseedBootstrapNodesInterval: Uint64
+}
+
+input DHTResponderConfigInput {
+  enabled: Boolean
+  globalRateLimit: Uint64
+  perIPRateLimit: Uint64
+}
+
+input ServerConfigInput {
+  ip: String
+  port: Uint64
+  log: ServerLogConfigInput
+  embedTrackers: [String!]
+  torrentFilePath: String
+}
+
+input ServerLogConfigInput {
+  consoleLevel: String
+  fileOutputLevel: String
+  fileRotator: ServerFileRotatorConfigInput
+}
+
+input ServerFileRotatorConfigInput {
+  path: String
+  maxBackups: Uint64
+  format: String
+}
+
+input ClassifierConfigInput {
+  concurrency: Uint64
+  llm: LLMConfigInput
+  torrentFilter: TorrentFilterConfigInput
+  tmdb: TMDBConfigInput
+}
+
+input LLMConfigInput {
+  endpoint: String
+  apiKey: String
+  model: String
+  timeout: Int
+  maxRetries: Int
+  temperature: Float
+  reasoningEffort: String
+  maxFiles: Int
+  enabled: Boolean
+}
+
+input TorrentFilterConfigInput {
+  mode: String
+  titlePatterns: [String!]
+  filenamePatterns: [String!]
+}
+
+input TMDBConfigInput {
+  enabled: Boolean
+  accessToken: String
+  rateLimit: Uint64
+}
+
+input DHTRequesterInput {
+  requestLimit: Uint64
+  rescrapeThreshold: Uint64
+  hashDiscoverLimit: Uint64
+}
+
+input StorageConfigInput {
+  postgres: PostgresConfigInput
+  queue: QueueConfigInput
+  search: SearchConfigInput
+}
+
+input PostgresConfigInput {
+  host: String
+  username: String
+  port: Uint64
+  database: String
+  password: String
+  sslMode: String
+  connectionTimeout: Uint64
+  sslCertPath: String
+  sslKeyPath: String
+  sslRootCertPath: String
+  maxConnections: Uint64
+}
+
+input QueueConfigInput {
+  backend: String
+  kafka: KafkaConfigInput
+}
+
+input KafkaConfigInput {
+  brokers: [String!]
+}
+
+input SearchConfigInput {
+  backend: String
+  elasticsearch: ElasticsearchConfigInput
+}
+
+input ElasticsearchConfigInput {
+  addresses: [String!]
+  embedding: EmbeddingConfigInput
+}
+
+input EmbeddingConfigInput {
+  endpoint: String
+  apikey: String
+  model: String
+  dimensions: Int
+  instructionEnabled: Boolean
+}

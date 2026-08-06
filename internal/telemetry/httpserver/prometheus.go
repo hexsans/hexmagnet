@@ -1,14 +1,14 @@
 package httpserver
 
 import (
-	"github.com/bitmagnet-io/bitmagnet/internal/lazy"
 	"github.com/gin-gonic/gin"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type prometheusBuilder struct {
-	registry lazy.Lazy[*prometheus.Registry]
+	registry utils.Lazy[*prometheus.Registry]
 }
 
 func (prometheusBuilder) Key() string {

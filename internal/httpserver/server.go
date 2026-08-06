@@ -9,18 +9,19 @@ import (
 	"sort"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/httpserver/ginzap"
-	"github.com/bitmagnet-io/bitmagnet/internal/worker"
 	"github.com/gin-gonic/gin"
+	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
 type Params struct {
 	fx.In
-	Config  Config
-	Options []Option `group:"http_server_options"`
-	Logger  *zap.Logger
+	Config       Config
+	Options      []Option `group:"http_server_options"`
+	Logger       *zap.Logger
+	ServerConfig servercfg.Config
 }
 
 type Result struct {
@@ -35,39 +36,56 @@ func New(p Params) Result {
 		Worker: worker.NewWorker(
 			"http_server",
 			fx.Hook{
-				OnStart: func(context.Context) error {
+				OnStart: func(ctx context.Context) error {
 					gin.SetMode(p.Config.GinMode)
+
 					g := gin.New()
-					g.Use(ginzap.Ginzap(p.Logger.Named("gin"), time.RFC3339, true), gin.Recovery())
+					g.Use(Ginzap(p.Logger.Named("gin"), time.RFC3339, true), gin.Recovery())
+
 					options, optionsErr := resolveOptions(p.Config.Options, p.Options)
 					if optionsErr != nil {
 						return optionsErr
 					}
+
 					for _, o := range options {
 						if buildErr := o.Apply(g); buildErr != nil {
 							return buildErr
 						}
 					}
+
+					addr := fmt.Sprintf("%s:%d", p.ServerConfig.IP, p.ServerConfig.Port)
+
 					s = &http.Server{
-						Addr:    p.Config.LocalAddress,
-						Handler: g.Handler(),
+						Addr:         addr,
+						Handler:      g.Handler(),
+						ReadTimeout:  p.Config.ReadTimeout,
+						WriteTimeout: p.Config.WriteTimeout,
+						IdleTimeout:  p.Config.IdleTimeout,
 					}
-					ln, listenErr := net.Listen("tcp", s.Addr)
+
+					ln, listenErr := (&net.ListenConfig{}).Listen(ctx, "tcp", s.Addr)
 					if listenErr != nil {
 						return listenErr
 					}
-					go (func() {
+
+					p.Logger.Info("http server listening", zap.String("addr", s.Addr))
+
+					go func() {
 						serveErr := s.Serve(ln)
 						if !errors.Is(serveErr, http.ErrServerClosed) {
-							panic(serveErr)
+							p.Logger.Error("http server exited unexpectedly",
+								zap.Error(serveErr),
+							)
 						}
-					})()
+					}()
+
 					return nil
 				},
 				OnStop: func(ctx context.Context) error {
 					if s == nil {
 						return nil
 					}
+
 					return s.Shutdown(ctx)
 				},
 			},

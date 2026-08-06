@@ -8,40 +8,6 @@ import (
 	"io"
 )
 
-// NullInt - nullable int
-type NullInt struct {
-	Int   int
-	Valid bool // Valid is true if Int is not NULL
-}
-
-func NewNullInt(n int) NullInt {
-	return NullInt{
-		Int:   n,
-		Valid: true,
-	}
-}
-
-func (n *NullInt) Scan(value interface{}) error {
-	v, ok := value.(int64)
-	if !ok {
-		n.Valid = false
-	} else {
-		n.Int = int(v)
-		n.Valid = true
-	}
-
-	return nil
-}
-
-func (n NullInt) Value() (driver.Value, error) {
-	if !n.Valid {
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	return n.Int, nil
-}
-
 // NullString - nullable string
 type NullString struct {
 	String string
@@ -55,7 +21,23 @@ func NewNullString(s string) NullString {
 	}
 }
 
-func (n *NullString) Scan(value interface{}) error {
+func NewNullStringFromPtr(s *string) NullString {
+	if s == nil {
+		return NullString{}
+	}
+
+	return NewNullString(*s)
+}
+
+func (n NullString) Ptr() *string {
+	if !n.Valid {
+		return nil
+	}
+
+	return &n.String
+}
+
+func (n *NullString) Scan(value any) error {
 	v, ok := value.(string)
 	if !ok {
 		n.Valid = false
@@ -87,7 +69,7 @@ func (n NullString) MarshalJSON() ([]byte, error) {
 }
 
 func (n *NullString) UnmarshalJSON(b []byte) error {
-	var x interface{}
+	var x any
 
 	err := json.Unmarshal(b, &x)
 	if err != nil {
@@ -99,7 +81,7 @@ func (n *NullString) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func (n *NullString) UnmarshalGQL(v interface{}) error {
+func (n *NullString) UnmarshalGQL(v any) error {
 	if v == nil {
 		n.Valid = false
 		return nil
@@ -111,7 +93,7 @@ func (n *NullString) UnmarshalGQL(v interface{}) error {
 	case []byte:
 		n.String = string(v)
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	n.Valid = true
@@ -141,7 +123,15 @@ func NewNullBool(b bool) NullBool {
 	}
 }
 
-func (n *NullBool) Scan(value interface{}) error {
+func (n NullBool) Ptr() *bool {
+	if !n.Valid {
+		return nil
+	}
+
+	return &n.Bool
+}
+
+func (n *NullBool) Scan(value any) error {
 	v, ok := value.(bool)
 	if !ok {
 		n.Valid = false
@@ -162,7 +152,7 @@ func (n NullBool) Value() (driver.Value, error) {
 	return n.Bool, nil
 }
 
-func (n *NullBool) UnmarshalGQL(v interface{}) error {
+func (n *NullBool) UnmarshalGQL(v any) error {
 	if v == nil {
 		n.Valid = false
 		return nil
@@ -177,7 +167,7 @@ func (n *NullBool) UnmarshalGQL(v interface{}) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	n.Valid = true
@@ -207,7 +197,15 @@ func NewNullFloat32(f float32) NullFloat32 {
 	}
 }
 
-func (n *NullFloat32) Scan(value interface{}) error {
+func (n NullFloat32) Ptr() *float32 {
+	if !n.Valid {
+		return nil
+	}
+
+	return &n.Float32
+}
+
+func (n *NullFloat32) Scan(value any) error {
 	v, ok := value.(float64)
 	if !ok {
 		n.Valid = false
@@ -228,7 +226,7 @@ func (n NullFloat32) Value() (driver.Value, error) {
 	return n.Float32, nil
 }
 
-func (n *NullFloat32) UnmarshalGQL(v interface{}) error {
+func (n *NullFloat32) UnmarshalGQL(v any) error {
 	if v == nil {
 		n.Valid = false
 		return nil
@@ -257,7 +255,7 @@ func (n *NullFloat32) UnmarshalGQL(v interface{}) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	n.Valid = true
@@ -280,14 +278,7 @@ type NullFloat64 struct {
 	Valid   bool // Valid is true if Float64 is not NULL
 }
 
-func NewNullFloat64(f float64) NullFloat64 {
-	return NullFloat64{
-		Float64: f,
-		Valid:   true,
-	}
-}
-
-func (n *NullFloat64) Scan(value interface{}) error {
+func (n *NullFloat64) Scan(value any) error {
 	v, ok := value.(float64)
 	if !ok {
 		n.Valid = false
@@ -308,7 +299,7 @@ func (n NullFloat64) Value() (driver.Value, error) {
 	return n.Float64, nil
 }
 
-func (n *NullFloat64) UnmarshalGQL(v interface{}) error {
+func (n *NullFloat64) UnmarshalGQL(v any) error {
 	if v == nil {
 		n.Valid = false
 		return nil
@@ -337,7 +328,7 @@ func (n *NullFloat64) UnmarshalGQL(v interface{}) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("wrong type")
+		return errors.New("wrong type")
 	}
 
 	n.Valid = true
@@ -354,120 +345,6 @@ func (n NullFloat64) MarshalGQL(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "%f", n.Float64)
 }
 
-// NullUint64 - nullable uint64
-type NullUint64 struct {
-	Uint64 uint64
-	Valid  bool // Valid is true if Uint64 is not NULL
-}
-
-func NewNullUint64(n uint64) NullUint64 {
-	return NullUint64{
-		Uint64: n,
-		Valid:  true,
-	}
-}
-
-func (n *NullUint64) Scan(value interface{}) error {
-	v, ok := value.(uint64)
-	if !ok {
-		n.Valid = false
-	} else {
-		n.Uint64 = v
-		n.Valid = true
-	}
-
-	return nil
-}
-
-func (n NullUint64) Value() (driver.Value, error) {
-	if !n.Valid {
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	return n.Uint64, nil
-}
-
-// NullUint16 - nullable uint16
-type NullUint16 struct {
-	Uint16 uint16
-	Valid  bool // Valid is true if Uint16 is not NULL
-}
-
-func NewNullUint16(n uint16) NullUint16 {
-	return NullUint16{
-		Uint16: n,
-		Valid:  true,
-	}
-}
-
-func (n *NullUint16) Scan(value interface{}) error {
-	v, ok := value.(int64)
-	if !ok {
-		n.Valid = false
-	} else {
-		n.Uint16 = uint16(v)
-		n.Valid = true
-	}
-
-	return nil
-}
-
-func (n NullUint16) Value() (driver.Value, error) {
-	if !n.Valid {
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	return int64(n.Uint16), nil
-}
-
-func (n *NullUint16) UnmarshalGQL(v interface{}) error {
-	if v == nil {
-		n.Valid = false
-		return nil
-	}
-
-	switch v := v.(type) {
-	case int:
-		n.Uint16 = uint16(v)
-	case int32:
-		n.Uint16 = uint16(v)
-	case int64:
-		n.Uint16 = uint16(v)
-	case uint:
-		n.Uint16 = uint16(v)
-	case uint32:
-		n.Uint16 = uint16(v)
-	case uint64:
-		n.Uint16 = uint16(v)
-	case float32:
-		n.Uint16 = uint16(v)
-	case float64:
-		n.Uint16 = uint16(v)
-	case string:
-		_, err := fmt.Sscanf(v, "%d", &n.Uint16)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("wrong type")
-	}
-
-	n.Valid = true
-
-	return nil
-}
-
-func (n NullUint16) MarshalGQL(w io.Writer) {
-	if !n.Valid {
-		_, _ = w.Write([]byte("null"))
-		return
-	}
-
-	_, _ = fmt.Fprintf(w, "%d", n.Uint16)
-}
-
 // NullUint - nullable uint
 type NullUint struct {
 	Uint  uint
@@ -481,7 +358,7 @@ func NewNullUint(n uint) NullUint {
 	}
 }
 
-func (n *NullUint) Scan(value interface{}) error {
+func (n *NullUint) Scan(value any) error {
 	v, ok := value.(int64)
 	if !ok {
 		n.Valid = false
@@ -502,7 +379,7 @@ func (n NullUint) Value() (driver.Value, error) {
 	return n.Uint, nil
 }
 
-func (n *NullUint) UnmarshalGQL(v interface{}) error {
+func (n *NullUint) UnmarshalGQL(v any) error {
 	if v == nil {
 		n.Valid = false
 		return nil

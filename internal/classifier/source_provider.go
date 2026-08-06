@@ -3,21 +3,15 @@ package classifier
 import (
 	"os"
 
-	"github.com/adrg/xdg"
-	"github.com/bitmagnet-io/bitmagnet/internal/tmdb"
 	"gopkg.in/yaml.v3"
 )
 
-func newSourceProvider(config Config, tmdbConfig tmdb.Config) sourceProvider {
+func newSourceProvider(tmdbEnabled bool) sourceProvider {
 	return mergeSourceProvider{
 		providers: []sourceProvider{
 			yamlSourceProvider{rawSourceProvider: coreSourceProvider{}},
-			yamlSourceProvider{rawSourceProvider: xdgSourceProvider{}},
 			yamlSourceProvider{rawSourceProvider: cwdSourceProvider{}},
-			configSourceProvider{
-				config:      config,
-				tmdbEnabled: tmdbConfig.Enabled,
-			},
+			configSourceProvider{tmdbEnabled: tmdbEnabled},
 		},
 	}
 }
@@ -63,7 +57,7 @@ func (y yamlSourceProvider) source() (Source, error) {
 		return Source{}, err
 	}
 
-	rawWorkflow := make(map[string]interface{})
+	rawWorkflow := make(map[string]any)
 
 	parseErr := yaml.Unmarshal(raw, &rawWorkflow)
 	if parseErr != nil {
@@ -90,20 +84,6 @@ func (coreSourceProvider) source() ([]byte, error) {
 	return classifierCoreYaml, nil
 }
 
-type xdgSourceProvider struct{}
-
-func (xdgSourceProvider) source() ([]byte, error) {
-	if path, pathErr := xdg.ConfigFile("bitmagnet/classifier.yml"); pathErr == nil {
-		if bytes, readErr := os.ReadFile(path); readErr == nil {
-			return bytes, nil
-		} else if !os.IsNotExist(readErr) {
-			return nil, readErr
-		}
-	}
-
-	return []byte{'{', '}'}, nil
-}
-
 type cwdSourceProvider struct{}
 
 func (cwdSourceProvider) source() ([]byte, error) {
@@ -117,27 +97,18 @@ func (cwdSourceProvider) source() ([]byte, error) {
 }
 
 type configSourceProvider struct {
-	config      Config
 	tmdbEnabled bool
 }
 
 func (c configSourceProvider) source() (Source, error) {
 	fs := make(Flags)
-	for k, v := range c.config.Flags {
-		fs[k] = v
-	}
-
-	if c.config.DeleteXxx {
-		fs["delete_xxx"] = true
-	}
-
 	if !c.tmdbEnabled {
 		fs["tmdb_enabled"] = false
 	}
 
-	return Source{
-		Keywords:   c.config.Keywords,
-		Extensions: c.config.Extensions,
-		Flags:      fs,
-	}, nil
+	if len(fs) == 0 {
+		return Source{}, nil
+	}
+
+	return Source{Flags: fs}, nil
 }

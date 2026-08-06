@@ -42,31 +42,19 @@ func (ck *checkerMock) StartedAt() time.Time {
 	return ck.Called().Get(0).(time.Time)
 }
 
-type resultWriterMock struct {
-	mock.Mock
-}
-
-func (ck *resultWriterMock) Write(result *CheckerResult, statusCode int, w http.ResponseWriter, r *http.Request) error {
-	return ck.Called(result, statusCode, w, r).Get(0).(error)
-}
-
-// var testTimestamp = time.Now()
-
-func doTestHandler(t *testing.T,
-	statusCodeUp, statusCodeDown int, expectedStatus CheckerResult, expectedStatusCode int,
-) {
+func doTestHandler(t *testing.T, expectedStatus CheckerResult, expectedStatusCode int) {
 	t.Helper()
 
 	// Arrange
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "https://localhost/foo", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://localhost/foo", nil)
 
 	ckr := checkerMock{}
 	ckr.On("IsStarted").Return(false)
 	ckr.On("Start")
 	ckr.On("Check", mock.Anything).Return(expectedStatus)
 
-	handler := NewHandler(&ckr, WithStatusCodeUp(statusCodeUp), WithStatusCodeDown(statusCodeDown))
+	handler := NewHandler(&ckr)
 
 	// Act
 	handler.ServeHTTP(response, request)
@@ -93,7 +81,7 @@ func TestHandlerIfCheckFailThenRespondWithNotAvailable(t *testing.T) {
 		},
 	}
 
-	doTestHandler(t, http.StatusNoContent, http.StatusTeapot, status, http.StatusTeapot)
+	doTestHandler(t, status, http.StatusServiceUnavailable)
 }
 
 func TestHandlerIfCheckSucceedsThenRespondWithAvailable(t *testing.T) {
@@ -106,7 +94,7 @@ func TestHandlerIfCheckSucceedsThenRespondWithAvailable(t *testing.T) {
 		},
 	}
 
-	doTestHandler(t, http.StatusNoContent, http.StatusTeapot, status, http.StatusNoContent)
+	doTestHandler(t, status, http.StatusOK)
 }
 
 func TestHandlerIfAuthFailsThenReturnNoDetails(t *testing.T) {
@@ -118,14 +106,14 @@ func TestHandlerIfAuthFailsThenReturnNoDetails(t *testing.T) {
 			"check1": {Status: StatusDown, Timestamp: time.Now(), Error: fmt.Errorf("an error message")},
 		},
 	}
-	doTestHandler(t, http.StatusNoContent, http.StatusTeapot, status, http.StatusTeapot)
+	doTestHandler(t, status, http.StatusServiceUnavailable)
 }
 
 func TestWhenChecksEmptyThenHandlerResultContainNoChecksMap(t *testing.T) {
 	t.Parallel()
 
 	// Arrange
-	r := httptest.NewRequest(http.MethodGet, "/health", nil)
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
 
 	// Act

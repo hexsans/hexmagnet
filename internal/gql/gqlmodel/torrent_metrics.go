@@ -3,8 +3,8 @@ package gqlmodel
 import (
 	"context"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/gql/gqlmodel/gen"
-	"github.com/bitmagnet-io/bitmagnet/internal/metrics/torrentmetrics"
+	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
+	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 )
 
 func (t TorrentQuery) Metrics(
@@ -14,7 +14,6 @@ func (t TorrentQuery) Metrics(
 	req := torrentmetrics.Request{
 		StartTime: nilToZero(input.StartTime.Value()),
 		EndTime:   nilToZero(input.EndTime.Value()),
-		Sources:   input.Sources.Value(),
 	}
 
 	switch input.BucketDuration {

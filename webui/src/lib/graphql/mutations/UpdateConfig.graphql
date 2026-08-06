@@ -1,0 +1,91 @@
+mutation UpdateConfig($input: ConfigInput!) {
+  updateConfig(input: $input) {
+    dht {
+      port
+      responder {
+        enabled
+        globalRateLimit
+        perIPRateLimit
+      }
+      requester {
+        requestLimit
+        rescrapeThreshold
+        hashDiscoverLimit
+      }
+      bootstrapNodes
+      reseedBootstrapNodesInterval
+    }
+    server {
+      ip
+      port
+      embedTrackers
+      log {
+        consoleLevel
+        fileOutputLevel
+        fileRotator {
+          path
+          maxBackups
+          format
+        }
+      }
+    }
+    classifier {
+      concurrency
+      llm {
+        endpoint
+        apiKey
+        model
+        timeout
+        maxRetries
+        temperature
+        reasoningEffort
+        maxFiles
+        enabled
+      }
+      torrentFilter {
+        mode
+        titlePatterns
+        filenamePatterns
+      }
+      tmdb {
+        enabled
+        accessToken
+        rateLimit
+      }
+    }
+    storage {
+      postgres {
+        host
+        username
+        port
+        database
+        password
+        sslMode
+        connectionTimeout
+        sslCertPath
+        sslKeyPath
+        sslRootCertPath
+        maxConnections
+      }
+      search {
+        backend
+        elasticsearch {
+          addresses
+          embedding {
+            endpoint
+            apikey
+            model
+            dimensions
+            instructionEnabled
+          }
+        }
+      }
+      queue {
+        backend
+        kafka {
+          brokers
+        }
+      }
+    }
+  }
+}

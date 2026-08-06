@@ -8,15 +8,9 @@ fragment Content on Content {
   }
   title
   releaseDate
-  releaseYear
   overview
-  runtime
   voteAverage
   voteCount
-  originalLanguage {
-    id
-    name
-  }
   attributes {
     metadataSource {
       key

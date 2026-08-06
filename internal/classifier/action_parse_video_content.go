@@ -1,10 +1,5 @@
 package classifier
 
-import (
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/parsers"
-)
-
 const parseVideoContentName = "parse_video_content"
 
 type parseVideoContentAction struct{}
@@ -24,13 +19,16 @@ func (parseVideoContentAction) compileAction(ctx compilerContext) (action, error
 	}
 
 	return action{
-		run: func(ctx executionContext) (classification.Result, error) {
-			parsed, err := parsers.ParseVideoContent(ctx.torrent, ctx.result)
+		run: func(ctx executionContext) (ClassificationResult, error) {
+			parsed, err := ParseVideoContent(ctx.torrent, ctx.result)
+
 			cl := ctx.result
 			if err != nil {
 				return cl, err
 			}
+
 			cl.Merge(parsed)
+
 			return cl, nil
 		},
 	}, nil

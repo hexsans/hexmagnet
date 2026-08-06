@@ -1,0 +1,27 @@
+version: "2"
+sql:
+  - schema: "database/schema/schema.sql"
+    queries: "database/queries/"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/database/db/sqlc"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        emit_exported_queries: true
+        emit_result_struct_pointers: false
+        overrides:
+          - db_type: "pg_catalog.numeric"
+            go_type: "float64"
+          - db_type: "text[]"
+            go_type:
+              type: "string"
+              slice: true
+          # jsonb defaults to []byte
+          - db_type: "tsvector"
+            go_type: "string"
+          - column: "torrents.files_status"
+            go_type:
+              type: "FilesStatus"
+              import: "github.com/hexsans/hexmagnet/internal/model"

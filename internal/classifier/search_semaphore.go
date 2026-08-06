@@ -3,7 +3,7 @@ package classifier
 import (
 	"context"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type localSearchSemaphore struct {

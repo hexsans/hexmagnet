@@ -12,7 +12,7 @@ var notConditionPayloadSpec = payloadSingleKeyValue[any]{
 	key: notName,
 	valueSpec: payloadMustSucceed[any]{payloadGeneric[any]{
 		jsonSchema: map[string]any{
-			"$ref": "#/definitions/condition",
+			schemaRef: refCondition,
 		},
 	}},
 	description: "A condition that negates the provided condition",

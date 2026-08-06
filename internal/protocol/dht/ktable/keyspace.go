@@ -3,8 +3,8 @@ package ktable
 import (
 	"errors"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable/btree"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable/btree"
 )
 
 type keyspace[
@@ -103,7 +103,7 @@ func (k keyspace[_, _, ItemPublic, _]) getRandom(n int) []ItemPublic {
 
 var ErrDropReasonNotProvided = errors.New("drop reason not provided")
 
-func (k keyspace[_, _, _, _]) drop(id ID, reason error) bool {
+func (k keyspace[_, _, _, ItemPrivate]) drop(id ID, reason error) bool {
 	it, ok := k.items[id]
 	if !ok {
 		return false
@@ -113,7 +113,10 @@ func (k keyspace[_, _, _, _]) drop(id ID, reason error) bool {
 		reason = ErrDropReasonNotProvided
 	}
 
-	it.drop(reason)
+	if dropper, ok := any(it).(interface{ drop(error) }); ok {
+		dropper.drop(reason)
+	}
+
 	delete(k.items, id)
 
 	return k.btree.Drop(id[:])
@@ -146,6 +149,5 @@ type keyspaceItemPrivate[
 	keyspaceItem
 	update(Input)
 	apply(Option)
-	drop(error)
 	public() Public
 }

@@ -26,7 +26,7 @@ func TestNewDateFromIsoString(t *testing.T) {
 		t.Run(test.inputString, func(t *testing.T) {
 			t.Parallel()
 
-			actualOutput, err := NewDateRangeFromString(test.inputString)
+			actualOutput, err := NewDateFromIsoString(test.inputString)
 			require.NoError(t, err)
 			assert.Equal(t, test.expectedDate, actualOutput)
 		})

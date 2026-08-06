@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/gql/enums"
+	"github.com/hexsans/hexmagnet/internal/gql/enums"
 )
 
 func main() {
@@ -21,14 +21,17 @@ func main() {
 }
 
 func genGql(name string, values []string) string {
-	str := "enum " + name + " {\n"
+	var str strings.Builder
+
+	_, _ = str.WriteString("enum " + name + " {\n")
+
 	for _, value := range values {
-		str += "  " + value + "\n"
+		_, _ = str.WriteString("  " + value + "\n")
 	}
 
-	str += "}\n"
+	_, _ = str.WriteString("}\n")
 
-	return str
+	return str.String()
 }
 
 func checkErr(err error) {

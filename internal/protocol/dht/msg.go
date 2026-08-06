@@ -62,7 +62,7 @@ type MsgArgs struct {
 
 	// I don't know if we should use bencode.Bytes for this. If we unmarshalled bytes that didn't
 	// marshal back the same, our hashes will not match. But this might also serve to prevent abuse.
-	V interface{} `bencode:"v,omitempty"`
+	V any `bencode:"v,omitempty"`
 	// Why is this optional? Because I think we need to know if it wasn't set rather than use a
 	// default value.
 	Seq  *int64   `bencode:"seq,omitempty"`

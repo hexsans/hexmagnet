@@ -17,12 +17,14 @@ func (a *AtomicValue[T]) Get() T {
 func (a *AtomicValue[T]) Set(value T) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
+
 	a.value = value
 }
 
 func (a *AtomicValue[T]) Update(fn func(T) T) T {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
+
 	a.value = fn(a.value)
 
 	return a.value

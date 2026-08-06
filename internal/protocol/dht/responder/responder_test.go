@@ -2,16 +2,20 @@ package responder
 
 import (
 	"context"
+	"net"
 	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/anacrolix/dht/v2/krpc"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
-	ktable_mocks "github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable/mocks"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
+	ktable_mocks "github.com/hexsans/hexmagnet/internal/protocol/dht/ktable/mocks"
+	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 )
 
 type testResponderMocks struct {
@@ -35,7 +39,10 @@ func newTestResponderMocks(t *testing.T) testResponderMocks {
 			kTable:                   tableMock,
 			sampleInfoHashesInterval: 20,
 		},
-		sender: dht.RandomNodeInfo(4),
+		sender: dht.NodeInfo{
+			ID:   testutil.MustParseID("1111111111111111111111111111111111111111"),
+			Addr: dht.NodeAddr{Port: 40000, IP: net.IPv4(1, 2, 3, 4)},
+		},
 	}
 }
 
@@ -138,9 +145,18 @@ func TestResponder_find_node(t *testing.T) {
 		},
 	}
 	nodes := dht.CompactIPv4NodeInfo{
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000001"),
+			Addr: dht.NodeAddr{Port: 41001, IP: net.IPv4(10, 0, 0, 1)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000002"),
+			Addr: dht.NodeAddr{Port: 41002, IP: net.IPv4(10, 0, 0, 2)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000003"),
+			Addr: dht.NodeAddr{Port: 41003, IP: net.IPv4(10, 0, 0, 3)},
+		},
 	}
 	peers := []ktable.Node{
 		mockedPeer{nodes[0]},
@@ -189,11 +205,19 @@ func TestResponder_get_peers__values(t *testing.T) {
 		},
 	}
 	nodeInfos := []dht.NodeInfo{
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000004"),
+			Addr: dht.NodeAddr{Port: 41004, IP: net.IPv4(10, 0, 0, 4)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000005"),
+			Addr: dht.NodeAddr{Port: 41005, IP: net.IPv4(10, 0, 0, 5)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000006"),
+			Addr: dht.NodeAddr{Port: 41006, IP: net.IPv4(10, 0, 0, 6)},
+		},
 	}
-	expectedToken := mocks.responder.announceToken(infoHash, mocks.sender.ID, mocks.sender.Addr.ToAddrPort().Addr())
 	mocks.table.On("GetHashOrClosestNodes", infoHash).Return(ktable.GetHashOrClosestNodesResult{
 		Hash:  mockedHash{nodeInfos: nodeInfos},
 		Found: true,
@@ -208,7 +232,7 @@ func TestResponder_get_peers__values(t *testing.T) {
 			nodeInfos[2].Addr,
 		},
 		Nodes: nil,
-		Token: &expectedToken,
+		Token: new(mocks.responder.announceToken(infoHash, mocks.sender.ID, mocks.sender.Addr.ToAddrPort().Addr())),
 	}, ret)
 	assert.NoError(t, err)
 }
@@ -229,16 +253,24 @@ func TestResponder_get_peers__nodes(t *testing.T) {
 		},
 	}
 	nodes := dht.CompactIPv4NodeInfo{
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000007"),
+			Addr: dht.NodeAddr{Port: 41007, IP: net.IPv4(10, 0, 0, 7)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000008"),
+			Addr: dht.NodeAddr{Port: 41008, IP: net.IPv4(10, 0, 0, 8)},
+		},
+		{
+			ID:   testutil.MustParseID("0000000000000000000000000000000000000009"),
+			Addr: dht.NodeAddr{Port: 41009, IP: net.IPv4(10, 0, 0, 9)},
+		},
 	}
 	peers := []ktable.Node{
 		mockedPeer{nodes[0]},
 		mockedPeer{nodes[1]},
 		mockedPeer{nodes[2]},
 	}
-	expectedToken := mocks.responder.announceToken(infoHash, mocks.sender.ID, mocks.sender.Addr.ToAddrPort().Addr())
 	mocks.table.On("GetHashOrClosestNodes", infoHash).Return(ktable.GetHashOrClosestNodesResult{
 		ClosestNodes: peers,
 	})
@@ -248,7 +280,7 @@ func TestResponder_get_peers__nodes(t *testing.T) {
 		ID:     mocks.nodeID,
 		Values: nil,
 		Nodes:  nodes,
-		Token:  &expectedToken,
+		Token:  new(mocks.responder.announceToken(infoHash, mocks.sender.ID, mocks.sender.Addr.ToAddrPort().Addr())),
 	}, ret)
 	assert.NoError(t, err)
 }
@@ -356,9 +388,18 @@ func TestResponder_sample_infohashes(t *testing.T) {
 		mockedHash{id: protocol.RandomNodeID()},
 	}
 	nodes := dht.CompactIPv4NodeInfo{
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
-		dht.RandomNodeInfo(4),
+		{
+			ID:   testutil.MustParseID("000000000000000000000000000000000000000a"),
+			Addr: dht.NodeAddr{Port: 41010, IP: net.IPv4(10, 0, 0, 10)},
+		},
+		{
+			ID:   testutil.MustParseID("000000000000000000000000000000000000000b"),
+			Addr: dht.NodeAddr{Port: 41011, IP: net.IPv4(10, 0, 0, 11)},
+		},
+		{
+			ID:   testutil.MustParseID("000000000000000000000000000000000000000c"),
+			Addr: dht.NodeAddr{Port: 41012, IP: net.IPv4(10, 0, 0, 12)},
+		},
 	}
 	peers := []ktable.Node{
 		mockedPeer{nodes[0]},
@@ -404,4 +445,129 @@ func TestResponder_unknown_method(t *testing.T) {
 	}
 	_, err := mocks.responder.Respond(context.Background(), msg)
 	assert.Equal(t, err, ErrMethodUnknown)
+}
+
+func TestResponder_announce_peer__missing_args(t *testing.T) {
+	t.Parallel()
+
+	mocks := newTestResponderMocks(t)
+	msg := dht.RecvMsg{
+		From: mocks.sender.Addr.ToAddrPort(),
+		Msg: dht.Msg{
+			Q: "announce_peer",
+			A: &dht.MsgArgs{
+				ID: mocks.sender.ID,
+			},
+		},
+	}
+	_, err := mocks.responder.Respond(context.Background(), msg)
+	assert.Equal(t, ErrMissingArguments, err)
+}
+
+func TestResponder_announce_peer__invalid_token(t *testing.T) {
+	t.Parallel()
+
+	mocks := newTestResponderMocks(t)
+	infoHash := protocol.RandomNodeID()
+	msg := dht.RecvMsg{
+		From: mocks.sender.Addr.ToAddrPort(),
+		Msg: dht.Msg{
+			Q: "announce_peer",
+			A: &dht.MsgArgs{
+				ID:       mocks.sender.ID,
+				InfoHash: infoHash,
+				Token:    "invalid_token_value",
+			},
+		},
+	}
+	_, err := mocks.responder.Respond(context.Background(), msg)
+	assert.Equal(t, ErrInvalidToken, err)
+}
+
+type alwaysDenyLimiter struct{}
+
+func (alwaysDenyLimiter) Allow(_ netip.Addr) bool {
+	return false
+}
+
+func (alwaysDenyLimiter) SetGlobalRateLimit(_ int) {}
+
+func (alwaysDenyLimiter) SetPerIPRateLimit(_ int) {}
+
+func TestResponderLimiter_too_many_requests(t *testing.T) {
+	t.Parallel()
+
+	mocks := newTestResponderMocks(t)
+	rl := responderLimiter{
+		responder: mocks.responder,
+		limiter:   alwaysDenyLimiter{},
+	}
+	msg := dht.RecvMsg{
+		From: mocks.sender.Addr.ToAddrPort(),
+		Msg: dht.Msg{
+			Q: "ping",
+			A: &dht.MsgArgs{
+				ID: mocks.sender.ID,
+			},
+		},
+	}
+	_, err := rl.Respond(context.Background(), msg)
+	assert.Equal(t, ErrTooManyRequests, err)
+}
+
+type okResponder struct{}
+
+func (okResponder) Respond(_ context.Context, _ dht.RecvMsg) (dht.Return, error) {
+	return dht.Return{}, nil
+}
+
+func TestResponderLimiter_global_rate_limit(t *testing.T) {
+	t.Parallel()
+
+	rl := responderLimiter{
+		responder: okResponder{},
+		limiter:   NewLimiter(rate.Limit(1), 1, rate.Inf, 10, 1000, time.Second*20),
+	}
+
+	msg := dht.RecvMsg{
+		From: netip.AddrPortFrom(netip.IPv4Unspecified(), 33334),
+		Msg: dht.Msg{
+			Q: "ping",
+			A: &dht.MsgArgs{
+				ID: protocol.RandomNodeID(),
+			},
+		},
+	}
+
+	_, err1 := rl.Respond(context.Background(), msg)
+	require.NoError(t, err1, "first request should be allowed")
+
+	_, err2 := rl.Respond(context.Background(), msg)
+	require.Equal(t, ErrTooManyRequests, err2, "second request should be rate limited")
+}
+
+func TestResponderLimiter_per_ip_rate_limit(t *testing.T) {
+	t.Parallel()
+
+	rl := responderLimiter{
+		responder: okResponder{},
+		limiter:   NewLimiter(rate.Inf, 20, rate.Limit(1), 1, 1000, time.Second*20),
+	}
+
+	ip := netip.MustParseAddr("10.0.0.1")
+	msg := dht.RecvMsg{
+		From: netip.AddrPortFrom(ip, 33334),
+		Msg: dht.Msg{
+			Q: "ping",
+			A: &dht.MsgArgs{
+				ID: protocol.RandomNodeID(),
+			},
+		},
+	}
+
+	_, err1 := rl.Respond(context.Background(), msg)
+	require.NoError(t, err1, "first request should be allowed")
+
+	_, err2 := rl.Respond(context.Background(), msg)
+	require.Equal(t, ErrTooManyRequests, err2, "second request from same IP should be rate limited")
 }

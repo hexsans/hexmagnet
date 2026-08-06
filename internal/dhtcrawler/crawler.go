@@ -2,108 +2,72 @@ package dhtcrawler
 
 import (
 	"context"
-	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/blocking"
-	"github.com/bitmagnet-io/bitmagnet/internal/bloom"
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
-	"github.com/bitmagnet-io/bitmagnet/internal/database/dao"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/client"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo/banning"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/metainfo/metainforequester"
-	"github.com/prometheus/client_golang/prometheus"
-	boom "github.com/tylertreat/BoomFilters"
+	bloom "github.com/bits-and-blooms/bloom/v3"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/client"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
+type crawlerConfig struct {
+	hashDiscoverLimiter *rate.Limiter
+	bootstrapNodes      []string
+	reseedInterval      time.Duration
+	embedTrackers       []string
+}
+
 type crawler struct {
-	kTable                       ktable.Table
-	client                       client.Client
-	metainfoRequester            metainforequester.Requester
-	banningChecker               banning.Checker
-	bootstrapNodes               []string
-	reseedBootstrapNodesInterval time.Duration
-	getOldestNodesInterval       time.Duration
-	oldPeerThreshold             time.Duration
-	discoveredNodes              concurrency.BatchingChannel[ktable.Node]
-	nodesForPing                 concurrency.BufferedConcurrentChannel[ktable.Node]
-	nodesForFindNode             concurrency.BufferedConcurrentChannel[ktable.Node]
-	nodesForSampleInfoHashes     concurrency.BufferedConcurrentChannel[ktable.Node]
-	infoHashTriage               concurrency.BatchingChannel[nodeHasPeersForHash]
-	getPeers                     concurrency.BufferedConcurrentChannel[nodeHasPeersForHash]
-	scrape                       concurrency.BufferedConcurrentChannel[nodeHasPeersForHash]
-	requestMetaInfo              concurrency.BufferedConcurrentChannel[infoHashWithPeers]
-	persistTorrents              concurrency.BatchingChannel[infoHashWithMetaInfo]
-	persistSources               concurrency.BatchingChannel[infoHashWithScrape]
-	rescrapeThreshold            time.Duration
-	saveFilesThreshold           uint
-	savePieces                   bool
-	dao                          *dao.Query
-	// ignoreHashes is a thread-safe bloom filter that the crawler keeps in memory,
-	// containing every hash it has already encountered.
-	// This avoids multiple attempts to crawl the same hash, and takes a lot of load off the database query
-	// that checks if a hash has already been indexed.
-	ignoreHashes    *ignoreHashes
-	blockingManager blocking.Manager
-	// soughtNodeID is a random node ID used as the target for find_node and sample_infohashes requests.
-	// It is rotated every 10 seconds.
-	soughtNodeID   *concurrency.AtomicValue[protocol.ID]
-	stopped        chan struct{}
-	persistedTotal *prometheus.CounterVec
-	logger         *zap.SugaredLogger
+	kTable                   ktable.Table
+	client                   client.Client
+	getOldestNodesInterval   time.Duration
+	oldPeerThreshold         time.Duration
+	discoveredNodes          concurrency.BatchingChannel[ktable.Node]
+	nodesForPing             concurrency.BufferedConcurrentChannel[ktable.Node]
+	nodesForFindNode         concurrency.BufferedConcurrentChannel[ktable.Node]
+	nodesForSampleInfoHashes concurrency.BufferedConcurrentChannel[ktable.Node]
+	kafkaProducer            queue.Producer
+	ignoreHashes             *ignoreHashes
+	soughtNodeID             *concurrency.AtomicValue[protocol.ID]
+	stopped                  chan struct{}
+	runtime                  *Runtime
+	config                   atomic.Pointer[crawlerConfig]
+	logger                   *zap.SugaredLogger
+	nodeDispatchSem          chan struct{}
 }
 
-func (c *crawler) start() {
-	ctx, cancel := context.WithCancel(context.Background())
+const maxConcurrentNodeDispatches = 64
+
+func (c *crawler) start(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	// start the various pipeline workers
-	go c.rotateSoughtNodeID(ctx)
-	go c.runDiscoveredNodes(ctx)
-	go c.runPing(ctx)
-	go c.runFindNode(ctx)
-	go c.getNodesForFindNode(ctx)
-	go c.runSampleInfoHashes(ctx)
-	go c.getNodesForSampleInfoHashes(ctx)
-	go c.runInfoHashTriage(ctx)
-	go c.runGetPeers(ctx)
-	go c.runRequestMetaInfo(ctx)
-	go c.runScrape(ctx)
-	go c.reseedBootstrapNodes(ctx)
-	go c.runPersistTorrents(ctx)
-	go c.runPersistSources(ctx)
-	go c.getOldNodes(ctx)
-	<-c.stopped
-}
 
-type nodeHasPeersForHash struct {
-	infoHash protocol.ID
-	node     netip.AddrPort
-}
+	go worker.GoRecover(c.logger, "rotateSoughtNodeID", func() { c.rotateSoughtNodeID(ctx) })
+	go worker.GoRecover(c.logger, "runDiscoveredNodes", func() { c.runDiscoveredNodes(ctx) })
+	go worker.GoRecover(c.logger, "runPing", func() { c.runPing(ctx) })
+	go worker.GoRecover(c.logger, "runFindNode", func() { c.runFindNode(ctx) })
+	go worker.GoRecover(c.logger, "getNodesForFindNode", func() { c.getNodesForFindNode(ctx) })
+	go worker.GoRecover(c.logger, "runSampleInfoHashes", func() { c.runSampleInfoHashes(ctx) })
+	go worker.GoRecover(c.logger, "getNodesForSampleInfoHashes", func() { c.getNodesForSampleInfoHashes(ctx) })
+	go worker.GoRecover(c.logger, "reseedBootstrapNodes", func() { c.reseedBootstrapNodes(ctx) })
+	go worker.GoRecover(c.logger, "getOldNodes", func() { c.getOldNodes(ctx) })
 
-type infoHashWithMetaInfo struct {
-	nodeHasPeersForHash
-	metaInfo metainfo.Info
-}
-
-type infoHashWithPeers struct {
-	nodeHasPeersForHash
-	peers []netip.AddrPort
-}
-
-type infoHashWithScrape struct {
-	nodeHasPeersForHash
-	bfsd bloom.Filter
-	bfpe bloom.Filter
+	select {
+	case <-c.stopped:
+	case <-ctx.Done():
+	}
 }
 
 type ignoreHashes struct {
 	mutex sync.Mutex
-	bloom *boom.StableBloomFilter
+	bloom *bloom.BloomFilter
 }
 
 func (i *ignoreHashes) testAndAdd(id protocol.ID) bool {

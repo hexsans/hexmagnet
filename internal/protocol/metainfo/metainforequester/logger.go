@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +17,7 @@ type requestLogger struct {
 func (r requestLogger) Request(ctx context.Context, infoHash protocol.ID, addr netip.AddrPort) (Response, error) {
 	start := time.Now()
 	resp, err := r.requester.Request(ctx, infoHash, addr)
-	keyValues := []interface{}{
+	keyValues := []any{
 		"infoHash", infoHash,
 		"addr", addr,
 		"duration", time.Since(start),

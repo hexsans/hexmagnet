@@ -1,33 +1,27 @@
-type QueueQuery {
-  jobs(input: QueueJobsQueryInput!): QueueJobsQueryResult!
-  metrics(input: QueueMetricsQueryInput!): QueueMetricsQueryResult!
+enum QueueJobStatus {
+  pending
+  processed
+  failed
+  retry
 }
 
-input QueueJobsQueryInput {
+enum QueueJobsOrderByField {
+  createdAt
+  ranAt
+  priority
+}
+
+input QueueMetricsQueryInput {
+  bucketDuration: MetricsBucketDuration!
   queues: [String!]
   statuses: [QueueJobStatus!]
-  limit: Int
-  page: Int
-  offset: Int
-  totalCount: Boolean
-  hasNextPage: Boolean
-  facets: QueueJobsFacetsInput
-  orderBy: [QueueJobsOrderByInput!]
+  startTime: DateTime
+  endTime: DateTime
 }
 
 input QueueJobQueueFacetInput {
-  aggregate: Boolean
-  filter: [String!]
-}
-
-input QueueJobStatusFacetInput {
-  aggregate: Boolean
-  filter: [QueueJobStatus!]
-}
-
-input QueueJobsFacetsInput {
-  status: QueueJobStatusFacetInput
-  queue: QueueJobQueueFacetInput
+  values: [String!]!
+  logic: FacetLogic!
 }
 
 input QueueJobsOrderByInput {
@@ -35,18 +29,41 @@ input QueueJobsOrderByInput {
   descending: Boolean
 }
 
-type QueueJob {
-  id: ID!
+input QueueJobsQueryInput {
+  queues: QueueJobQueueFacetInput
+  orderBy: QueueJobsOrderByInput
+  limit: Int
+  offset: Int
+}
+
+type QueueMetricsBucket {
   queue: String!
   status: QueueJobStatus!
+  createdAtBucket: DateTime!
+  ranAtBucket: DateTime
+  count: Int!
+  latency: Duration
+}
+
+type QueueMetricsQueryResult {
+  buckets: [QueueMetricsBucket!]!
+}
+
+type QueueJob {
+  id: String!
+  queue: String!
   payload: String!
-  priority: Int!
-  retries: Int!
-  maxRetries: Int!
-  runAfter: DateTime!
-  ranAt: DateTime
-  error: String
   createdAt: DateTime!
+}
+
+type QueueJobQueueAgg {
+  value: String!
+  label: String!
+  count: Int!
+}
+
+type QueueJobsAggregations {
+  queue: [QueueJobQueueAgg!]
 }
 
 type QueueJobsQueryResult {
@@ -56,50 +73,9 @@ type QueueJobsQueryResult {
   aggregations: QueueJobsAggregations!
 }
 
-type QueueJobQueueAgg {
-  value: String!
-  label: String!
-  count: Int!
+type QueueQuery {
+  metrics(input: QueueMetricsQueryInput!): QueueMetricsQueryResult!
+  jobs(input: QueueJobsQueryInput!): QueueJobsQueryResult!
 }
 
-type QueueJobStatusAgg {
-  value: QueueJobStatus!
-  label: String!
-  count: Int!
-}
 
-type QueueJobsAggregations {
-  queue: [QueueJobQueueAgg!]
-  status: [QueueJobStatusAgg!]
-}
-
-enum QueueJobStatus {
-  pending
-  retry
-  failed
-  processed
-}
-
-input QueueEnqueueReprocessTorrentsBatchInput {
-  purge: Boolean
-  batchSize: Int
-  chunkSize: Int
-  contentTypes: [ContentType]
-  orphans: Boolean
-  classifierRematch: Boolean
-  classifierWorkflow: String
-  apisDisabled: Boolean
-  localSearchDisabled: Boolean
-}
-
-type QueueMutation {
-  purgeJobs(input: QueuePurgeJobsInput!): Void
-  enqueueReprocessTorrentsBatch(
-    input: QueueEnqueueReprocessTorrentsBatchInput
-  ): Void
-}
-
-input QueuePurgeJobsInput {
-  queues: [String!]
-  statuses: [QueueJobStatus!]
-}

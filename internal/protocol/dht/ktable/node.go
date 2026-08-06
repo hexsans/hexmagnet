@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
 
 type nodeKeyspace struct {
@@ -24,7 +24,6 @@ func (k *nodeKeyspace) getLastRespondedBefore(t time.Time) []Node {
 }
 
 func (k *nodeKeyspace) getCandidatesForSampleInfoHashes(n int) []*node {
-	//nolint:prealloc
 	var candidates []*node
 
 	for _, it := range k.items {
@@ -157,10 +156,6 @@ func (n *node) IsSampleInfoHashesCandidate() bool {
 		n.lastRespondedAt.Before(threshold)
 }
 
-func (n *node) olderThan(t time.Time) bool {
-	return n.lastRespondedAt.Before(t)
-}
-
 func NodeResponded() NodeOption {
 	return nodeOption{
 		fn: func(n *node) {
@@ -176,6 +171,7 @@ func NodeBep51Support(supported bool) NodeOption {
 			if supported {
 				s = protocolSupportYes
 			}
+
 			n.bep51Support = s
 		},
 	}
@@ -193,8 +189,10 @@ func NodeSampleInfoHashesRes(discoveredNum int, totalNum int, nextSampleTime tim
 				if nextSampleTime.Before(now) {
 					nextSampleTime = now
 				}
+
 				nextSampleTime = nextSampleTime.Add(5 * time.Minute)
 			}
+
 			n.nextSampleInfoHashesTime = nextSampleTime
 		},
 	}

@@ -1,0 +1,10 @@
+mutation ReindexElasticsearch {
+  torrent {
+    reindexToElasticsearch {
+      total
+      indexed
+      done
+      error
+    }
+  }
+}

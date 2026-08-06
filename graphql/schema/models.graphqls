@@ -1,19 +1,15 @@
 type Torrent {
   infoHash: Hash20!
   name: String!
-  size: Int!
+  size: Uint64!
   hasFilesInfo: Boolean!
   singleFile: Boolean
-  extension: String
-  filesStatus: FilesStatus!
   filesCount: Int
   fileType: FileType
   fileTypes: [FileType!]
   files: [TorrentFile!]
-  sources: [TorrentSourceInfo!]!
   seeders: Int
   leechers: Int
-  tagNames: [String!]!
   magnetUri: String!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -22,29 +18,15 @@ type Torrent {
 type TorrentFile {
   infoHash: Hash20!
   index: Int!
-  path: String!
+  pathParts: [String!]!
   extension: String
   fileType: FileType
-  size: Int!
+  size: Uint64!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
 
-type TorrentSource {
-  key: String!
-  name: String!
-}
-
-type TorrentSourceInfo {
-  key: String!
-  name: String!
-  importId: String
-  seeders: Int
-  leechers: Int
-}
-
-type TorrentContent {
-  id: ID!
+type TorrentSearch {
   infoHash: Hash20!
   torrent: Torrent!
   contentType: ContentType
@@ -53,16 +35,8 @@ type TorrentContent {
   content: Content
   title: String!
   languages: [LanguageInfo!]
-  episodes: Episodes
-  videoResolution: VideoResolution
-  videoSource: VideoSource
-  videoCodec: VideoCodec
-  video3d: Video3D
-  videoModifier: VideoModifier
-  releaseGroup: String
   seeders: Int
   leechers: Int
-  publishedAt: DateTime!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -72,23 +46,8 @@ type LanguageInfo {
   name: String!
 }
 
-type Episodes {
-  label: String!
-  seasons: [Season!]!
-}
-
-type Season {
-  season: Int!
-  episodes: [Int!]
-}
-
-type MetadataSource {
-  key: String!
-  name: String!
-}
-
 type ExternalLink {
-  metadataSource: MetadataSource!
+  source: String!
   url: String!
 }
 
@@ -98,38 +57,12 @@ type Content {
   id: String!
   title: String!
   releaseDate: Date
-  releaseYear: Year
   adult: Boolean
-  originalLanguage: LanguageInfo
-  originalTitle: String
   overview: String
-  runtime: Int
   popularity: Float
   voteAverage: Float
   voteCount: Int
-  attributes: [ContentAttribute!]!
-  collections: [ContentCollection!]!
-  metadataSource: MetadataSource!
   externalLinks: [ExternalLink!]!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-type ContentAttribute {
-  source: String!
-  key: String!
-  value: String!
-  metadataSource: MetadataSource!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-type ContentCollection {
-  type: String!
-  source: String!
-  id: String!
-  name: String!
-  metadataSource: MetadataSource!
   createdAt: DateTime!
   updatedAt: DateTime!
 }

@@ -7,7 +7,7 @@ package model
 import (
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
 
 const TableNameTorrentFile = "torrent_files"
@@ -16,9 +16,9 @@ const TableNameTorrentFile = "torrent_files"
 type TorrentFile struct {
 	InfoHash  protocol.ID `gorm:"column:info_hash;primaryKey;<-:create" json:"infoHash"`
 	Index     uint        `gorm:"column:index;not null;<-:create" json:"index"`
-	Path      string      `gorm:"column:path;primaryKey;<-:create" json:"path"`
+	PathParts []string    `gorm:"column:path_parts;serializer:text_array;type:text[]" json:"pathParts"`
 	Extension NullString  `gorm:"column:extension;<-:false" json:"extension"`
-	Size      uint        `gorm:"column:size;not null" json:"size"`
+	Size      uint64      `gorm:"column:size;not null" json:"size"`
 	CreatedAt time.Time   `gorm:"column:created_at;not null;<-:create" json:"createdAt"`
 	UpdatedAt time.Time   `gorm:"column:updated_at;not null" json:"updatedAt"`
 }

@@ -1,0 +1,10 @@
+query Workers {
+  workers {
+    listAll {
+      workers {
+        key
+        started
+      }
+    }
+  }
+}

@@ -10,91 +10,93 @@ func (s JSONSchema) MarshalJSON() ([]byte, error) {
 	return json.MarshalIndent(map[string]any(s), "", "  ")
 }
 
-const schemaID = "https://bitmagnet.io/schemas/classifier-0.1.json"
+const schemaID = "https://hexmagnet.local/schemas/classifier-0.1.json"
 
 func (f features) JSONSchema() JSONSchema {
 	return map[string]any{
-		"$schema": "http://json-schema.org/draft-07/schema#",
-		"$id":     schemaID,
-		"type":    "object",
-		"properties": map[string]any{
+		"$schema":  "http://json-schema.org/draft-07/schema#",
+		"$id":      schemaID,
+		schemaType: schemaTypeObject,
+		schemaProperties: map[string]any{
 			"$schema": map[string]any{
-				"const": schemaID,
+				schemaConst: schemaID,
 			},
 			"workflows": map[string]any{
-				"type": "object",
-				"additionalProperties": map[string]any{
-					"$ref": "#/definitions/action",
+				schemaType: schemaTypeObject,
+				schemaAdditionalProperties: map[string]any{
+					schemaRef: refAction,
 				},
 			},
 			"flag_definitions": map[string]any{
-				"type": "object",
-				"additionalProperties": map[string]any{
-					"type": "string",
-					"enum": FlagTypeValues(),
+				schemaType: schemaTypeObject,
+				schemaAdditionalProperties: map[string]any{
+					schemaType: celTypeString,
+					schemaEnum: FlagTypeValues(),
 				},
 			},
 			"flags": map[string]any{
-				"type":                 "object",
-				"additionalProperties": true,
+				schemaType:                 schemaTypeObject,
+				schemaAdditionalProperties: true,
 			},
 			"keywords": map[string]any{
-				"type": "object",
-				"additionalProperties": map[string]any{
-					"type": "array",
-					"items": map[string]any{
-						"type": "string",
+				schemaType: schemaTypeObject,
+				schemaAdditionalProperties: map[string]any{
+					schemaType: schemaTypeArray,
+					schemaItems: map[string]any{
+						schemaType: celTypeString,
 					},
 				},
 			},
 			"extensions": map[string]any{
-				"type": "object",
-				"additionalProperties": map[string]any{
-					"type": "array",
-					"items": map[string]any{
-						"type": "string",
+				schemaType: schemaTypeObject,
+				schemaAdditionalProperties: map[string]any{
+					schemaType: schemaTypeArray,
+					schemaItems: map[string]any{
+						schemaType: celTypeString,
 					},
 				},
 			},
 		},
-		"additionalProperties": false,
+		schemaAdditionalProperties: false,
 		"definitions": func() map[string]any {
 			defs := map[string]any{
 				"action": map[string]any{
-					"oneOf": []map[string]any{
+					schemaOneOf: []map[string]any{
 						{
-							"$ref": "#/definitions/action_single",
+							schemaRef: refActionSingle,
 						},
 						{
-							"$ref": "#/definitions/action_multi",
+							schemaRef: "#/definitions/action_multi",
 						},
 					},
 				},
 				"action_multi": map[string]any{
-					"type": "array",
-					"items": map[string]any{
-						"$ref": "#/definitions/action_single",
+					schemaType: schemaTypeArray,
+					schemaItems: map[string]any{
+						schemaRef: refActionSingle,
 					},
 				},
 				"action_single": map[string]any{
-					"oneOf": func() []map[string]any {
-						var result []map[string]any
+					schemaOneOf: func() []map[string]any {
+						result := make([]map[string]any, 0, len(f.actions))
 						for _, def := range f.actions {
 							result = append(result, map[string]any{
-								"$ref": "#/definitions/action__" + def.name(),
+								schemaRef: "#/definitions/action__" + def.name(),
 							})
 						}
+
 						return result
 					}(),
 				},
-				"condition": map[string]any{
-					"oneOf": func() []map[string]any {
-						var result []map[string]any
+				schemaKeyCondition: map[string]any{
+					schemaOneOf: func() []map[string]any {
+						result := make([]map[string]any, 0, len(f.conditions))
 						for _, def := range f.conditions {
 							result = append(result, map[string]any{
-								"$ref": "#/definitions/condition__" + def.name(),
+								schemaRef: "#/definitions/condition__" + def.name(),
 							})
 						}
+
 						return result
 					}(),
 				},
@@ -102,14 +104,12 @@ func (f features) JSONSchema() JSONSchema {
 			for _, def := range f.actions {
 				defs["action__"+def.name()] = def.JSONSchema()
 			}
+
 			for _, def := range f.conditions {
 				defs["condition__"+def.name()] = def.JSONSchema()
 			}
+
 			return defs
 		}(),
 	}
-}
-
-func DefaultJSONSchema() JSONSchema {
-	return defaultFeatures.JSONSchema()
 }

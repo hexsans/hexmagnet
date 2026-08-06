@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"net/netip"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 )
 
 type Responder interface {
@@ -22,22 +22,22 @@ type responder struct {
 	sampleInfoHashesInterval int64
 }
 
-var ErrMissingArguments = dht.Error{
+var ErrMissingArguments = &dht.Error{
 	Code: dht.ErrorCodeProtocolError,
 	Msg:  "missing arguments",
 }
 
-var ErrInvalidToken = dht.Error{
+var ErrInvalidToken = &dht.Error{
 	Code: dht.ErrorCodeProtocolError,
 	Msg:  "invalid token",
 }
 
-var ErrMethodUnknown = dht.Error{
+var ErrMethodUnknown = &dht.Error{
 	Code: dht.ErrorCodeMethodUnknown,
 	Msg:  "method Unknown",
 }
 
-var ErrTooManyRequests = dht.Error{
+var ErrTooManyRequests = &dht.Error{
 	Code: dht.ErrorCodeGenericError,
 	Msg:  "too many requests",
 }
@@ -80,8 +80,7 @@ func (r responder) Respond(_ context.Context, msg dht.RecvMsg) (ret dht.Return, 
 		}
 
 		ret.Nodes = nodeInfosFromNodes(result.ClosestNodes...)
-		token := r.announceToken(args.InfoHash, args.ID, msg.From.Addr())
-		ret.Token = &token
+		ret.Token = new(r.announceToken(args.InfoHash, args.ID, msg.From.Addr()))
 	case dht.QAnnouncePeer:
 		if args.InfoHash == [20]byte{} {
 			err = ErrMissingArguments
@@ -106,8 +105,7 @@ func (r responder) Respond(_ context.Context, msg dht.RecvMsg) (ret dht.Return, 
 
 		ret.Samples = &samples
 		ret.Nodes = nodeInfosFromNodes(result.Nodes...)
-		numInt64 := int64(result.TotalHashes)
-		ret.Num = &numInt64
+		ret.Num = new(int64(result.TotalHashes))
 		ret.Interval = &r.sampleInfoHashesInterval
 	default:
 		err = ErrMethodUnknown

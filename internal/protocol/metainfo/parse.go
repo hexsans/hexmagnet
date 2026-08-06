@@ -6,7 +6,7 @@ import (
 
 	"github.com/anacrolix/torrent/bencode"
 	mi "github.com/anacrolix/torrent/metainfo"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 )
 
 func ParseMetaInfoBytes(infoHash protocol.ID, metaInfoBytes []byte) (Info, error) {
@@ -18,6 +18,8 @@ func ParseMetaInfoBytes(infoHash protocol.ID, metaInfoBytes []byte) (Info, error
 	if unmarshalErr := bencode.Unmarshal(metaInfoBytes, &info); unmarshalErr != nil {
 		return Info{}, fmt.Errorf("error unmarshaling info bytes: %w", unmarshalErr)
 	}
+
+	NormalizeInfo(&info)
 
 	return info, nil
 }

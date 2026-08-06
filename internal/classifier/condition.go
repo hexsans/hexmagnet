@@ -21,7 +21,6 @@ type conditionDefinition interface {
 }
 
 func (c compilerContext) compileCondition(ctx compilerContext) (condition, error) {
-	//nolint:prealloc
 	var errs []error
 
 	for _, def := range c.conditions {

@@ -1,10 +1,5 @@
 package classifier
 
-import (
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/parsers"
-)
-
 const parseDateName = "parse_date"
 
 type parseDateAction struct{}
@@ -24,13 +19,15 @@ func (parseDateAction) compileAction(ctx compilerContext) (action, error) {
 	}
 
 	return action{
-		run: func(ctx executionContext) (classification.Result, error) {
-			parsed := parsers.ParseDate(ctx.torrent.Name)
+		run: func(ctx executionContext) (ClassificationResult, error) {
+			parsed := ParseDate(ctx.torrent.Name)
 			if parsed.IsNil() {
-				return ctx.result, classification.ErrUnmatched
+				return ctx.result, ErrUnmatched
 			}
+
 			cl := ctx.result
 			cl.Date = parsed
+
 			return cl, nil
 		},
 	}, nil

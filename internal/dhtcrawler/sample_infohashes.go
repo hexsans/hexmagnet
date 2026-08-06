@@ -3,9 +3,12 @@ package dhtcrawler
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/queue/kafka"
 )
 
 func (c *crawler) getNodesForSampleInfoHashes(ctx context.Context) {
@@ -20,7 +23,11 @@ func (c *crawler) getNodesForSampleInfoHashes(ctx context.Context) {
 			}
 		}
 
-		<-time.After(time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second):
+		}
 	}
 }
 
@@ -32,6 +39,7 @@ func (c *crawler) runSampleInfoHashes(ctx context.Context) {
 
 		res, err := c.client.SampleInfoHashes(ctx, n.Addr(), c.soughtNodeID.Get())
 		if err != nil {
+			c.logger.Debugw("sample_infohashes failed", "node", n.Addr(), "error", err)
 			c.kTable.BatchCommand(
 				ktable.DropNode{ID: n.ID(), Reason: fmt.Errorf("sample_infohashes failed: %w", err)},
 			)
@@ -39,29 +47,36 @@ func (c *crawler) runSampleInfoHashes(ctx context.Context) {
 			return
 		}
 
-		var discoveredHashes []nodeHasPeersForHash
+		var discoveredHashes []string
 
 		for _, s := range res.Samples {
 			if !c.ignoreHashes.testAndAdd(s) {
-				discoveredHashes = append(discoveredHashes, nodeHasPeersForHash{
-					infoHash: s,
-					node:     n.Addr(),
-				})
+				discoveredHashes = append(discoveredHashes, s.String())
 			}
 		}
 
+		now := time.Now()
+
 		for _, h := range discoveredHashes {
-			select {
-			case <-ctx.Done():
-				return
-			case c.infoHashTriage.In() <- h:
-				continue
+			if limiter := c.config.Load().hashDiscoverLimiter; limiter != nil {
+				if err := limiter.Wait(ctx); err != nil {
+					return
+				}
 			}
+
+			c.kafkaProducer.Produce(kafka.TopicDiscoveredHashes, h, dht.DiscoveredHash{
+				InfoHash:     h,
+				Node:         n.Addr().String(),
+				DiscoveredAt: now,
+			})
+		}
+
+		if len(discoveredHashes) > 0 {
+			c.runtime.PushActivity("discovered",
+				fmt.Sprintf("discovered %d hashes from %s", len(discoveredHashes), n.Addr().String()))
 		}
 
 		interval := res.Interval
-		// most nodes request a 6 hour backoff time(!)
-		// if we're still discovering info hashes from them then let's set a respectful interval instead
 		if len(discoveredHashes) > 0 && interval > 300 {
 			interval = 60
 		}
@@ -77,9 +92,19 @@ func (c *crawler) runSampleInfoHashes(ctx context.Context) {
 		}})
 
 		if len(res.Nodes) > 0 {
-			// block on the channel for up to a second trying to add sampled nodes to the discoveredNodes
-			// channel
+			c.nodeDispatchSem <- struct{}{}
+
 			go func() {
+				defer func() { <-c.nodeDispatchSem }()
+				defer func() {
+					if r := recover(); r != nil {
+						c.logger.Errorw("sample_infohashes node send panicked",
+							"panic", r,
+							"stack", string(debug.Stack()),
+						)
+					}
+				}()
+
 				timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 				defer cancel()
 

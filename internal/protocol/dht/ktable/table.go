@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable/btree"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable/btree"
 )
 
 type ID = protocol.ID

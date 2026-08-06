@@ -6,33 +6,31 @@ import (
 )
 
 type Config struct {
-	DSN               string
-	Host              string
-	User              string
-	Port              uint
-	Name              string
-	ConnectionTimeout uint
-	Password          string
-	SSLMode           string
-	SSLCertPath       string
-	SSLKeyPath        string
-	SSLRootCertPath   string
+	Host              string `validate:"required"                                                 yaml:"host"`
+	Username          string `validate:"required"                                                 yaml:"username"`
+	Port              uint   `                                                                    yaml:"port"`
+	Database          string `validate:"required"                                                 yaml:"database"`
+	ConnectionTimeout uint   `                                                                    yaml:"connection_timeout"`
+	Password          string `                                                                    yaml:"password"`
+	SSLMode           string `validate:"oneof=disable allow prefer require verify-ca verify-full" yaml:"ssl_mode"`
+	SSLCertPath       string `                                                                    yaml:"ssl_cert_path"`
+	SSLKeyPath        string `                                                                    yaml:"ssl_key_path"`
+	SSLRootCertPath   string `                                                                    yaml:"ssl_root_cert_path"`
+	MaxConnections    int    `validate:"gte=1"                                                    yaml:"max_connections"`
 }
 
 func NewDefaultConfig() Config {
 	return Config{
-		Host: "localhost",
-		User: "postgres",
-		Port: 5432,
-		Name: "bitmagnet",
+		Host:           "localhost",
+		Username:       "postgres",
+		Port:           5432,
+		Database:       "hexmagnet",
+		SSLMode:        "disable",
+		MaxConnections: 25,
 	}
 }
 
 func (c *Config) CreateDSN() string {
-	if c.DSN != "" {
-		return c.DSN
-	}
-
 	vals := dbValues(c)
 	p := make([]string, 0, len(vals))
 
@@ -43,7 +41,7 @@ func (c *Config) CreateDSN() string {
 	return strings.Join(p, " ")
 }
 
-func setIfNotEmpty(m map[string]string, key string, val interface{}) {
+func setIfNotEmpty(m map[string]string, key string, val any) {
 	strVal := fmt.Sprintf("%v", val)
 	if strVal != "" {
 		m[key] = strVal
@@ -58,8 +56,8 @@ func setIfPositive(m map[string]string, key string, val uint) {
 
 func dbValues(cfg *Config) map[string]string {
 	p := map[string]string{}
-	setIfNotEmpty(p, "dbname", cfg.Name)
-	setIfNotEmpty(p, "user", cfg.User)
+	setIfNotEmpty(p, "dbname", cfg.Database)
+	setIfNotEmpty(p, "user", cfg.Username)
 	setIfNotEmpty(p, "host", cfg.Host)
 	setIfNotEmpty(p, "port", fmt.Sprintf("%d", cfg.Port))
 	setIfNotEmpty(p, "sslmode", cfg.SSLMode)

@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/anacrolix/torrent/bencode"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
 	qt "github.com/frankban/quicktest"
+	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,6 +27,7 @@ func testMarshalUnmarshalMsg(t *testing.T, m Msg, expected string) {
 	c.Assert(string(b), qt.Equals, expected)
 
 	var _m Msg
+
 	err = bencode.Unmarshal([]byte(expected), &_m)
 	c.Assert(err, qt.IsNil)
 	c.Assert(_m, qt.ContentEquals, m)
@@ -52,7 +53,7 @@ func TestMarshalUnmarshalMsg(t *testing.T) {
 	// Test BEP 51 features
 	testMarshalUnmarshalMsg(t, Msg{
 		R: &Return{
-			ID: protocol.NewIDFromRawString("hellohellohellohello"),
+			ID: testutil.MustParseID("68656c6c6f68656c6c6f68656c6c6f68656c6c6f"),
 			Bep51Return: Bep51Return{
 				Interval: func() *int64 { var ret int64 = 420; return &ret }(),
 				// Num:      func() *int64 { var ret int64 = 69; return &ret }(),
@@ -104,15 +105,17 @@ func TestMarshalUnmarshalMsg(t *testing.T) {
 		Y: "r",
 		T: "\x03",
 		R: &Return{
-			ID: protocol.NewIDFromRawString("\xeb\xff6isQ\xffJ\xec)ͺ\xab\xf2\xfb\xe3F|\xc2g"),
+			ID: testutil.MustParseID("ebff36697351ff4aec29cdbaabf2fbe3467cc267"),
 		},
 		IP: NodeAddr{[]byte{124, 168, 180, 8}, 62844},
 	}, "d2:ip6:|\xa8\xb4\b\xf5|1:rd2:id20:\xeb\xff6isQ\xffJ\xec)ͺ\xab\xf2\xfb\xe3F|\xc2ge1:t1:\x031:y1:re")
 
 	var k [32]byte
+
 	_, _ = rand.Read(k[:])
 
 	var sig [64]byte
+
 	_, _ = rand.Read(sig[:])
 	testMarshalUnmarshalMsg(t, Msg{
 		A: &MsgArgs{
@@ -128,7 +131,7 @@ func TestMarshalUnmarshalMsg(t *testing.T) {
 	testMarshalUnmarshalMsg(t, Msg{
 		R: &Return{
 			Bep44Return: Bep44Return{
-				V:   bencode.MustMarshal([]interface{}{"tee", "hee"}),
+				V:   bencode.MustMarshal([]any{"tee", "hee"}),
 				Seq: new(int64),
 				K:   k,
 				Sig: sig,
@@ -158,6 +161,7 @@ func TestUnmarshalGetPeersResponse(t *testing.T) {
 	t.Parallel()
 
 	var msg Msg
+
 	err := bencode.Unmarshal(
 		[]byte(
 			"d1:rd6:valuesl6:\x01\x02\x03\x04\x05\x066:\x07\x08\x09\x0a\x0b\x0ce5:nodes52:\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x02\x03\x04\x05\x06\x07\x08\x09\x02\x03\x04\x05\x06\x07\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x02\x03\x04\x05\x06\x07\x08\x09\x02\x03\x04\x05\x06\x07ee",

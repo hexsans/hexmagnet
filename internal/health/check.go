@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 type (
 	checkerConfig struct {
 		timeout              time.Duration
-		info                 map[string]interface{}
+		info                 map[string]any
 		checks               map[string]*Check
 		cacheTTL             time.Duration
 		statusChangeListener func(context.Context, CheckerState)
@@ -39,7 +41,7 @@ type (
 
 	jsonCheckResult struct {
 		Status    string    `json:"status"`
-		Timestamp time.Time `json:"timestamp,omitempty"`
+		Timestamp time.Time `json:"timestamp"`
 		Error     string    `json:"error,omitempty"`
 	}
 
@@ -97,7 +99,7 @@ type (
 	// detailed information about the individual checks.
 	CheckerResult struct {
 		// Info contains additional information about this health result.
-		Info map[string]interface{} `json:"info,omitempty"`
+		Info map[string]any `json:"info,omitempty"`
 		// Status is the aggregated system availability status.
 		Status AvailabilityStatus `json:"status"`
 		// Details contains health information for all checked components.
@@ -115,7 +117,7 @@ type (
 		// Status is the availability status of a component.
 		Status AvailabilityStatus `json:"status"`
 		// Timestamp holds the time when the check was executed.
-		Timestamp time.Time `json:"timestamp,omitempty"`
+		Timestamp time.Time `json:"timestamp"`
 		// Error contains the check error message, if the check failed.
 		Error error `json:"error,omitempty"`
 	}
@@ -225,12 +227,17 @@ func (ck *defaultChecker) Start() {
 		ck.cancel = cancel
 
 		ck.started = true
+
 		ck.startedAt = time.Now()
 		defer ck.startPeriodicChecks(ctx)
 
 		// We run the initial check execution in a separate goroutine so that server startup is not blocked in
 		// case of a bad check that runs for a longer period of time.
-		go ck.Check(ctx)
+		go func() {
+			defer func() { _ = recover() }()
+
+			ck.Check(ctx)
+		}()
 	}
 
 	// Attention: We should avoid having this unlock as a deferred function call right after the mutex lock above,
@@ -307,6 +314,8 @@ func (ck *defaultChecker) runSynchronousChecks(ctx context.Context) {
 			numInitiatedChecks++
 
 			go func() {
+				defer func() { _ = recover() }()
+
 				withCheckContext(ctx, check, func(ctx context.Context) {
 					_, checkState := executeCheck(ctx, &ck.cfg, check, checkState)
 					resChan <- checkResult{check.Name, checkState}
@@ -342,11 +351,8 @@ func (ck *defaultChecker) startPeriodicChecks(ctx context.Context) {
 			// changed are
 			//    within this goroutine.
 			ck.periodicCheckCount++
-			ck.wg.Add(1)
 
-			go func() {
-				defer ck.wg.Done()
-
+			ck.wg.Go(func() {
 				if check.initialDelay > 0 {
 					if waitForStopSignal(ctx, check.initialDelay) {
 						return
@@ -385,7 +391,7 @@ func (ck *defaultChecker) startPeriodicChecks(ctx context.Context) {
 						return
 					}
 				}
-			}()
+			})
 		}
 	}
 }
@@ -460,6 +466,7 @@ func withCheckContext(ctx context.Context, check *Check, f func(checkCtx context
 	}
 
 	defer cancel()
+
 	f(ctx)
 }
 
@@ -589,11 +596,5 @@ func aggregateStatus(results map[string]CheckState) AvailabilityStatus {
 }
 
 func withInterceptors(interceptors []Interceptor, target InterceptorFunc) InterceptorFunc {
-	chain := target
-
-	for idx := len(interceptors) - 1; idx >= 0; idx-- {
-		chain = interceptors[idx](chain)
-	}
-
-	return chain
+	return utils.BuildChain(interceptors, target)
 }

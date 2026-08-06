@@ -1,7 +1,5 @@
 package classifier
 
-import "github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-
 const unmatchedName = "unmatched"
 
 type unmatchedAction struct{}
@@ -23,8 +21,8 @@ func (unmatchedAction) compileAction(ctx compilerContext) (action, error) {
 	path := ctx.path
 
 	return action{
-		run: func(ctx executionContext) (classification.Result, error) {
-			return ctx.result, classification.RuntimeError{Cause: classification.ErrUnmatched, Path: path}
+		run: func(ctx executionContext) (ClassificationResult, error) {
+			return ctx.result, RuntimeError{Cause: ErrUnmatched, Path: path}
 		},
 	}, nil
 }

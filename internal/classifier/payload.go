@@ -3,8 +3,9 @@ package classifier
 import (
 	"errors"
 	"fmt"
+	"slices"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type HasJSONSchema interface {
@@ -47,12 +48,11 @@ func (s payloadUnion[T]) JSONSchema() JSONSchema {
 	}
 
 	return map[string]any{
-		"oneOf": schemas,
+		schemaOneOf: schemas,
 	}
 }
 
 func (s payloadUnion[T]) Unmarshal(ctx compilerContext) (to T, _ error) {
-	//nolint:prealloc
 	var errs []error
 
 	for _, def := range s.oneOf {
@@ -134,8 +134,8 @@ type payloadList[T any] struct {
 
 func (s payloadList[T]) JSONSchema() JSONSchema {
 	schema := map[string]any{
-		"type":  "array",
-		"items": s.itemSpec.JSONSchema(),
+		schemaType:  schemaTypeArray,
+		schemaItems: s.itemSpec.JSONSchema(),
 	}
 	if s.description != "" {
 		schema["description"] = s.description
@@ -176,12 +176,12 @@ type payloadSingleKeyValue[T any] struct {
 
 func (s payloadSingleKeyValue[T]) JSONSchema() JSONSchema {
 	schema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
+		schemaType: schemaTypeObject,
+		schemaProperties: map[string]any{
 			s.key: s.valueSpec.JSONSchema(),
 		},
-		"required":             []string{s.key},
-		"additionalProperties": false,
+		"required":                 []string{s.key},
+		schemaAdditionalProperties: false,
 	}
 	if s.description != "" {
 		schema["description"] = s.description
@@ -219,8 +219,8 @@ type payloadEnum[T string] struct {
 
 func (s payloadEnum[T]) JSONSchema() JSONSchema {
 	return map[string]any{
-		"type": "string",
-		"enum": s.values,
+		schemaType: celTypeString,
+		schemaEnum: s.values,
 	}
 }
 
@@ -230,10 +230,8 @@ func (s payloadEnum[T]) Unmarshal(ctx compilerContext) (to T, _ error) {
 		return to, ctx.error(err)
 	}
 
-	for _, validValue := range s.values {
-		if value == validValue {
-			return value, nil
-		}
+	if slices.Contains(s.values, value) {
+		return value, nil
 	}
 
 	return to, ctx.error(fmt.Errorf("value not in enum: '%s'", value))
@@ -257,15 +255,17 @@ func (p payloadMustSucceed[T]) JSONSchema() JSONSchema {
 }
 
 var contentTypePayloadSpec = payloadTransformer[string, model.NullContentType]{
-	spec: payloadEnum[string]{append(model.ContentTypeNames(), "unknown")},
+	spec: payloadEnum[string]{model.ContentTypeNames()},
 	transform: func(str string, _ compilerContext) (model.NullContentType, error) {
-		if str == "unknown" {
+		if str == contentTypeUnknown {
 			return model.NullContentType{}, nil
 		}
+
 		contentType, err := model.ParseContentType(str)
 		if err != nil {
 			return model.NullContentType{}, err
 		}
+
 		return model.NullContentType{ContentType: contentType, Valid: true}, nil
 	},
 }

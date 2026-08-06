@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"runtime/debug"
 	"slices"
 	"sort"
 	"sync"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/slice"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -17,9 +18,8 @@ import (
 type RegistryParams struct {
 	fx.In
 	fx.Shutdowner
-	Workers    []Worker    `group:"workers"`
-	Decorators []Decorator `group:"worker_decorators"`
-	Logger     *zap.SugaredLogger
+	Workers []Worker `group:"workers"`
+	Logger  *zap.SugaredLogger
 }
 
 type RegistryResult struct {
@@ -37,12 +37,6 @@ func NewRegistry(p RegistryParams) (RegistryResult, error) {
 		r.workers[w.Key()] = w
 	}
 
-	for _, d := range p.Decorators {
-		if err := r.decorate(d.Key, d.Decorate); err != nil {
-			return RegistryResult{}, err
-		}
-	}
-
 	return RegistryResult{Registry: r}, nil
 }
 
@@ -54,7 +48,6 @@ type Registry interface {
 	DisableAll()
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	decorate(name string, fn DecorateFunction) error
 }
 
 type Worker interface {
@@ -64,14 +57,6 @@ type Worker interface {
 	_hook() fx.Hook
 	setEnabled(enabled bool)
 	setStarted(started bool)
-	decorate(DecorateFunction) Worker
-}
-
-type DecorateFunction func(fx.Hook) fx.Hook
-
-type Decorator struct {
-	Key      string
-	Decorate DecorateFunction
 }
 
 type worker struct {
@@ -100,16 +85,6 @@ func (w *worker) Started() bool {
 	return w.started
 }
 
-func (w *worker) decorate(fn DecorateFunction) Worker {
-	return &worker{
-		key: w.key,
-		hook: fn(fx.Hook{
-			OnStart: w.hook.OnStart,
-			OnStop:  w.hook.OnStop,
-		}),
-	}
-}
-
 func (w *worker) _hook() fx.Hook {
 	return w.hook
 }
@@ -120,6 +95,24 @@ func (w *worker) setEnabled(enabled bool) {
 
 func (w *worker) setStarted(started bool) {
 	w.started = started
+}
+
+// GoRecover spawns a goroutine with panic recovery that logs the panic with a stack trace.
+// The goroutine is stopped after recovery; the process continues.
+func GoRecover(logger *zap.SugaredLogger, name string, fn func()) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Errorw("goroutine panicked",
+					"goroutine", name,
+					"panic", r,
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+
+		fn()
+	}()
 }
 
 type registry struct {
@@ -136,7 +129,7 @@ func (r *registry) Workers() []Worker {
 
 	sort.Strings(keys)
 
-	return slice.Map(keys, func(s string) Worker {
+	return utils.Map(keys, func(s string) Worker {
 		return r.workers[s]
 	})
 }
@@ -247,16 +240,4 @@ func (r *registry) Stop(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (r *registry) decorate(name string, fn DecorateFunction) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if w, ok := r.workers[name]; ok {
-		r.workers[name] = w.decorate(fn)
-		return nil
-	}
-
-	return fmt.Errorf("worker %s not found", name)
 }

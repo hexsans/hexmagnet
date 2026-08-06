@@ -34,7 +34,7 @@ compactor:
 limits_config:
   retention_period: 24h
   retention_stream:
-    - selector: '{job="bitmagnet"}'
+    - selector: '{job="hexmagnet"}'
       priority: 1
       period: 24h
 

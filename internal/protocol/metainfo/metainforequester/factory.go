@@ -4,19 +4,21 @@ import (
 	"net"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/concurrency"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/protocol"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
 )
 
 type Params struct {
 	fx.In
-	Config Config
-	Logger *zap.SugaredLogger
+	Config         Config
+	Logger         *zap.SugaredLogger
+	RequestLimiter *rate.Limiter `name:"global_request_limiter" optional:"true"`
 }
 
 type Result struct {
@@ -31,25 +33,38 @@ type Result struct {
 func New(p Params) Result {
 	collector := newPrometheusCollector(requester{
 		clientID: protocol.RandomPeerID(),
-		timeout:  p.Config.RequestTimeout,
+		timeout:  5 * time.Second,
 		dialer: &net.Dialer{
 			Timeout:   3 * time.Second,
 			KeepAlive: -1,
 		},
 	})
 
-	return Result{
-		Requester: requestLimiter{
-			requester: requestLogger{
-				requester: collector,
-				// we make way to many requests to usefully log everything, but having a sample is
-				// helpful:
-				logger: p.Logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-					return zapcore.NewSamplerWithOptions(core, time.Minute, 10, 0)
-				})).Named("meta_info_requester"),
-			},
-			limiter: concurrency.NewKeyedLimiter(rate.Every(time.Second/2), 4, 1000, time.Second*20),
+	base := requestLimiter{
+		requester: requestLogger{
+			requester: collector,
+			logger: p.Logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+				return zapcore.NewSamplerWithOptions(core, time.Minute, 10, 0)
+			})).Named("meta_info_requester"),
 		},
+		limiter: concurrency.NewKeyedLimiter(rate.Every(time.Second/2), 4, 1000, time.Second*20),
+	}
+
+	var req Requester = &base
+	if p.RequestLimiter != nil {
+		req = &requestRateLimiter{
+			requester: req,
+			limiter:   p.RequestLimiter,
+		}
+	}
+
+	req = &connectionSemaphore{
+		requester: req,
+		sem:       semaphore.NewWeighted(100),
+	}
+
+	return Result{
+		Requester:           req,
 		RequestDuration:     collector.requestDuration,
 		RequestSuccessTotal: collector.requestSuccessTotal,
 		RequestErrorTotal:   collector.requestErrorTotal,

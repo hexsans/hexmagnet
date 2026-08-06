@@ -1,0 +1,37 @@
+query TorrentSearch($input: TorrentSearchQueryInput!) {
+  torrentSearch {
+    search(input: $input) {
+      items {
+        infoHash
+        contentType
+        contentSource
+        contentId
+        title
+        torrent {
+          infoHash
+          name
+          size
+          filesCount
+          hasFilesInfo
+          fileType
+          seeders
+          leechers
+          magnetUri
+        }
+        seeders
+        leechers
+        createdAt
+      }
+      aggregations {
+        contentType {
+          value
+          count
+        }
+      }
+      totalCount
+      totalCountIsEstimate
+      hasNextPage
+      barrier
+    }
+  }
+}

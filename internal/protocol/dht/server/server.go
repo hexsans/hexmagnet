@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/anacrolix/torrent/bencode"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/responder"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/responder"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +31,7 @@ type server struct {
 	queries          map[string]chan dht.RecvMsg
 	responder        responder.Responder
 	responderTimeout time.Duration
+	responderEnabled *atomic.Bool
 	idIssuer         IDIssuer
 	logger           *zap.SugaredLogger
 }
@@ -39,8 +42,18 @@ func (s *server) start() error {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Errorw("dht lifecycle wrapper panicked",
+					"panic", r,
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+
 		ctx, cancel := context.WithCancel(context.Background())
 		go s.read(ctx)
+
 		<-s.stopped
 		cancel()
 
@@ -55,6 +68,14 @@ func (s *server) stop() {
 }
 
 func (s *server) read(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Errorw("dht read loop panicked",
+				"panic", r,
+				"stack", string(debug.Stack()),
+			)
+		}
+	}()
 	/*   The field size sets a theoretical limit of 65,535 bytes (8 byte header + 65,527 bytes of
 	 * data) for a UDP datagram. However the actual limit for the data length, which is imposed by
 	 * the underlying IPv4 protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP
@@ -75,9 +96,11 @@ func (s *server) read(ctx context.Context) {
 
 		n, from, err := s.socket.Receive(buffer)
 		if err != nil {
-			// Socket is probably closed; if we're not shutting down then panic
 			if ctx.Err() == nil {
-				panic(fmt.Errorf("socket read error: %w", err))
+				s.logger.Errorw("socket read error",
+					"error", err,
+					"stack", string(debug.Stack()),
+				)
 			}
 
 			return
@@ -113,6 +136,19 @@ func (s *server) read(ctx context.Context) {
 }
 
 func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Errorw("handleQuery panicked",
+				"panic", r,
+				"stack", string(debug.Stack()),
+			)
+		}
+	}()
+
+	if !s.responderEnabled.Load() {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, s.responderTimeout)
 	defer cancel()
 
@@ -123,8 +159,7 @@ func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
 
 	ret, retErr := s.responder.Respond(ctx, msg)
 	if retErr != nil {
-		dhtErr := &dht.Error{}
-		if ok := errors.As(retErr, dhtErr); ok {
+		if dhtErr, ok := errors.AsType[*dht.Error](retErr); ok {
 			res.E = dhtErr
 		} else {
 			res.E = &dht.Error{
@@ -144,6 +179,15 @@ func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
 }
 
 func (s *server) handleResponse(msg dht.RecvMsg) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Errorw("handleResponse panicked",
+				"panic", r,
+				"stack", string(debug.Stack()),
+			)
+		}
+	}()
+
 	transactionID := msg.Msg.T
 
 	s.mutex.Lock()
@@ -189,6 +233,7 @@ func (s *server) Query(
 
 	queryCtx, cancel := context.WithTimeout(ctx, s.queryTimeout)
 	defer cancel()
+
 	select {
 	case <-queryCtx.Done():
 		err = queryCtx.Err()

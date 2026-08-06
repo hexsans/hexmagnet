@@ -1,29 +1,30 @@
 package torrentmetrics
 
 import (
-	"github.com/bitmagnet-io/bitmagnet/internal/lazy"
+	"github.com/hexsans/hexmagnet/internal/database/db"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/fx"
-	"gorm.io/gorm"
 )
 
 type Params struct {
 	fx.In
-	DB lazy.Lazy[*gorm.DB]
+	Queries utils.Lazy[*db.Queries]
 }
 
 type Result struct {
 	fx.Out
-	Client lazy.Lazy[Client]
+	Client utils.Lazy[Client]
 }
 
 func New(p Params) Result {
 	return Result{
-		Client: lazy.New[Client](func() (Client, error) {
-			db, err := p.DB.Get()
+		Client: utils.NewLazy[Client](func() (Client, error) {
+			q, err := p.Queries.Get()
 			if err != nil {
 				return nil, err
 			}
-			return client{db}, nil
+
+			return client{q}, nil
 		}),
 	}
 }

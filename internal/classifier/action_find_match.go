@@ -2,8 +2,6 @@ package classifier
 
 import (
 	"errors"
-
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
 )
 
 const findMatchName = "find_match"
@@ -18,7 +16,7 @@ var findMatchActionPayloadSpec = payloadSingleKeyValue[[]any]{
 	key: findMatchName,
 	valueSpec: payloadMustSucceed[[]any]{payloadList[any]{itemSpec: payloadGeneric[any]{
 		jsonSchema: map[string]any{
-			"$ref": "#/definitions/action_single",
+			schemaRef: refActionSingle,
 		},
 	}}},
 	description: "Iterate through a series of actions to find the first that does not return an unmatched error",
@@ -44,20 +42,23 @@ func (findMatchAction) compileAction(ctx compilerContext) (action, error) {
 	path := ctx.path
 
 	return action{
-		func(ctx executionContext) (classification.Result, error) {
+		func(ctx executionContext) (ClassificationResult, error) {
 			for _, action := range actions {
 				result, err := action.run(ctx)
 				if err != nil {
-					if errors.Is(err, classification.ErrUnmatched) {
+					if errors.Is(err, ErrUnmatched) {
 						continue
 					}
-					return classification.Result{}, classification.RuntimeError{
+
+					return ClassificationResult{}, RuntimeError{
 						Cause: err,
 						Path:  path,
 					}
 				}
+
 				return result, nil
 			}
+
 			return ctx.result, nil
 		},
 	}, nil

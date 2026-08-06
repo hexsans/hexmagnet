@@ -3,8 +3,7 @@ package classifier
 import (
 	"context"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type runnerSemaphore struct {
@@ -17,10 +16,10 @@ func (r runnerSemaphore) Run(
 	workflow string,
 	flags Flags,
 	t model.Torrent,
-) (classification.Result, error) {
+) (ClassificationResult, error) {
 	select {
 	case <-ctx.Done():
-		return classification.Result{}, ctx.Err()
+		return ClassificationResult{}, ctx.Err()
 	case r.semaphore <- struct{}{}:
 	}
 

@@ -3,7 +3,7 @@ package ktable
 import (
 	"net/netip"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable/btree"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable/btree"
 )
 
 type Command interface {
@@ -47,26 +47,6 @@ func (c DropNode) execReturn(t *table) bool {
 }
 
 func (c DropNode) exec(t *table) {
-	c.execReturn(t)
-}
-
-var _ CommandReturn[bool] = DropAddr{}
-
-type DropAddr struct {
-	Addr   netip.Addr
-	Reason error
-}
-
-func (c DropAddr) execReturn(t *table) bool {
-	id, ok := t.addrs.getPeerIDForAddr(c.Addr)
-	if !ok {
-		return false
-	}
-
-	return t.nodes.drop(id, c.Reason)
-}
-
-func (c DropAddr) exec(t *table) {
 	c.execReturn(t)
 }
 

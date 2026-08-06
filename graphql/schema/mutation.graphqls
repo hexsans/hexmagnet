@@ -1,20 +1,22 @@
 type Mutation {
   torrent: TorrentMutation!
-  queue: QueueMutation!
 }
 
 type TorrentMutation {
-  delete(infoHashes: [Hash20!]!): Void
-  putTags(infoHashes: [Hash20!]!, tagNames: [String!]!): Void
-  setTags(infoHashes: [Hash20!]!, tagNames: [String!]!): Void
-  deleteTags(infoHashes: [Hash20!], tagNames: [String!]): Void
   reprocess(input: TorrentReprocessInput!): Void
+  reindexToElasticsearch: ReindexProgress!
 }
 
 input TorrentReprocessInput {
   infoHashes: [Hash20!]!
   classifierRematch: Boolean
-  classifierWorkflow: String
-  apisDisabled: Boolean
-  localSearchDisabled: Boolean
+  contentType: ContentType
+}
+
+type ReindexProgress {
+  total: Int!
+  indexed: Int!
+  done: Boolean!
+  running: Boolean!
+  error: String
 }

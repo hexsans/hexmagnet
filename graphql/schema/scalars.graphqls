@@ -4,3 +4,4 @@ scalar DateTime
 scalar Duration
 scalar Void
 scalar Year
+scalar Uint64

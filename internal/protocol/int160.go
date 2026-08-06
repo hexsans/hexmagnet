@@ -30,13 +30,6 @@ func (i Int160) BitLen() int {
 	return a.BitLen()
 }
 
-// func (me *Int160) SetBytes(b []byte) {
-//	nBuckets := copy(me.bits[:], b)
-//	if nBuckets != 20 {
-//		panic(nBuckets)
-//	}
-//}
-
 func (i Int160) WithBit(index int, val bool) Int160 {
 	var orVal uint8
 	if val {
@@ -44,6 +37,7 @@ func (i Int160) WithBit(index int, val bool) Int160 {
 	}
 
 	var mask uint8 = ^(1 << (7 - index%8))
+
 	i.bits[index/8] = i.bits[index/8]&mask | orVal
 
 	return i

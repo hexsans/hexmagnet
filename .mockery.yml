@@ -4,18 +4,16 @@ mockname: "{{.InterfaceName}}"
 outpkg: "{{.PackageName}}_mocks"
 filename: "{{.InterfaceName}}.go"
 packages:
-  github.com/bitmagnet-io/bitmagnet/internal/classifier:
+  github.com/hexsans/hexmagnet/internal/classifier:
     interfaces:
       LocalSearch:
-  github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable:
+  github.com/hexsans/hexmagnet/internal/protocol/dht/ktable:
     interfaces:
       Table:
-  github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/responder:
+  github.com/hexsans/hexmagnet/internal/protocol/dht/responder:
     interfaces:
       Limiter:
-  github.com/bitmagnet-io/bitmagnet/internal/tmdb:
+  github.com/hexsans/hexmagnet/internal/tmdb:
     interfaces:
       Client:
-  github.com/bitmagnet-io/bitmagnet/internal/torznab:
-    interfaces:
-      Client:
+

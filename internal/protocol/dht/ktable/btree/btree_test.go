@@ -8,10 +8,21 @@ import (
 
 const testK = 4
 
-var testOrigin = MustParseBinaryNodeID("0000111100000000")
+func mustBinaryID(str string) NodeID {
+	id := make(NodeID, len(str)/8)
+	for i := range len(str) {
+		if str[i] == '1' {
+			id[i/8] |= 1 << (7 - uint(i%8))
+		}
+	}
+
+	return id
+}
+
+var testOrigin = mustBinaryID("0000111100000000")
 
 func newTestID(str string) NodeID {
-	return MustParseBinaryNodeID(str).MustXor(testOrigin)
+	return mustBinaryID(str).MustXor(testOrigin)
 }
 
 // the test IDs are defined as XORs with respect to the testOrigin

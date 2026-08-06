@@ -1,26 +1,10 @@
 package model
 
-type Maybe[T interface{}] struct {
+type Maybe[T any] struct {
 	Val   T
 	Valid bool
 }
 
-func MaybeValid[T interface{}](v T) Maybe[T] {
+func MaybeValid[T any](v T) Maybe[T] {
 	return Maybe[T]{Val: v, Valid: true}
-}
-
-func (n Maybe[T]) IsValid() bool {
-	return n.Valid
-}
-
-func (n Maybe[T]) IsDefined() bool {
-	return n.Valid
-}
-
-func (n Maybe[T]) Addr() *T {
-	if !n.Valid {
-		return nil
-	}
-
-	return &n.Val
 }

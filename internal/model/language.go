@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/keywords"
 	"github.com/facette/natsort"
+	"github.com/hexsans/hexmagnet/internal/database/fts"
 )
 
 type Language string
@@ -59,12 +59,6 @@ func (l Language) IsValid() bool {
 	return ok
 }
 
-var languageNames []string
-
-func LanguageNames() []string {
-	return languageNames
-}
-
 var languageValues []Language
 
 func LanguageValues() []Language {
@@ -91,14 +85,14 @@ func newLanguagesRegex() *regexp.Regexp {
 		tokens = append(tokens, namesToLower(lang.Aliases()...)...)
 	}
 
-	return keywords.MustNewRegexFromKeywords(tokens...)
+	return fts.MustNewRegexFromKeywords(tokens...)
 }
 
 var languagesRegex *regexp.Regexp
 
 type Languages map[Language]struct{}
 
-func (l *Languages) Scan(value interface{}) error {
+func (l *Languages) Scan(value any) error {
 	if value == nil {
 		*l = nil
 		return nil
@@ -216,7 +210,7 @@ func InferLanguages(input string) Languages {
 	return nil
 }
 
-func (l *Language) Scan(value interface{}) error {
+func (l *Language) Scan(value any) error {
 	switch v := value.(type) {
 	case string:
 		// jsonb_array_elements returns quoted strings
@@ -246,40 +240,6 @@ func (l Language) Value() (driver.Value, error) {
 type NullLanguage struct {
 	Language Language
 	Valid    bool
-}
-
-func (l *NullLanguage) Scan(value interface{}) error {
-	if value == nil {
-		l.Language, l.Valid = "", false
-		return nil
-	}
-
-	if str, ok := value.(string); ok {
-		if str == "" {
-			l.Valid = false
-			return nil
-		}
-
-		lang := ParseLanguage(str)
-		if !lang.Valid {
-			return errors.New("invalid language")
-		}
-
-		l.Language, l.Valid = lang.Language, true
-
-		return nil
-	}
-
-	return errors.New("invalid type for NullLanguage")
-}
-
-func (l NullLanguage) Value() (driver.Value, error) {
-	if !l.Valid {
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	return l.Language.String(), nil
 }
 
 func NewNullLanguage(l Language) NullLanguage {
@@ -331,7 +291,7 @@ func init() {
 		aliases := make([]string, 0)
 		lowerAliasMap := make(map[string]struct{}, len(aliases))
 
-		for _, alias := range strings.Split(parts[3], "|") {
+		for alias := range strings.SplitSeq(parts[3], "|") {
 			alias = strings.TrimSpace(alias)
 			if len(alias) > 0 {
 				aliases = append(aliases, alias)
@@ -347,7 +307,6 @@ func init() {
 			lowerAliasMap: lowerAliasMap,
 		}
 
-		languageNames = append(languageNames, name)
 		languageValues = append(languageValues, alpha2)
 	}
 

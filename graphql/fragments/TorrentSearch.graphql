@@ -1,0 +1,22 @@
+#import "./Content"
+#import "./Torrent"
+
+fragment TorrentSearch on TorrentSearch {
+  infoHash
+  contentType
+  title
+  torrent {
+    ...Torrent
+  }
+  content {
+    ...Content
+  }
+  languages {
+    id
+    name
+  }
+  seeders
+  leechers
+  createdAt
+  updatedAt
+}

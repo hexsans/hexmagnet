@@ -3,21 +3,14 @@ package model
 import (
 	"regexp"
 	"strings"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
-func (*TorrentFile) BeforeCreate(tx *gorm.DB) (err error) {
-	tx.Statement.AddClause(clause.OnConflict{
-		DoNothing: true,
-	})
-
-	return nil
-}
-
 func (f TorrentFile) BasePath() string {
-	baseName := f.Path
+	if len(f.PathParts) == 0 {
+		return ""
+	}
+
+	baseName := strings.Join(f.PathParts, "/")
 	if f.Extension.Valid {
 		baseName = baseName[:len(baseName)-len(f.Extension.String)-1]
 	}
@@ -26,8 +19,11 @@ func (f TorrentFile) BasePath() string {
 }
 
 func (f TorrentFile) BaseName() string {
-	basePathParts := strings.Split(f.BasePath(), "/")
-	return basePathParts[len(basePathParts)-1]
+	if len(f.PathParts) == 0 {
+		return ""
+	}
+
+	return f.PathParts[len(f.PathParts)-1]
 }
 
 var fileExtensionRegex = regexp.MustCompile(`[^/.]\.([a-z0-9]+)$`)
@@ -51,5 +47,9 @@ func fileTypeFromPath(path string) NullFileType {
 }
 
 func (f TorrentFile) FileType() NullFileType {
-	return fileTypeFromPath(f.Path)
+	if len(f.PathParts) == 0 {
+		return NullFileType{}
+	}
+
+	return fileTypeFromPath(f.PathParts[len(f.PathParts)-1])
 }

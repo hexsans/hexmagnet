@@ -1,7 +1,5 @@
 package classifier
 
-import "github.com/bitmagnet-io/bitmagnet/internal/classifier/classification"
-
 type ifElseAction struct{}
 
 const ifElseName = "if_else"
@@ -20,20 +18,20 @@ var ifElsePayloadSpec = payloadSingleKeyValue[ifElsePayload]{
 	key: ifElseName,
 	valueSpec: payloadMustSucceed[ifElsePayload]{payloadStruct[ifElsePayload]{
 		jsonSchema: map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"condition": map[string]any{
-					"$ref": "#/definitions/condition",
+			schemaType: schemaTypeObject,
+			schemaProperties: map[string]any{
+				schemaKeyCondition: map[string]any{
+					schemaRef: refCondition,
 				},
 				"if_action": map[string]any{
-					"$ref": "#/definitions/action",
+					schemaRef: refAction,
 				},
 				"else_action": map[string]any{
-					"$ref": "#/definitions/action",
+					schemaRef: refAction,
 				},
 			},
-			"required":             []string{"condition"},
-			"additionalProperties": false,
+			"required":                 []string{"condition"},
+			schemaAdditionalProperties: false,
 		},
 	}},
 	description: "Execute an action based on a condition",
@@ -71,9 +69,9 @@ func (ifElseAction) compileAction(ctx compilerContext) (action, error) {
 	}
 
 	return action{
-		run: func(ctx executionContext) (classification.Result, error) {
+		run: func(ctx executionContext) (ClassificationResult, error) {
 			if result, err := cond.check(ctx); err != nil {
-				return classification.Result{}, err
+				return ClassificationResult{}, err
 			} else if result {
 				if ifAction.run != nil {
 					return ifAction.run(ctx)
@@ -83,6 +81,7 @@ func (ifElseAction) compileAction(ctx compilerContext) (action, error) {
 					return elseAction.run(ctx)
 				}
 			}
+
 			return ctx.result, nil
 		},
 	}, nil

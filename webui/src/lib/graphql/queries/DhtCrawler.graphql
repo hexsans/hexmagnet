@@ -1,0 +1,16 @@
+query DhtCrawler {
+  dhtCrawler {
+    active
+    torrentsCrawled
+    peersConnected
+    peersDiscovered
+    uptime
+    startedAt
+    recentActivity {
+      id
+      type
+      message
+      time
+    }
+  }
+}

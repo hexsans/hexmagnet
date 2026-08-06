@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol/dht/ktable"
+	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 )
 
 func (c *crawler) getNodesForFindNode(ctx context.Context) {
@@ -20,7 +20,11 @@ func (c *crawler) getNodesForFindNode(ctx context.Context) {
 			}
 		}
 
-		<-time.After(time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second):
+		}
 	}
 }
 
@@ -28,11 +32,24 @@ func (c *crawler) runFindNode(ctx context.Context) {
 	_ = c.nodesForFindNode.Run(ctx, func(p ktable.Node) {
 		res, err := c.client.FindNode(ctx, p.Addr(), c.soughtNodeID.Get())
 		if err != nil {
+			c.logger.Debugw("find_node failed", "node", p.Addr(), "error", err)
 			c.kTable.BatchCommand(ktable.DropNode{
 				ID:     p.ID(),
 				Reason: fmt.Errorf("find_node failed: %w", err),
 			})
 		} else {
+			newNodes := 0
+
+			for _, n := range res.Nodes {
+				if !c.runtime.SeenDiscoveredPeers.TestAndAdd(n.Addr.Addr()) {
+					newNodes++
+				}
+			}
+
+			if newNodes > 0 {
+				c.runtime.PeersDiscovered.Update(func(v uint64) uint64 { return v + uint64(newNodes) })
+			}
+
 			c.kTable.BatchCommand(ktable.PutNode{
 				ID:      p.ID(),
 				Addr:    p.Addr(),

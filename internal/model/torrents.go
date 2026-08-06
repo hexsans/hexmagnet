@@ -1,142 +1,68 @@
 package model
 
 import (
+	"fmt"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/lexer"
-	"github.com/facette/natsort"
-	"gorm.io/gorm"
+	"github.com/hexsans/hexmagnet/internal/database/fts"
 )
-
-func (t *Torrent) AfterFind(_ *gorm.DB) error {
-	if t.Files != nil {
-		sort.Slice(t.Files, func(i, j int) bool {
-			return t.Files[i].Path < t.Files[j].Path
-		})
-	}
-
-	if t.Tags != nil {
-		sort.Slice(t.Tags, func(i, j int) bool {
-			return natsort.Compare(t.Tags[i].Name, t.Tags[j].Name)
-		})
-	}
-
-	return nil
-}
-
-// Seeders returns the highest number of seeders from all sources
-// todo: Add up bloom filters
-func (t Torrent) Seeders() NullUint {
-	seeders := NullUint{}
-
-	for _, source := range t.Sources {
-		if source.Seeders.Valid {
-			seeders.Valid = true
-			if source.Seeders.Uint > seeders.Uint {
-				seeders.Uint = source.Seeders.Uint
-			}
-		}
-	}
-
-	return seeders
-}
-
-// Leechers returns the highest number of leechers from all sources
-func (t Torrent) Leechers() NullUint {
-	leechers := NullUint{}
-
-	for _, source := range t.Sources {
-		if source.Leechers.Valid {
-			leechers.Valid = true
-			if source.Leechers.Uint > leechers.Uint {
-				leechers.Uint = source.Leechers.Uint
-			}
-		}
-	}
-
-	return leechers
-}
-
-var cutoff = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-
-func (t Torrent) PublishedAt() time.Time {
-	publishedAt := t.CreatedAt
-
-	for _, source := range t.Sources {
-		dt := source.CreatedAt
-		if source.PublishedAt.Valid && source.PublishedAt.Time.After(cutoff) {
-			dt = source.PublishedAt.Time
-		}
-
-		if dt.Before(publishedAt) {
-			publishedAt = dt
-		}
-	}
-
-	return publishedAt
-}
 
 func (t Torrent) MagnetURI() string {
 	return "magnet:?xt=urn:btih:" + t.InfoHash.String() +
 		"&dn=" + url.QueryEscape(t.Name) +
-		"&xl=" + strconv.FormatUint(uint64(t.Size), 10)
+		"&xl=" + strconv.FormatUint(t.Size, 10)
 }
 
 // HasFilesInfo returns true if we know about the files in this torrent.
 func (t Torrent) HasFilesInfo() bool {
-	return t.FilesStatus == FilesStatusSingle || t.FilesStatus == FilesStatusMulti || len(t.Files) > 0
+	return t.FilesCount.Valid || len(t.Files) > 0
 }
 
 func (t Torrent) SingleFile() bool {
-	return t.FilesStatus == FilesStatusSingle
+	return t.FilesCount.Valid && t.FilesCount.Uint == 1
 }
 
 func (t Torrent) BaseName() string {
-	baseName := t.Name
-	if t.Extension.Valid {
-		baseName = baseName[:len(baseName)-len(t.Extension.String)-1]
+	ext := FileExtensionFromPath(t.Name)
+	if ext.Valid {
+		return t.Name[:len(t.Name)-len(ext.String)-1]
 	}
 
-	return baseName
+	return t.Name
 }
 
 func (t Torrent) FileExtensions() []string {
-	switch t.FilesStatus {
-	case FilesStatusSingle:
-		exts := make([]string, 0, 1)
-		ext := FileExtensionFromPath(t.Name)
+	exts := make([]string, 0, max(1, len(t.Files)))
+	extMap := make(map[string]struct{})
 
+	extract := func(path string) {
+		ext := FileExtensionFromPath(path)
 		if ext.Valid {
-			exts = append(exts, ext.String)
-		}
-
-		return exts
-	default:
-		exts := make([]string, 0, len(t.Files))
-		extMap := make(map[string]struct{})
-
-		for _, file := range t.Files {
-			ext := FileExtensionFromPath(file.Path)
-			if ext.Valid {
-				if _, ok := extMap[ext.String]; !ok {
-					extMap[ext.String] = struct{}{}
-
-					exts = append(exts, ext.String)
-				}
+			if _, ok := extMap[ext.String]; !ok {
+				extMap[ext.String] = struct{}{}
+				exts = append(exts, ext.String)
 			}
 		}
-
-		return exts
 	}
+
+	if t.FilesCount.Valid && t.FilesCount.Uint == 1 && len(t.Files) == 0 {
+		extract(t.Name)
+	} else {
+		for _, file := range t.Files {
+			extract(strings.Join(file.PathParts, "/"))
+		}
+	}
+
+	return exts
 }
 
 func (t Torrent) FileType() NullFileType {
-	if t.Extension.Valid {
-		return FileTypeFromExtension(t.Extension.String)
+	ext := FileExtensionFromPath(t.Name)
+	if ext.Valid {
+		return FileTypeFromExtension(ext.String)
 	}
 
 	return NullFileType{}
@@ -162,23 +88,12 @@ func (t Torrent) FileTypes() []FileType {
 
 func (t Torrent) HasFileType(fts ...FileType) NullBool {
 	for _, thisFt := range t.FileTypes() {
-		for _, ft := range fts {
-			if ft == thisFt {
-				return NewNullBool(true)
-			}
+		if slices.Contains(fts, thisFt) {
+			return NewNullBool(true)
 		}
 	}
 
 	return NewNullBool(false)
-}
-
-func (t Torrent) TagNames() []string {
-	tagNames := make([]string, 0, len(t.Tags))
-	for _, tag := range t.Tags {
-		tagNames = append(tagNames, tag.Name)
-	}
-
-	return tagNames
 }
 
 // fileSearchStrings returns a list of strings extracted from file paths, for inclusion in the text search vector.
@@ -187,23 +102,30 @@ func (t Torrent) fileSearchStrings() []string {
 	firstPass := make([]string, 0, len(t.Files))
 
 	var prevPath string
+
 outer:
 	for _, f := range t.Files {
+		fp := strings.Join(f.PathParts, "/")
+
 		i := 0
 		for {
-			if i >= len(f.Path) {
+			if i >= len(fp) {
 				continue outer
 			}
-			if i >= len(prevPath) || prevPath[i] != f.Path[i] {
+
+			if i >= len(prevPath) || prevPath[i] != fp[i] {
 				break
 			}
+
 			i++
 		}
-		for i != 0 && lexer.IsWordChar(rune(f.Path[i])) {
+
+		for i != 0 && fts.IsWordChar(rune(fp[i])) {
 			i--
 		}
-		firstPass = append(firstPass, f.Path[i:])
-		prevPath = f.Path
+
+		firstPass = append(firstPass, fp[i:])
+		prevPath = fp
 	}
 
 	searchStrings := make([]string, 0, len(firstPass))
@@ -226,7 +148,7 @@ outer:
 		}
 
 		for longestSuffixLength != 0 &&
-			lexer.IsWordChar(rune(firstPass[i][len(firstPass[i])-longestSuffixLength])) {
+			fts.IsWordChar(rune(firstPass[i][len(firstPass[i])-longestSuffixLength])) {
 			longestSuffixLength--
 		}
 
@@ -237,4 +159,71 @@ outer:
 	}
 
 	return searchStrings
+}
+
+func (t Torrent) InferID() string {
+	parts := make([]string, 4)
+	parts[0] = t.InfoHash.String()
+
+	if t.ContentType.Valid {
+		parts[1] = t.ContentType.ContentType.String()
+	} else {
+		parts[1] = "?"
+	}
+
+	if t.ContentSource.Valid {
+		parts[2] = t.ContentSource.String
+		parts[3] = t.ContentID.String
+	} else {
+		parts[2] = "?"
+		parts[3] = "?"
+	}
+
+	return strings.Join(parts, ":")
+}
+
+func (t Torrent) Title() string {
+	if !t.ContentID.Valid || t.Content.Title == "" {
+		return t.Name
+	}
+
+	var titleParts []string
+
+	titleParts = append(titleParts, t.Content.Title)
+
+	if !t.Content.ReleaseDate.IsNil() {
+		titleParts = append(titleParts, fmt.Sprintf("(%d)", t.Content.ReleaseDate.Year))
+	}
+
+	return strings.Join(titleParts, " ")
+}
+
+func (t Torrent) ContentRef() Maybe[ContentRef] {
+	if t.ContentID.Valid {
+		return MaybeValid(ContentRef{
+			Type:   t.ContentType.ContentType,
+			Source: t.ContentSource.String,
+			ID:     t.ContentID.String,
+		})
+	}
+
+	return Maybe[ContentRef]{}
+}
+
+func (t *Torrent) UpdateTsv() {
+	var tsv fts.Tsvector
+	if !t.ContentID.Valid {
+		tsv = fts.Tsvector{}
+	} else {
+		tsv = t.Content.Tsv.Copy()
+	}
+
+	tsv.AddText(t.InfoHash.String(), fts.TsvectorWeightA)
+	tsv.AddText(t.Name, fts.TsvectorWeightA)
+
+	for _, str := range t.fileSearchStrings() {
+		tsv.AddText(str, fts.TsvectorWeightD)
+	}
+
+	t.Tsv = tsv
 }

@@ -13,7 +13,7 @@ var orConditionSpec = payloadSingleKeyValue[[]any]{
 	valueSpec: payloadMustSucceed[[]any]{payloadList[any]{
 		itemSpec: payloadGeneric[any]{
 			jsonSchema: map[string]any{
-				"$ref": "#/definitions/condition",
+				schemaRef: refCondition,
 			},
 		},
 		description: "A condition that is satisfied if any of the conditions in a list are satisfied",
@@ -31,7 +31,7 @@ func (orCondition) compileCondition(ctx compilerContext) (condition, error) {
 	for i, rawCond := range rawConds {
 		cond, err := ctx.compileCondition(ctx.child(numericPathPart(i), rawCond))
 		if err != nil {
-			return condition{}, err
+			return condition{}, ctx.fatal(err)
 		}
 
 		conds[i] = cond
@@ -45,6 +45,7 @@ func (orCondition) compileCondition(ctx compilerContext) (condition, error) {
 				return true, nil
 			}
 		}
+
 		return false, nil
 	}}, nil
 }

@@ -2,7 +2,7 @@ package classifier
 
 import (
 	"github.com/agnivade/levenshtein"
-	"github.com/bitmagnet-io/bitmagnet/internal/regex"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/mozillazg/go-unidecode"
 )
 
@@ -56,5 +56,5 @@ func levenshteinFindMinDistance(target string, candidates []string) int {
 }
 
 func levenshteinNormalizeString(str string) string {
-	return regex.NormalizeString(unidecode.Unidecode(str))
+	return utils.NormalizeString(unidecode.Unidecode(str))
 }

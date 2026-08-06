@@ -3,13 +3,19 @@ package gqlmodel
 import (
 	"context"
 
-	q "github.com/bitmagnet-io/bitmagnet/internal/database/query"
-	"github.com/bitmagnet-io/bitmagnet/internal/database/search"
-	"github.com/bitmagnet-io/bitmagnet/internal/gql/gqlmodel/gen"
-	"github.com/bitmagnet-io/bitmagnet/internal/maps"
-	"github.com/bitmagnet-io/bitmagnet/internal/model"
-	"github.com/bitmagnet-io/bitmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/database/db"
+	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
+	"github.com/hexsans/hexmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/protocol"
+	dbsearch "github.com/hexsans/hexmagnet/internal/search"
+	"go.uber.org/zap"
 )
+
+type TorrentFilesQueryResult struct {
+	TotalCount  uint
+	HasNextPage bool
+	Items       []model.TorrentFile
+}
 
 type TorrentFilesQueryInput struct {
 	InfoHashes  []protocol.ID
@@ -22,46 +28,52 @@ type TorrentFilesQueryInput struct {
 	OrderBy     []gen.TorrentFilesOrderByInput
 }
 
-func (t TorrentQuery) Files(ctx context.Context, query TorrentFilesQueryInput) (search.TorrentFilesResult, error) {
-	limit := uint(10)
-	if query.Limit.Valid {
-		limit = query.Limit.Uint
+func SearchTorrentFiles(
+	ctx context.Context,
+	search dbsearch.Search,
+	query TorrentFilesQueryInput,
+	logger *zap.SugaredLogger,
+) (TorrentFilesQueryResult, error) {
+	p := ExtractPagination(query.Limit, model.NullUint{}, model.NullUint{}, query.TotalCount, query.HasNextPage)
+
+	if len(query.InfoHashes) > 0 {
+		p.Limit = 0
 	}
 
-	options := []q.Option{
-		q.SearchParams{
-			Limit:             model.NullUint{Valid: true, Uint: limit},
-			Page:              query.Page,
-			Offset:            query.Offset,
-			TotalCount:        query.TotalCount,
-			HasNextPage:       query.HasNextPage,
-			AggregationBudget: model.NullFloat64{Valid: true, Float64: 0},
-		}.Option(),
+	if query.Page.Valid && query.Page.Uint > 1 {
+		p.Offset = (query.Page.Uint - 1) * p.Limit
+	} else if query.Offset.Valid {
+		p.Offset = query.Offset.Uint
 	}
 
-	var criteria []q.Criteria
-	if query.InfoHashes != nil {
-		criteria = append(criteria, search.TorrentFileInfoHashCriteria(query.InfoHashes...))
+	params := dbsearch.TorrentFilesSearchParams{
+		Limit:       p.Limit,
+		Offset:      p.Offset,
+		TotalCount:  p.TotalCount,
+		HasNextPage: p.HasNextPage,
 	}
 
-	options = append(options, q.Where(criteria...))
-	fullOrderBy := maps.NewInsertMap[search.TorrentFilesOrderBy, search.OrderDirection]()
+	if len(query.InfoHashes) > 0 {
+		params.InfoHash = db.FromProtocolID(query.InfoHashes[0])
+	}
 
-	for _, ob := range query.OrderBy {
-		direction := search.OrderDirectionAscending
-		if desc, ok := ob.Descending.ValueOK(); ok && *desc {
-			direction = search.OrderDirectionDescending
+	result, err := search.TorrentFiles(ctx, params)
+	if err != nil {
+		if logger != nil {
+			logger.Debugw("torrent files search failed", "info_hash", query.InfoHashes, "error", err)
 		}
 
-		field, err := search.ParseTorrentFilesOrderBy(ob.Field.String())
-		if err != nil {
-			return search.TorrentFilesResult{}, err
-		}
-
-		fullOrderBy.Set(field, direction)
+		return TorrentFilesQueryResult{}, err
 	}
 
-	options = append(options, search.TorrentFilesFullOrderBy(fullOrderBy).Option())
+	items := make([]model.TorrentFile, len(result.Items))
+	for i, tf := range result.Items {
+		items[i] = db.TorrentFileToModel(tf)
+	}
 
-	return t.Search.TorrentFiles(ctx, options...)
+	return TorrentFilesQueryResult{
+		TotalCount:  result.TotalCount,
+		HasNextPage: result.HasNextPage,
+		Items:       items,
+	}, nil
 }

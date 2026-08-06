@@ -1,19 +1,16 @@
 package fts
 
 import (
-	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	maps0 "maps"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode"
 
-	"github.com/bitmagnet-io/bitmagnet/internal/lexer"
-	"github.com/bitmagnet-io/bitmagnet/internal/maps"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 type TsvectorWeight rune
@@ -36,16 +33,14 @@ func (v Tsvector) Copy() Tsvector {
 	c := Tsvector{}
 	for lexeme, labels := range v {
 		c[lexeme] = make(map[int]TsvectorWeight)
-		for pos, weight := range labels {
-			c[lexeme][pos] = weight
-		}
+		maps0.Copy(c[lexeme], labels)
 	}
 
 	return c
 }
 
 func (v Tsvector) String() string {
-	entries := make([]maps.MapEntry[string, []TsvectorLabel], 0, len(v))
+	entries := make([]utils.MapEntry[string, []TsvectorLabel], 0, len(v))
 
 	for lexeme, labelsMap := range v {
 		n := len(labelsMap)
@@ -66,7 +61,7 @@ func (v Tsvector) String() string {
 			})
 		}
 
-		entries = append(entries, maps.MapEntry[string, []TsvectorLabel]{
+		entries = append(entries, utils.MapEntry[string, []TsvectorLabel]{
 			Key:   lexeme,
 			Value: labels,
 		})
@@ -138,7 +133,7 @@ func (l *tsvectorLexer) readTsvPart() (string, []TsvectorLabel, error) {
 	}
 
 	if !l.ReadChar(':') {
-		spaces := l.ReadWhile(lexer.IsChar(' '))
+		spaces := l.ReadWhile(IsChar(' '))
 		if !l.IsEOF() && len(spaces) == 0 {
 			return "", nil, errors.New("unexpected character")
 		}
@@ -155,7 +150,7 @@ func (l *tsvectorLexer) readTsvPart() (string, []TsvectorLabel, error) {
 }
 
 func (l *tsvectorLexer) readLexeme() (string, error) {
-	if unquoted := l.ReadWhile(lexer.IsWordChar); unquoted != "" {
+	if unquoted := l.ReadWhile(IsWordChar); unquoted != "" {
 		return unquoted, nil
 	}
 
@@ -194,7 +189,7 @@ func (l *tsvectorLexer) readLabels() ([]TsvectorLabel, error) {
 		}
 
 		pws = append(pws, rest...)
-	} else if !l.IsEOF() && l.ReadWhile(lexer.IsChar(' ')) == "" {
+	} else if !l.IsEOF() && l.ReadWhile(IsChar(' ')) == "" {
 		return nil, errors.New("unexpected character")
 	}
 
@@ -241,7 +236,7 @@ func quoteLexeme(str string, force bool) string {
 	return str
 }
 
-func (v *Tsvector) Scan(val interface{}) error {
+func (v *Tsvector) Scan(val any) error {
 	if val == nil {
 		return nil
 	}
@@ -263,15 +258,4 @@ func (v *Tsvector) Scan(val interface{}) error {
 
 func (Tsvector) Value() (driver.Value, error) {
 	return nil, errors.New("cannot get value")
-}
-
-func (Tsvector) GormDataType() string {
-	return "tsvector"
-}
-
-func (v Tsvector) GormValue(context.Context, *gorm.DB) clause.Expr {
-	return clause.Expr{
-		SQL:  "?::tsvector",
-		Vars: []interface{}{v.String()},
-	}
 }

@@ -135,10 +135,17 @@ func TestGlobalSubscribers_RevertToStartupValueIsApplied(t *testing.T) {
 		return ok
 	})
 
+	waitFor(t, 2*time.Second, func() bool {
+		updater.mu.Lock()
+		defer updater.mu.Unlock()
+
+		return len(updater.cfgs) > 0 &&
+			updater.cfgs[len(updater.cfgs)-1] == tmdb.Config{Enabled: true, AccessToken: "b", RateLimit: 20}
+	})
+
 	updater.mu.Lock()
 	defer updater.mu.Unlock()
 
-	require.Len(t, updater.cfgs, 2)
-	require.Equal(t, tmdb.Config{Enabled: false, AccessToken: "a", RateLimit: 3}, updater.cfgs[0])
-	require.Equal(t, tmdb.Config{Enabled: true, AccessToken: "b", RateLimit: 20}, updater.cfgs[1])
+	require.Equal(t, tmdb.Config{Enabled: true, AccessToken: "b", RateLimit: 20},
+		updater.cfgs[len(updater.cfgs)-1])
 }

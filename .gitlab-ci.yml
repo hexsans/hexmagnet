@@ -53,8 +53,6 @@ test-go:
     name: golang:1.26-alpine
     pull_policy: if-not-present
   script:
-    - mkdir -p webui/dist
-    - touch webui/dist/index.html
     - go test -count=1 -timeout 180s -v ./internal/...
 
 # ── Docker build & publish ─────────────────────────────────────────────────

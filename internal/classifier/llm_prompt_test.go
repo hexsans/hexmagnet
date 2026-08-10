@@ -54,6 +54,8 @@ func TestBuildPrompt_IncludesFiles(t *testing.T) {
 	require.Contains(t, userMsg, "Files:")
 	require.Contains(t, userMsg, "video.mkv")
 	require.Contains(t, userMsg, "subtitle.srt")
+	require.NotContains(t, userMsg, "bytes")
+	require.NotContains(t, userMsg, ".mkv (")
 }
 
 func TestBuildPrompt_SortsFilesBySize(t *testing.T) {

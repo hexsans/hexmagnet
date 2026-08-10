@@ -46,12 +46,7 @@ Classify using file extensions (.mp4/.mkv = video, .mp3/.flac = audio, .epub/.mo
 	_, _ = b.WriteString("Files:\n")
 
 	for _, f := range sorted {
-		ext := f.Extension
-		if ext == "" {
-			ext = "(no extension)"
-		}
-
-		_, _ = fmt.Fprintf(&b, "  - %s (%d bytes, .%s)\n", f.Path, f.Size, ext)
+		_, _ = fmt.Fprintf(&b, "  - %s\n", f.Path)
 	}
 
 	return systemMsg, b.String()

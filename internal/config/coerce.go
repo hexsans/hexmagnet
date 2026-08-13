@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -45,6 +46,10 @@ func coerceStringValue(stringValue string, valueType reflect.Type) (any, error) 
 
 	case reflect.Uint:
 		v, err := strconv.ParseUint(stringValue, 10, 64)
+		if v > uint64(math.MaxUint) {
+			return nil, fmt.Errorf("cannot coerce %q to uint: out of range", stringValue)
+		}
+
 		return uint(v), err
 	case reflect.Uint8:
 		v, err := strconv.ParseUint(stringValue, 10, 8)

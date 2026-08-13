@@ -3,6 +3,7 @@ package classifier
 import (
 	"testing"
 
+	"github.com/hexsans/hexmagnet/internal/database/fts"
 	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,12 +31,40 @@ func TestParseDate(t *testing.T) {
 		// {"Bla Bla June 27, 2015", model.Date{Year: 2015, Month: 6, Day: 27}},
 		{input: "Software.Pro.X2.Suite.v19.0.2.23117-R2R"},
 	}
+
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
 			t.Parallel()
 
 			result := ParseDate(test.input)
 			assert.Equal(t, test.expected, result)
+		})
+	}
+}
+
+func TestLexDatePart(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input    string
+		format   datePartFormat
+		expected model.Date
+	}{
+		{"0", datePart1Digit, model.Date{}},
+		{"5", datePart1Digit, model.Date{Day: 5, Month: 5}},
+		{"9", datePart1Digit, model.Date{Day: 9, Month: 9}},
+		{"0024", datePart4Digits, model.Date{}},
+		{"9999", datePart4Digits, model.Date{Year: 9999}},
+		{"2024", datePart4Digits, model.Date{Year: 2024}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			t.Parallel()
+
+			part := (&dateLexer{Lexer: fts.NewLexer(test.input)}).lexDatePart()
+			assert.Equal(t, test.format, part.format)
+			assert.Equal(t, test.expected, part.Date)
 		})
 	}
 }

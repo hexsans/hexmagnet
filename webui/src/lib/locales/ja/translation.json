@@ -272,7 +272,7 @@
     "jumpToPage": "クリックしてページにジャンプ",
     "selected": "{{count}} 選択中",
     "switchLanguage": "言語を切り替え",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "! エラー",

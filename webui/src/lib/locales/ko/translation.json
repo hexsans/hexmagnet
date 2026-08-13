@@ -272,7 +272,7 @@
     "jumpToPage": "클릭하여 페이지로 이동",
     "selected": "선택됨 {{count}}",
     "switchLanguage": "언어 전환",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "! 오류",

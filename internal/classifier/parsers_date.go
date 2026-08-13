@@ -191,9 +191,18 @@ func (l *dateLexer) lexDatePart() datePart {
 
 	if regex1Digit.MatchString(str) {
 		i, _ := strconv.Atoi(str)
+		date := model.Date{}
+
+		if i >= 1 && i <= 12 {
+			date.Month = time.Month(i)
+		}
+
+		if i >= 1 && i <= 31 {
+			date.Day = uint8(i)
+		}
 
 		return datePart{
-			Date:    model.Date{Day: uint8(i), Month: time.Month(i)},
+			Date:    date,
 			format:  datePart1Digit,
 			literal: str,
 		}
@@ -220,9 +229,14 @@ func (l *dateLexer) lexDatePart() datePart {
 
 	if regex4Digits.MatchString(str) {
 		i, _ := strconv.Atoi(str)
+		date := model.Date{}
+
+		if i >= 1000 && i <= 9999 {
+			date.Year = model.Year(i)
+		}
 
 		return datePart{
-			Date:    model.Date{Year: model.Year(i)},
+			Date:    date,
 			format:  datePart4Digits,
 			literal: str,
 		}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -55,6 +56,23 @@ func TestCoerceStringValue_AllTypes(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestCoerceStringValue_Uint(t *testing.T) {
+	t.Parallel()
+
+	maxUintStr := strconv.FormatUint(uint64(^uint(0)), 10)
+	got, err := coerceStringValue(maxUintStr, reflect.TypeOf(uint(0)))
+	require.NoError(t, err)
+	assert.Equal(t, ^uint(0), got)
+
+	overflow := "4294967296" // 2^32
+	if strconv.IntSize == 64 {
+		overflow = "18446744073709551616" // 2^64
+	}
+
+	_, err = coerceStringValue(overflow, reflect.TypeOf(uint(0)))
+	require.Error(t, err)
 }
 
 func TestCoerceStringValue_Slice(t *testing.T) {

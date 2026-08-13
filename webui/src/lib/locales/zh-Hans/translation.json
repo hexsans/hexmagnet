@@ -272,7 +272,7 @@
     "jumpToPage": "点击跳转到页面",
     "selected": "已选 {{count}}",
     "switchLanguage": "切换语言",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "！错误",

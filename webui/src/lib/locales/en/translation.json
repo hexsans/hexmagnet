@@ -272,7 +272,7 @@
     "jumpToPage": "Click to jump to page",
     "selected": "{{count}} selected",
     "switchLanguage": "Switch language",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "! Error",

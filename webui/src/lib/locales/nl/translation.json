@@ -272,7 +272,7 @@
     "jumpToPage": "Klik om naar pagina te springen",
     "selected": "{{count}} geselecteerd",
     "switchLanguage": "Taal wijzigen",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "! Fout",

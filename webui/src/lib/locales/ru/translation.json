@@ -276,7 +276,7 @@
     "jumpToPage": "Нажмите, чтобы перейти на страницу",
     "selected": "{{count}} выбрано",
     "switchLanguage": "Сменить язык",
-    "versionLabel": "v{{version}}"
+    "versionLabel": "{{version}}"
   },
   "error": {
     "title": "! Ошибка",

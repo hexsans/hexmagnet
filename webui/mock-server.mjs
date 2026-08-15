@@ -340,8 +340,11 @@ function generateTorrents(count) {
 const ALL_TORRENTS = generateTorrents(50);
 
 function deepMerge(target, source) {
+  const BLOCKED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
   for (const key of Object.keys(source)) {
+    if (BLOCKED_KEYS.has(key)) continue;
     if (
+      Object.prototype.hasOwnProperty.call(target, key) &&
       source[key] !== null && typeof source[key] === "object" && !Array.isArray(source[key]) &&
       target[key] !== null && typeof target[key] === "object" && !Array.isArray(target[key])
     ) {

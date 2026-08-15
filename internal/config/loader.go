@@ -8,6 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const maxDefaultConfigSize = 64 * 1024 * 1024
+
 type LoadResult struct {
 	Resolved *ResolvedConfig
 }
@@ -88,6 +90,10 @@ func ensureDefaultConfigFile(path string, specs []SpecEntry) error {
 		yamlBytes, marshalErr := yaml.Marshal(data)
 		if marshalErr != nil {
 			return fmt.Errorf("cannot marshal default config: %w", marshalErr)
+		}
+
+		if len(yamlBytes) > maxDefaultConfigSize {
+			return fmt.Errorf("default config too large")
 		}
 
 		out := make([]byte, 0, len(yamlHeader)+len(yamlBytes))

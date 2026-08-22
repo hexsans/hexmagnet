@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"github.com/elastic/elastic-transport-go/v8/elastictransport"
+	"github.com/elastic/go-elasticsearch/v9"
 )
 
 type Client struct {
-	es *elasticsearch.Client
+	es *elasticsearch.TypedClient
 }
 
 func NewClient(cfg Config) (*Client, error) {
@@ -26,10 +26,10 @@ func NewClient(cfg Config) (*Client, error) {
 		IdleConnTimeout:     90 * time.Second,
 	}
 
-	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: cfg.Addresses,
-		Transport: transport,
-	})
+	es, err := elasticsearch.NewTyped(
+		elasticsearch.WithAddresses(cfg.Addresses...),
+		elasticsearch.WithTransportOptions(elastictransport.WithTransport(transport)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create elasticsearch client: %w", err)
 	}
@@ -37,55 +37,22 @@ func NewClient(cfg Config) (*Client, error) {
 	return &Client{es: es}, nil
 }
 
-func (c *Client) doRequest(ctx context.Context, req esapi.Request, opName string) (*esapi.Response, error) {
-	res, err := req.Do(ctx, c.es)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", opName, err)
-	}
-
-	if res.IsError() {
-		res.Body.Close()
-		return nil, fmt.Errorf("%s: %s", opName, res.String())
-	}
-
-	return res, nil
-}
-
 func (c *Client) CreateIndex(ctx context.Context, name string, mapping io.Reader) error {
-	req := esapi.IndicesCreateRequest{
-		Index: name,
-		Body:  mapping,
-	}
-
-	res, err := c.doRequest(ctx, req, "create index")
+	_, err := c.es.Indices.Create(name).Raw(mapping).Do(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("create index: %w", err)
 	}
-	defer res.Body.Close()
 
 	return nil
 }
 
 func (c *Client) IndexExists(ctx context.Context, name string) (bool, error) {
-	req := esapi.IndicesExistsRequest{
-		Index: []string{name},
-	}
-
-	res, err := req.Do(ctx, c.es)
+	ok, err := c.es.Indices.Exists(name).Do(ctx)
 	if err != nil {
 		return false, fmt.Errorf("check index exists: %w", err)
 	}
-	defer res.Body.Close()
 
-	if res.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-
-	if res.IsError() {
-		return false, fmt.Errorf("check index exists: %s", res.String())
-	}
-
-	return true, nil
+	return ok, nil
 }
 
 type bulkItemError struct {
@@ -109,15 +76,20 @@ type bulkResponse struct {
 }
 
 func (c *Client) BulkIndex(ctx context.Context, body io.Reader) error {
-	req := esapi.BulkRequest{
-		Body: body,
-	}
-
-	res, err := c.doRequest(ctx, req, "bulk index")
+	res, err := c.es.Bulk().Raw(body).Perform(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("bulk index: %w", err)
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode >= 400 {
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("bulk index: %s", res.Status)
+		}
+
+		return fmt.Errorf("bulk index: %s", strings.TrimSpace(string(body)))
+	}
 
 	var br bulkResponse
 	if err := json.NewDecoder(res.Body).Decode(&br); err != nil {
@@ -143,44 +115,31 @@ func (c *Client) BulkIndex(ctx context.Context, body io.Reader) error {
 }
 
 func (c *Client) DeleteIndex(ctx context.Context, name string) error {
-	req := esapi.IndicesDeleteRequest{
-		Index: []string{name},
-	}
-
-	res, err := c.doRequest(ctx, req, "delete index")
+	_, err := c.es.Indices.Delete(name).Do(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete index: %w", err)
 	}
-	defer res.Body.Close()
 
 	return nil
 }
 
 func (c *Client) Delete(ctx context.Context, index string, id string) error {
-	req := esapi.DeleteRequest{
-		Index:      index,
-		DocumentID: id,
-	}
-
-	res, err := c.doRequest(ctx, req, "delete document")
+	_, err := c.es.Delete(index, id).Do(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete document: %w", err)
 	}
-	defer res.Body.Close()
 
 	return nil
 }
 
 func (c *Client) Ping(ctx context.Context) error {
-	res, err := c.es.Ping(c.es.Ping.WithContext(ctx))
+	ok, err := c.es.Ping().Do(ctx)
 	if err != nil {
 		return fmt.Errorf("ping: %w", err)
 	}
 
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return fmt.Errorf("ping: %s", res.String())
+	if !ok {
+		return fmt.Errorf("ping: unexpected status code")
 	}
 
 	return nil
@@ -217,24 +176,46 @@ func (c *Client) Search(ctx context.Context, index string, body map[string]any) 
 		return nil, fmt.Errorf("marshal search body: %w", err)
 	}
 
-	res, err := c.es.Search(
-		c.es.Search.WithContext(ctx),
-		c.es.Search.WithIndex(index),
-		c.es.Search.WithBody(bytes.NewReader(bodyJSON)),
-	)
+	res, err := c.es.Search().Index(index).Raw(bytes.NewReader(bodyJSON)).Do(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("search: %w", err)
 	}
-	defer res.Body.Close()
 
-	if res.IsError() {
-		return nil, fmt.Errorf("search: %s", res.String())
+	result := &SearchResult{
+		Took:     int(res.Took),
+		TimedOut: res.TimedOut,
+		Aggs:     make(map[string]json.RawMessage, len(res.Aggregations)),
 	}
 
-	var result SearchResult
-	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode search response: %w", err)
+	if res.Hits.Total != nil {
+		result.Hits.Total.Value = res.Hits.Total.Value
+		result.Hits.Total.Relation = res.Hits.Total.Relation.String()
 	}
 
-	return &result, nil
+	result.Hits.MaxScore = (*float64)(res.Hits.MaxScore)
+
+	for _, h := range res.Hits.Hits {
+		hit := SearchHit{
+			Index:  h.Index_,
+			Source: h.Source_,
+			Score:  (*float64)(h.Score_),
+		}
+
+		if h.Id_ != nil {
+			hit.ID = *h.Id_
+		}
+
+		result.Hits.Hits = append(result.Hits.Hits, hit)
+	}
+
+	for name, agg := range res.Aggregations {
+		b, err := json.Marshal(agg)
+		if err != nil {
+			return nil, fmt.Errorf("marshal aggregation %s: %w", name, err)
+		}
+
+		result.Aggs[name] = b
+	}
+
+	return result, nil
 }

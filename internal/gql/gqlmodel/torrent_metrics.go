@@ -14,6 +14,11 @@ func (t TorrentQuery) Metrics(
 	req := torrentmetrics.Request{
 		StartTime: nilToZero(input.StartTime.Value()),
 		EndTime:   nilToZero(input.EndTime.Value()),
+		Timezone:  "UTC",
+	}
+
+	if tz, ok := input.Timezone.ValueOK(); ok && tz != nil && *tz != "" {
+		req.Timezone = *tz
 	}
 
 	switch input.BucketDuration {

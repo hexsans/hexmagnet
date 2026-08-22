@@ -1,4 +1,5 @@
 # Local development stack with PostgreSQL, Elasticsearch, Kafka, and optional observability services.
+name: hexmagnet
 
 services:
   hexmagnet:

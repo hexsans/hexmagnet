@@ -1,3 +1,4 @@
+import { useEffect, } from "react";
 import { useTranslation, } from "react-i18next";
 import { Zap, Users, Globe, } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, } from "@/components/ui/card";
@@ -12,9 +13,18 @@ import { formatNumber, } from "@/lib/format";
 export function CrawlerOverview() {
   const { t, } = useTranslation();
 
-  const [healthResult,] = useQuery({ query: HealthCheckDocument, },);
-  const [workersResult,] = useQuery({ query: WorkersDocument, },);
-  const [crawlerResult,] = useQuery({ query: DhtCrawlerDocument, },);
+  const [healthResult, reexecuteHealth,] = useQuery({ query: HealthCheckDocument, },);
+  const [workersResult, reexecuteWorkers,] = useQuery({ query: WorkersDocument, },);
+  const [crawlerResult, reexecuteCrawler,] = useQuery({ query: DhtCrawlerDocument, },);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      reexecuteHealth({ requestPolicy: "network-only", },);
+      reexecuteWorkers({ requestPolicy: "network-only", },);
+      reexecuteCrawler({ requestPolicy: "network-only", },);
+    }, 5000,);
+    return () => clearInterval(interval,);
+  }, [reexecuteHealth, reexecuteWorkers, reexecuteCrawler,],);
 
   const { data: healthData, fetching: healthFetching, } = healthResult;
   const { data: workersData, fetching: workersFetching, } = workersResult;
@@ -31,7 +41,7 @@ export function CrawlerOverview() {
   const uptimeSeconds = Math.max(1, Number(status?.uptime ?? 1,),);
   const perMin = (val: number,) => Math.round(val / (uptimeSeconds / 60),);
 
-  if (fetching || !status) {
+  if (fetching && !status) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-14 w-full" />
@@ -45,11 +55,13 @@ export function CrawlerOverview() {
     );
   }
 
+  if (!status) return null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
         <div className="flex items-center gap-3">
-          {healthFetching ? (
+          {healthFetching && !health ? (
             <Skeleton className="size-2.5 rounded-full" />
           ) : (
             <span className="relative flex size-2.5">
@@ -68,7 +80,7 @@ export function CrawlerOverview() {
             </span>
           )}
           <div>
-            {healthFetching ? (
+            {healthFetching && !health ? (
               <Skeleton className="h-4 w-36" />
             ) : (
               <>
@@ -85,7 +97,7 @@ export function CrawlerOverview() {
           </div>
         </div>
         <div className="hidden sm:flex gap-2">
-          {healthFetching
+          {healthFetching && !health
             ? Array.from({ length: 3, },).map((_, i,) => <Skeleton key={i} className="h-6 w-24" />,)
             : health?.checks?.map((c,) => (
               <Badge key={c.key} variant={c.status === "up" ? "default" : "destructive"} className="font-mono text-xs">
@@ -124,7 +136,7 @@ export function CrawlerOverview() {
           <CardTitle className="font-mono text-xs text-muted-foreground uppercase tracking-wider">{t("dashboard.workers",)}</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">
-          {workersFetching ? (
+          {workersFetching && !workers ? (
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 4, },).map((_, i,) => (
                 <Skeleton key={i} className="h-7 w-28" />

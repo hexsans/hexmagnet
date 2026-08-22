@@ -303,6 +303,7 @@ export type TorrentMetricsQueryInput = {
   bucketDuration: MetricsBucketDuration;
   endTime?: string | null | undefined;
   startTime?: string | null | undefined;
+  timezone?: string | null | undefined;
 };
 
 export type TorrentReprocessInput = {

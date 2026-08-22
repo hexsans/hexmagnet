@@ -20,6 +20,7 @@ type Request struct {
 	BucketDuration metrics.BucketDuration
 	StartTime      time.Time
 	EndTime        time.Time
+	Timezone       string
 }
 
 type Client interface {
@@ -38,14 +39,19 @@ func (c client) Request(ctx context.Context, req Request) ([]Bucket, error) {
 
 	idx := 1
 
+	timezone := req.Timezone
+	if timezone == "" {
+		timezone = "UTC"
+	}
+
 	selects := fmt.Sprintf(
-		`date_trunc($%d, updated_at) as bucket, COUNT(*) as count, `+
+		`date_trunc($%d, updated_at AT TIME ZONE $%d) AT TIME ZONE $%d as bucket, COUNT(*) as count, `+
 			`COUNT(*) FILTER (WHERE updated_at > created_at + interval '1 hour') as updated_count`,
-		idx,
+		idx, idx+1, idx+1,
 	)
 
-	params = append(params, req.BucketDuration)
-	idx++
+	params = append(params, req.BucketDuration, timezone)
+	idx += 2
 
 	if !req.StartTime.IsZero() {
 		conditions = append(conditions, fmt.Sprintf("updated_at >= $%d", idx))

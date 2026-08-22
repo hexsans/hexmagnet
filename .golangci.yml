@@ -76,6 +76,9 @@ linters:
   settings:
     goconst:
       ignore-tests: true
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/google/cel-go
     wsl_v5:
       allow-first-in-block: true
       allow-whole-block: false

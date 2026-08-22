@@ -18,4 +18,5 @@ input TorrentMetricsQueryInput {
   bucketDuration: MetricsBucketDuration!
   startTime: DateTime
   endTime: DateTime
+  timezone: String
 }

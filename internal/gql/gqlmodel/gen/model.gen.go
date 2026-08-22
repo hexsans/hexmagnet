@@ -410,6 +410,7 @@ type TorrentMetricsQueryInput struct {
 	BucketDuration MetricsBucketDuration         `json:"bucketDuration"`
 	StartTime      graphql.Omittable[*time.Time] `json:"startTime,omitempty"`
 	EndTime        graphql.Omittable[*time.Time] `json:"endTime,omitempty"`
+	Timezone       graphql.Omittable[*string]    `json:"timezone,omitempty"`
 }
 
 type TorrentMetricsQueryResult struct {

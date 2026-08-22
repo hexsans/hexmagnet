@@ -1,3 +1,4 @@
+import { useEffect, } from "react";
 import { useQuery, } from "urql";
 import { useTranslation, } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, } from "@/components/ui/card";
@@ -6,28 +7,45 @@ import { QueuePanel, } from "@/components/dashboard/queue-panel";
 
 export function StatsPanel() {
   const { t, } = useTranslation();
-  const [metricsResult,] = useQuery({
+  const [metricsResult, reexecute,] = useQuery({
     query: TorrentMetricsDocument,
     variables: {
-      input: { bucketDuration: "day", },
+      input: {
+        bucketDuration: "day",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
     },
   },);
+
+  useEffect(() => {
+    const interval = setInterval(() => reexecute({ requestPolicy: "network-only", },), 5000,);
+    return () => clearInterval(interval,);
+  }, [reexecute,],);
 
   const { data: metricsData, } = metricsResult;
 
   const buckets = metricsData?.torrent?.metrics?.buckets ?? [];
 
-  const crawlHistory: { date: string; count: number; updatedCount: number }[] = buckets
-    .map((b: { count: number; updatedCount: number; bucket: string },) => ({
-      date: b.bucket ? new Date(b.bucket,).toLocaleDateString() : "",
-      count: b.count,
-      updatedCount: b.updatedCount,
-    }),)
-    .slice(0, 14,);
+  const byDate = new Map<string, { count: number; updatedCount: number }>();
+  for (const b of buckets as { count: number; updatedCount: number; bucket: string }[]) {
+    if (b.bucket) {
+      byDate.set(new Date(b.bucket,).toLocaleDateString(), { count: b.count, updatedCount: b.updatedCount, },);
+    }
+  }
+
+  const crawlHistory: { date: string; count: number; updatedCount: number }[] = [];
+  const today = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today,);
+    d.setDate(today.getDate() - i,);
+    const date = d.toLocaleDateString();
+    const data = byDate.get(date,);
+    crawlHistory.push({ date, count: data?.count ?? 0, updatedCount: data?.updatedCount ?? 0, },);
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="border-border">
+      <Card className="border-border" style={{ overflow: "visible", }}>
         <CardHeader className="pb-3 pt-4 px-4">
           <CardTitle className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
             {t("dashboard.metricsHistory",)}

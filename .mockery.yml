@@ -1,19 +1,20 @@
-with-expecter: True
-dir: "{{.InterfaceDirRelative}}/mocks"
-mockname: "{{.InterfaceName}}"
-outpkg: "{{.PackageName}}_mocks"
-filename: "{{.InterfaceName}}.go"
+dir: '{{.InterfaceDirRelative}}/mocks'
+structname: '{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}_mocks'
+filename: '{{.InterfaceName}}.go'
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
   github.com/hexsans/hexmagnet/internal/classifier:
     interfaces:
-      LocalSearch:
+      LocalSearch: {}
   github.com/hexsans/hexmagnet/internal/protocol/dht/ktable:
     interfaces:
-      Table:
+      Table: {}
   github.com/hexsans/hexmagnet/internal/protocol/dht/responder:
     interfaces:
-      Limiter:
+      Limiter: {}
   github.com/hexsans/hexmagnet/internal/tmdb:
     interfaces:
-      Client:
-
+      Client: {}

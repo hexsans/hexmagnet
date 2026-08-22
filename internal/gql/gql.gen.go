@@ -2453,6 +2453,7 @@ input TorrentMetricsQueryInput {
   bucketDuration: MetricsBucketDuration!
   startTime: DateTime
   endTime: DateTime
+  timezone: String
 }
 `, BuiltIn: false},
 	{Name: "../../graphql/schema/models.graphqls", Input: `type Torrent {
@@ -12087,7 +12088,7 @@ func (ec *executionContext) unmarshalInputTorrentMetricsQueryInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"bucketDuration", "startTime", "endTime"}
+	fieldsInOrder := [...]string{"bucketDuration", "startTime", "endTime", "timezone"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12115,6 +12116,13 @@ func (ec *executionContext) unmarshalInputTorrentMetricsQueryInput(ctx context.C
 				return it, err
 			}
 			it.EndTime = graphql.OmittableOf(data)
+		case "timezone":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timezone"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timezone = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil

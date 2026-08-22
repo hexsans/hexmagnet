@@ -645,6 +645,45 @@ func TestTorrentQuery_Metrics_WithStartEndTime(t *testing.T) {
 	mc.AssertExpectations(t)
 }
 
+func TestTorrentQuery_Metrics_WithTimezone(t *testing.T) {
+	t.Parallel()
+
+	mc := new(mockTorrentMetricsClient)
+	tq := TorrentQuery{TorrentMetricsClient: mc}
+
+	tz := "Asia/Shanghai"
+
+	mc.On("Request", mock.Anything, mock.MatchedBy(func(r torrentmetrics.Request) bool {
+		return r.Timezone == tz
+	})).Return([]torrentmetrics.Bucket{}, nil)
+
+	input := gen.TorrentMetricsQueryInput{
+		BucketDuration: gen.MetricsBucketDurationDay,
+		Timezone:       graphql.OmittableOf(&tz),
+	}
+	_, err := tq.Metrics(context.Background(), input)
+	require.NoError(t, err)
+	mc.AssertExpectations(t)
+}
+
+func TestTorrentQuery_Metrics_TimezoneDefaultsToUTC(t *testing.T) {
+	t.Parallel()
+
+	mc := new(mockTorrentMetricsClient)
+	tq := TorrentQuery{TorrentMetricsClient: mc}
+
+	mc.On("Request", mock.Anything, mock.MatchedBy(func(r torrentmetrics.Request) bool {
+		return r.Timezone == "UTC"
+	})).Return([]torrentmetrics.Bucket{}, nil)
+
+	input := gen.TorrentMetricsQueryInput{
+		BucketDuration: gen.MetricsBucketDurationDay,
+	}
+	_, err := tq.Metrics(context.Background(), input)
+	require.NoError(t, err)
+	mc.AssertExpectations(t)
+}
+
 func TestTorrentQuery_Metrics_Error(t *testing.T) {
 	t.Parallel()
 

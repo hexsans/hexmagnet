@@ -22,7 +22,7 @@ gen-gql:
 	$(GO) run github.com/99designs/gqlgen generate --config ./internal/gql/gqlgen.yml
 
 gen-mockery:
-	$(GO) run github.com/vektra/mockery/v2
+	$(GO) run github.com/vektra/mockery/v3
 
 gen-webui-graphql:
 	cd webui && npm run codegen

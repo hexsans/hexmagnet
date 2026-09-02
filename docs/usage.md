@@ -59,6 +59,8 @@ It has four tabs:
 | **DHT** | DHT port, bootstrap nodes, discovery speed, rescrape interval, request limits, responder behavior |
 | **Classifier** | Classification concurrency, torrent filter rules, LLM classification, TMDB enrichment |
 | **Storage** | PostgreSQL connection, message queue backend (memory / Kafka), search backend (PostgreSQL / Elasticsearch) and embedding settings |
+| **Torznab** | Servarr/Prowlarr API: enable/disable, API key, path, max results, categories |
+| **Webhooks** | Push events to external services: enable/disable, URLs, event types, timeout, retries, base URL, queue size |
 
 Everything is explained in [Configuration](configuration.md). Highlights of the save behavior:
 
@@ -72,6 +74,127 @@ Everything is explained in [Configuration](configuration.md). Highlights of the 
 A quick way to verify the service is alive: open **http://localhost:3333/status** in your browser.
 
 You'll get a small JSON document. Look for the `postgres` check — it should report `up`. If the database is unreachable, the status reflects it.
+
+## Servarr integration (Lidarr / Radarr / Sonarr / Readarr)
+
+HexMagnet speaks **Torznab**, the standard indexer protocol used by the Servarr
+stack. This lets Lidarr, Radarr, Sonarr and Readarr search the crawled index
+and auto-download matching content — no plugins or bridges needed.
+
+### 1. Enable the API
+
+On the **Config → Torznab** tab (or in `hexmagnet.yaml`):
+
+- tick **Enabled**
+- optionally set an **API key** (recommended if the service is reachable from other hosts)
+- optionally restrict **Categories**
+
+Then the endpoint is:
+
+```
+http://localhost:3333/torznab/api
+```
+
+Verify it works:
+
+```bash
+curl "http://localhost:3333/torznab/api?t=capabilities"
+# and with an API key:
+curl "http://localhost:3333/torznab/api?t=capabilities&apikey=yourkey"
+```
+
+You should get an XML `<caps>` document listing the supported search modes
+(search, movie-search, tv-search, audio-search, book-search) and categories.
+
+### 2. Connect a Servarr app (e.g. Lidarr)
+
+1. In Lidarr: **Settings → Indexers → Add Indexer → Torznab**
+2. URL: `http://hexmagnet:3333/torznab/api` (use the hostname/port you expose)
+3. API key: the one you configured (or leave blank)
+4. Click **Test** — it should succeed
+5. Add an album/artist and press **Search for files** — Lidarr queries the
+   indexer, matches releases, and sends the magnet/torrent to your download client
+
+Repeat for Radarr (Movies), Sonarr (TV), and Readarr (Books). For TV shows,
+passing `tvdbid`/`tmdbid`/`imdbid` matches content exactly; `season`/`ep`
+filtering is done via the torrent name (e.g. `S01E05`).
+
+### 3. (Optional) Prowlarr
+
+If you run **Prowlarr**, add HexMagnet there once and all Servarr apps can sync
+it through Prowlarr:
+
+1. Prowlarr: **Settings → Indexers → Add Indexer → Torznab / Newznab**
+2. URL: `http://hexmagnet:3333/torznab/api`, API key as above, **Test** it
+3. In each Servarr app, use Prowlarr's built-in indexer sync instead of adding HexMagnet directly
+
+> Tip: the more content your crawler has classified, the better the matches.
+> Turn on TMDB enrichment (`classifier.tmdb`) for exact movie/TV matching via
+> IMDb/TMDB/TVDB IDs.
+
+## Webhook integration
+
+Webhooks let external services react to newly crawled content in real time —
+no polling. Every time a torrent is classified and stored, HexMagnet POSTs a
+JSON event to each configured URL (see
+[Configuration — webhooks](configuration.md#webhooks--pushing-events-to-external-services)).
+
+### 1. Enable and configure
+
+On the **Config → Webhooks** tab (or in `hexmagnet.yaml`):
+
+- tick **Enabled**
+- add the endpoint(s) under **URLs** (one per line)
+- optionally set **Public Base URL** so the payload includes a `.torrent` download link
+- optionally filter what gets delivered: tick **Categories** (content types) and/or add
+  **Title Regex** / **Filename Regex** patterns (Go RE2, case-insensitive, one per line)
+- optionally add **Headers** (e.g. `Authorization: Bearer <token>`) for endpoints that
+  require authentication; header values are masked in the UI and re-saving a masked
+  value keeps the stored one
+- Save — the change applies immediately
+
+### 2. Example consumer: auto-download all new music to qBittorrent
+
+A tiny script that receives the webhook and adds music torrents to qBittorrent:
+
+```python
+#!/usr/bin/env python3
+# webhook-consumer.py — run with: python3 webhook-consumer.py
+import json
+import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+QB_URL = "http://localhost:8080"   # qBittorrent Web UI
+QB_USER, QB_PASS = "admin", "adminadmin"
+
+class Hook(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if body.get("content_type") != "music":
+            self.send_response(200); self.end_headers(); return
+
+        login = urllib.request.urlopen(f"{QB_URL}/api/v2/auth/login",
+            data=f"username={QB_USER}&password={QB_PASS}".encode()).read()
+        req = urllib.request.Request(f"{QB_URL}/api/v2/torrents/add",
+            data=urllib.parse.urlencode({"urls": body["magnet"]}).encode(),
+            headers={"Cookie": f"SID={login.decode()}"})
+        urllib.request.urlopen(req)
+        print("added:", body["name"])
+        self.send_response(200); self.end_headers()
+
+    def log_message(self, *args): pass
+
+HTTPServer(("0.0.0.0", 9000), Hook).serve_forever()
+```
+
+Point the webhook URL at `http://<host>:9000`, and every new music torrent
+classified by the crawler is sent straight to qBittorrent. Use `content_type`,
+`seeders`, `size`, or `languages` in your own filters (e.g. only 4K movies,
+only English, only audiobooks...).
+
+> The event's `torrent_url` (when `base_url` is set) downloads the `.torrent`
+> file with any configured `embed_trackers`, which can be handed to clients
+> that prefer files over magnet links.
 
 ## If the web UI is missing
 

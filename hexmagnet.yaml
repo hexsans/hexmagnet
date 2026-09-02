@@ -1,0 +1,23 @@
+# HexMagnet runtime configuration
+# Path: ./hexmagnet.yaml (or $HEXMAGNET_CONFIG_FILE)
+
+storage:
+    postgres:
+        connection_timeout: 0
+        database: hexmagnet
+        host: localhost
+        max_connections: 25
+        password: ""
+        port: 5432
+        ssl_cert_path: ""
+        ssl_key_path: ""
+        ssl_mode: disable
+        ssl_root_cert_path: ""
+        username: postgres
+torznab:
+    api_key: 5f22783a62907e26699f83838e2f86ba
+    categories:
+        - "*"
+    enabled: true
+    max_results: 100
+    path: /torznab

@@ -19,6 +19,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 )
@@ -66,6 +67,7 @@ type processor struct {
 	queries            *db.Queries
 	blockingManager    blocking.Manager
 	kafkaProducer      queue.Producer
+	webhook            *webhook.Publisher
 	logger             *zap.SugaredLogger
 	sf                 singleflight.Group
 	recentlyClassified sync.Map
@@ -327,6 +329,8 @@ func (c *processor) handleClassified(
 		return err
 	}
 
+	c.publishClassified(ctx, tcs)
+
 	enriched := make([]string, 0, len(tcs))
 	for _, t := range tcs {
 		enriched = append(enriched, t.InferID())
@@ -338,6 +342,19 @@ func (c *processor) handleClassified(
 	}
 
 	return nil
+}
+
+// publishClassified emits webhook events for torrents that were just
+// classified and persisted. It never blocks the pipeline: the publisher
+// delivers asynchronously.
+func (c *processor) publishClassified(ctx context.Context, tcs []model.Torrent) {
+	if c.webhook == nil || len(tcs) == 0 {
+		return
+	}
+
+	for _, t := range tcs {
+		c.webhook.Publish(context.WithoutCancel(ctx), webhook.NewClassifiedEvent(t))
+	}
 }
 
 func (c *processor) SwapRunner(runner classifier.Runner) {

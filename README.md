@@ -95,6 +95,8 @@ See `example/hexmagnet.yaml` for a fully commented reference of every option.
 | **classifier** | `torrent_filter` | `off` | Pre-classification filter (off/process/discard) |
 | **classifier** | `llm.*` | disabled | LLM-based classification (endpoint, API key, model) |
 | **tmdb** | `enabled` + `access_token` | `true` `""` | TMDB metadata enrichment (requires a token from themoviedb.org/settings/api) |
+| **torznab** | `enabled` + `api_key` | `false` `""` | Torznab API for Servarr apps (Lidarr/Radarr/Sonarr/Readarr) and Prowlarr — see [docs/usage.md](docs/usage.md) |
+| **webhooks** | `enabled` + `urls` | `false` `[]` | Push classified torrent events (JSON) to external endpoints — see [docs/usage.md](docs/usage.md) |
 | **storage** | `postgres.*` | `localhost:5432/hexmagnet` (user `postgres`) | PostgreSQL connection |
 | **storage** | `queue.backend` | `memory` | Message queue backend (memory/kafka) |
 | **storage** | `queue.kafka.brokers` | `["localhost:9092"]` | Kafka broker addresses |

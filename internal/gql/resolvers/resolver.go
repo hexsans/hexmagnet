@@ -22,6 +22,8 @@ import (
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/zap"
 )
@@ -44,6 +46,8 @@ type Resolver struct {
 	SearchCfg       indexer.SearchConfig
 	QueueCfg        queue.Config
 	DHTRequesterCfg metainforequester.Config
+	TorznabCfg      torznab.Config
+	WebhooksCfg     webhook.Config
 
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime

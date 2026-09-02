@@ -83,6 +83,8 @@ On the very first start, HexMagnet:
 
 You should see `http server listening` in the logs when everything is ready — then open the web UI at `http://localhost:3333/`.
 
+The Torznab API (for Servarr apps and Prowlarr) is served on the same HTTP port — no extra ports to open. See [Usage — Servarr integration](usage.md#servarr-integration-lidarr--radarr--sonarr--readarr).
+
 ## Where your data lives
 
 | What | Default location |

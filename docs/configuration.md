@@ -177,6 +177,66 @@ Switching backends re-routes processing automatically. If you switch to `kafka`,
 
 Switching the search backend re-indexes all torrents automatically.
 
+### `torznab` — Servarr / Prowlarr integration
+
+| Key | Default | What it does |
+|---|---|---|
+| `torznab.enabled` | `false` | Serve the Torznab API so Lidarr / Radarr / Sonarr / Readarr and Prowlarr can use HexMagnet as an indexer. |
+| `torznab.api_key` | `""` | If set, every request must pass `?apikey=`. Leave empty for no key. |
+| `torznab.path` | `/torznab` | Base path; the API is served at `{path}/api`, e.g. `http://host:3333/torznab/api`. Applies immediately after save (no restart). |
+| `torznab.max_results` | `100` | Maximum results returned per search request. |
+| `torznab.categories` | `["*"]` | Newznab category IDs exposed to clients (2000 movies, 3000 music, 5000 TV, 7000 books, 8000 other, …). `*` = all. The list is also enforced on searches: requests for restricted categories return an empty result set. |
+| `torznab.trust_proxy_headers` | `true` | Honor `X-Forwarded-Proto` / `X-Forwarded-Host` when building enclosure and download links. Disable when the server is directly exposed, so clients cannot spoof the base URL. |
+
+Search results include magnet links, seeders/peers, and a download URL for the
+`.torrent` file (with any configured `server.embed_trackers` embedded), so
+Servarr apps can grab and auto-download content found by the crawler.
+
+### `webhooks` — pushing events to external services
+
+| Key | Default | What it does |
+|---|---|---|
+| `webhooks.enabled` | `false` | Post classified torrent events to the configured URLs. |
+| `webhooks.urls` | `[]` | Endpoints that receive every event as a JSON `POST`, one per line. |
+| `webhooks.events` | `["classified"]` | Which event types to deliver. Currently only `classified` (a torrent was classified and stored). |
+| `webhooks.categories` | `[]` | Filter by classified content type: only torrents whose `content_type` (`movie`, `tv_show`, `music`, `ebook`, `comic`, `audiobook`, `game`, `software`, `other`, `unknown`, `adult`) is in the list are delivered. Empty = all types. A torrent without a content type counts as `unknown`. |
+| `webhooks.title_patterns` | `[]` | Filter by torrent name: one RE2 pattern per line, case-insensitive; the event is delivered when at least one pattern matches the name. Empty = no title filter. |
+| `webhooks.filename_patterns` | `[]` | Filter by file paths: one RE2 pattern per line, case-insensitive, matched against every file path (parts joined with `/`); the event is delivered when at least one pattern matches at least one file. Empty = no filename filter. |
+| `webhooks.timeout` | `10s` | Per-request timeout. |
+| `webhooks.max_retries` | `3` | Retries with exponential backoff before an event is dropped (first attempt is not a retry). |
+| `webhooks.base_url` | `""` | Public base URL of this server. When set, the payload includes a `torrent_url` link to download the `.torrent` file. |
+| `webhooks.headers` | `{}` | Extra HTTP headers sent with every delivery, e.g. `Authorization: Bearer <token>`. Values are masked in the UI; re-saving a masked value keeps the stored one. |
+| `webhooks.queue_size` | `1000` | Async delivery queue capacity; when full, new events are dropped (and logged) instead of blocking classification. Applies immediately after save (pending events are migrated). |
+
+Each event payload looks like:
+
+```json
+{
+  "event": "classified",
+  "info_hash": "abcdef...",
+  "name": "Artist - Album (2022) FLAC",
+  "size": 123456789,
+  "content_type": "music",
+  "content_source": null,
+  "content_id": null,
+  "languages": ["en"],
+  "seeders": 12,
+  "leechers": 3,
+  "files_count": 8,
+  "files": ["Artist - Album (2022) FLAC/01 - Track.flac", "Artist - Album (2022) FLAC/cover.jpg"],
+  "magnet": "magnet:?xt=urn:btih:...",
+  "torrent_url": "http://localhost:3333/api/torrents/abcdef.../download",
+  "created_at": "2026-09-03T12:00:00Z"
+}
+```
+
+The `categories`, `title_patterns` and `filename_patterns` filters are
+combined with AND; patterns within a list are OR-ed. They only affect which
+events are delivered — the payload is identical otherwise. Filters apply to
+events enqueued after a config save; already-queued events are unaffected.
+
+See [Usage — Webhook integration](usage.md#webhook-integration) for consumer examples.
+
 ---
 
 ## Example files

@@ -88,5 +88,29 @@ query Config {
         }
       }
     }
+    torznab {
+      enabled
+      apiKey
+      path
+      maxResults
+      categories
+      trustProxyHeaders
+    }
+    webhooks {
+      enabled
+      urls
+      events
+      categories
+      titlePatterns
+      filenamePatterns
+      timeout
+      maxRetries
+      baseUrl
+      headers {
+        key
+        value
+      }
+      queueSize
+    }
   }
 }

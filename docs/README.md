@@ -9,7 +9,7 @@ This guide covers everything you need to run, configure and fix HexMagnet. No te
 | Doc | What it covers |
 |---|---|
 | [Installation](installation.md) | Docker Compose, Docker, and binary installs; ports; where your data lives; upgrading |
-| [Usage](usage.md) | The web UI step by step: dashboard, search, torrent details, downloading, reprocessing |
+| [Usage](usage.md) | The web UI step by step: dashboard, search, torrent details, downloading, reprocessing — plus Torznab / Servarr integration (Lidarr, Radarr, Sonarr, Readarr, Prowlarr) |
 | [Configuration](configuration.md) | Every setting explained in plain language — what it does, valid values, and how to change it |
 | [Troubleshooting](troubleshooting.md) | Step-by-step fixes for the most common problems, including wrong config and save errors |
 

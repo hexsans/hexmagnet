@@ -42,6 +42,8 @@ type Config struct {
 	Server     ServerConfig     `json:"server"`
 	Classifier ClassifierConfig `json:"classifier"`
 	Storage    StorageConfig    `json:"storage"`
+	Torznab    TorznabConfig    `json:"torznab"`
+	Webhooks   WebhooksConfig   `json:"webhooks"`
 }
 
 type ConfigInput struct {
@@ -49,6 +51,8 @@ type ConfigInput struct {
 	Server     graphql.Omittable[*ServerConfigInput]     `json:"server,omitempty"`
 	Classifier graphql.Omittable[*ClassifierConfigInput] `json:"classifier,omitempty"`
 	Storage    graphql.Omittable[*StorageConfigInput]    `json:"storage,omitempty"`
+	Torznab    graphql.Omittable[*TorznabConfigInput]    `json:"torznab,omitempty"`
+	Webhooks   graphql.Omittable[*WebhooksConfigInput]   `json:"webhooks,omitempty"`
 }
 
 type ContentTypeAgg struct {
@@ -457,6 +461,62 @@ type TorrentSourceFacetInput struct {
 	Filter    graphql.Omittable[[]string]          `json:"filter,omitempty"`
 }
 
+type TorznabConfig struct {
+	Enabled           bool     `json:"enabled"`
+	APIKey            string   `json:"apiKey"`
+	Path              string   `json:"path"`
+	MaxResults        uint64   `json:"maxResults"`
+	Categories        []string `json:"categories"`
+	TrustProxyHeaders bool     `json:"trustProxyHeaders"`
+}
+
+type TorznabConfigInput struct {
+	Enabled           graphql.Omittable[*bool]    `json:"enabled,omitempty"`
+	APIKey            graphql.Omittable[*string]  `json:"apiKey,omitempty"`
+	Path              graphql.Omittable[*string]  `json:"path,omitempty"`
+	MaxResults        graphql.Omittable[*uint64]  `json:"maxResults,omitempty"`
+	Categories        graphql.Omittable[[]string] `json:"categories,omitempty"`
+	TrustProxyHeaders graphql.Omittable[*bool]    `json:"trustProxyHeaders,omitempty"`
+}
+
+type WebhookHeader struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type WebhookHeaderInput struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type WebhooksConfig struct {
+	Enabled          bool            `json:"enabled"`
+	Urls             []string        `json:"urls"`
+	Events           []string        `json:"events"`
+	Categories       []string        `json:"categories"`
+	TitlePatterns    []string        `json:"titlePatterns"`
+	FilenamePatterns []string        `json:"filenamePatterns"`
+	Timeout          uint64          `json:"timeout"`
+	MaxRetries       uint64          `json:"maxRetries"`
+	BaseURL          string          `json:"baseUrl"`
+	Headers          []WebhookHeader `json:"headers"`
+	QueueSize        uint64          `json:"queueSize"`
+}
+
+type WebhooksConfigInput struct {
+	Enabled          graphql.Omittable[*bool]                `json:"enabled,omitempty"`
+	Urls             graphql.Omittable[[]string]             `json:"urls,omitempty"`
+	Events           graphql.Omittable[[]string]             `json:"events,omitempty"`
+	Categories       graphql.Omittable[[]string]             `json:"categories,omitempty"`
+	TitlePatterns    graphql.Omittable[[]string]             `json:"titlePatterns,omitempty"`
+	FilenamePatterns graphql.Omittable[[]string]             `json:"filenamePatterns,omitempty"`
+	Timeout          graphql.Omittable[*uint64]              `json:"timeout,omitempty"`
+	MaxRetries       graphql.Omittable[*uint64]              `json:"maxRetries,omitempty"`
+	BaseURL          graphql.Omittable[*string]              `json:"baseUrl,omitempty"`
+	Headers          graphql.Omittable[[]WebhookHeaderInput] `json:"headers,omitempty"`
+	QueueSize        graphql.Omittable[*uint64]              `json:"queueSize,omitempty"`
+}
+
 type Worker struct {
 	Key     string `json:"key"`
 	Started bool   `json:"started"`
@@ -512,7 +572,7 @@ func (e *HealthStatus) UnmarshalGQL(v any) error {
 }
 
 func (e HealthStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *HealthStatus) UnmarshalJSON(b []byte) error {
@@ -569,7 +629,7 @@ func (e *MetricsBucketDuration) UnmarshalGQL(v any) error {
 }
 
 func (e MetricsBucketDuration) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MetricsBucketDuration) UnmarshalJSON(b []byte) error {
@@ -628,7 +688,7 @@ func (e *QueueJobStatus) UnmarshalGQL(v any) error {
 }
 
 func (e QueueJobStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *QueueJobStatus) UnmarshalJSON(b []byte) error {
@@ -685,7 +745,7 @@ func (e *QueueJobsOrderByField) UnmarshalGQL(v any) error {
 }
 
 func (e QueueJobsOrderByField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *QueueJobsOrderByField) UnmarshalJSON(b []byte) error {
@@ -740,7 +800,7 @@ func (e *SortDirection) UnmarshalGQL(v any) error {
 }
 
 func (e SortDirection) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SortDirection) UnmarshalJSON(b []byte) error {
@@ -809,7 +869,7 @@ func (e *TorrentContentOrderByField) UnmarshalGQL(v any) error {
 }
 
 func (e TorrentContentOrderByField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TorrentContentOrderByField) UnmarshalJSON(b []byte) error {
@@ -866,7 +926,7 @@ func (e *TorrentFilesOrderByField) UnmarshalGQL(v any) error {
 }
 
 func (e TorrentFilesOrderByField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TorrentFilesOrderByField) UnmarshalJSON(b []byte) error {
@@ -935,7 +995,7 @@ func (e *TorrentSearchOrderByField) UnmarshalGQL(v any) error {
 }
 
 func (e TorrentSearchOrderByField) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TorrentSearchOrderByField) UnmarshalJSON(b []byte) error {

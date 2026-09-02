@@ -91,3 +91,41 @@ storage:
         model: bge-m3
         dimensions: 1024
         instruction_enabled: false
+
+# --- Torznab API (Servarr integration) ---
+# Lets Lidarr / Radarr / Sonarr / Readarr and Prowlarr use HexMagnet as a
+# torrent indexer. Endpoint: http://<host>:<port>/torznab/api
+torznab:
+  enabled: false
+  api_key: ""                 # if set, clients must pass ?apikey= on every request
+  path: /torznab              # base path; the API is served at {path}/api
+  max_results: 100            # max results per search request
+  categories:                 # Newznab category IDs, one per line; "*" = all;
+                              # the list is enforced on searches
+    - "*"
+  trust_proxy_headers: true   # honor X-Forwarded-* when building links; disable
+                              # when directly exposed to prevent spoofing
+
+# --- Webhook publisher ---
+# Posts classified torrent events (JSON) to external endpoints, e.g. custom
+# scripts that auto-download music, or automation engines.
+webhooks:
+  enabled: false
+  urls:                        # every event is POSTed to each URL
+    - https://example.com/hook
+  events:
+    - classified               # after a torrent is classified and stored
+  categories: []               # content types to deliver (movie, tv_show, music,
+                               # ebook, comic, audiobook, game, software, other,
+                               # unknown, adult); empty = all types
+  title_patterns: []           # RE2 patterns (case-insensitive); any match on the
+                               # torrent name passes; empty = no title filter
+  filename_patterns: []        # RE2 patterns (case-insensitive) matched against
+                               # file paths; any match passes; empty = no filter
+  timeout: 10s                 # per-request timeout
+  max_retries: 3               # retries with exponential backoff before dropping
+  base_url: ""                 # public base URL of this server; adds a torrent_url
+                               # download link to the payload ("" = omit)
+  headers: {}                  # extra HTTP headers with every delivery,
+                               # e.g. Authorization: Bearer <token>
+  queue_size: 1000             # async delivery queue capacity

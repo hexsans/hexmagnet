@@ -12,6 +12,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/queue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/utils"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -26,6 +27,7 @@ type Params struct {
 	Producer         queue.Producer
 	ConfigManager    *configmgr.Manager                                 `optional:"true"`
 	RebuildRunner    func(classifier.Config) (classifier.Runner, error) `optional:"true"`
+	WebhookPublisher *webhook.Publisher                                 `optional:"true"`
 	Logger           *zap.SugaredLogger
 }
 
@@ -58,6 +60,7 @@ func New(p Params) Result {
 				blockingManager: bm,
 				runner:          w,
 				kafkaProducer:   p.Producer,
+				webhook:         p.WebhookPublisher,
 				defaultWorkflow: "default",
 				logger:          p.Logger,
 			}

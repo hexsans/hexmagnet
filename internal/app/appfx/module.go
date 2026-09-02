@@ -1,6 +1,8 @@
 package appfx
 
 import (
+	"context"
+
 	"github.com/hexsans/hexmagnet/internal/blocking"
 	"github.com/hexsans/hexmagnet/internal/classifier"
 	"github.com/hexsans/hexmagnet/internal/concurrency"
@@ -31,8 +33,10 @@ import (
 	"github.com/hexsans/hexmagnet/internal/tmdb"
 	"github.com/hexsans/hexmagnet/internal/torrent"
 	"github.com/hexsans/hexmagnet/internal/torrentstore"
+	"github.com/hexsans/hexmagnet/internal/torznab"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/version"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"golang.org/x/time/rate"
@@ -50,6 +54,36 @@ func New(queueCfg queue.Config) fx.Option {
 		servercfg.NewModule(),
 		elasticsearchfx.New(),
 		torrentstore.NewModule(),
+		fx.Provide(torznab.New),
+		fx.Provide(webhook.New),
+		fx.Invoke(func(
+			handler *torznab.Handler,
+			cm *configmgr.Manager,
+		) {
+			if cm == nil {
+				return
+			}
+
+			cm.Subscribe(context.Background(), "torznab",
+				func(_ context.Context, snap *configmgr.Snapshot) error {
+					handler.Update(snap.Torznab)
+					return nil
+				}, configmgr.ApplyAsync)
+		}),
+		fx.Invoke(func(
+			publisher *webhook.Publisher,
+			cm *configmgr.Manager,
+		) {
+			if cm == nil {
+				return
+			}
+
+			cm.Subscribe(context.Background(), "webhooks",
+				func(_ context.Context, snap *configmgr.Snapshot) error {
+					publisher.Update(snap.Webhooks)
+					return nil
+				}, configmgr.ApplyAsync)
+		}),
 		fx.Provide(
 			func(cfg dhtPkg.Config) pipelinefx.Config {
 				return pipelinefx.Config{
@@ -121,6 +155,7 @@ func New(queueCfg queue.Config) fx.Option {
 	)
 }
 
+//nolint:revive // config bundle injected by the fx container
 func newConfigManager(
 	serverCfg servercfg.Config,
 	dhtCfg dhtPkg.Config,
@@ -129,6 +164,8 @@ func newConfigManager(
 	searchCfg indexer.SearchConfig,
 	queueCfg queue.Config,
 	dhtRequesterCfg metainforequester.Config,
+	torznabCfg torznab.Config,
+	webhooksCfg webhook.Config,
 ) *configmgr.Manager {
 	initial := &configmgr.Snapshot{
 		DHTRequester: dhtRequesterCfg,
@@ -138,6 +175,8 @@ func newConfigManager(
 		Postgres:     postgresCfg,
 		Queue:        queueCfg,
 		Search:       searchCfg,
+		Torznab:      torznabCfg,
+		Webhooks:     webhooksCfg,
 	}
 
 	return configmgr.NewManager(initial, "./hexmagnet.yaml",

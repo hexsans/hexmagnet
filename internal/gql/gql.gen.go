@@ -64,6 +64,8 @@ type ComplexityRoot struct {
 		Dht        func(childComplexity int) int
 		Server     func(childComplexity int) int
 		Storage    func(childComplexity int) int
+		Torznab    func(childComplexity int) int
+		Webhooks   func(childComplexity int) int
 	}
 
 	Content struct {
@@ -417,6 +419,34 @@ type ComplexityRoot struct {
 		Value      func(childComplexity int) int
 	}
 
+	TorznabConfig struct {
+		APIKey            func(childComplexity int) int
+		Categories        func(childComplexity int) int
+		Enabled           func(childComplexity int) int
+		MaxResults        func(childComplexity int) int
+		Path              func(childComplexity int) int
+		TrustProxyHeaders func(childComplexity int) int
+	}
+
+	WebhookHeader struct {
+		Key   func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
+	WebhooksConfig struct {
+		BaseURL          func(childComplexity int) int
+		Categories       func(childComplexity int) int
+		Enabled          func(childComplexity int) int
+		Events           func(childComplexity int) int
+		FilenamePatterns func(childComplexity int) int
+		Headers          func(childComplexity int) int
+		MaxRetries       func(childComplexity int) int
+		QueueSize        func(childComplexity int) int
+		Timeout          func(childComplexity int) int
+		TitlePatterns    func(childComplexity int) int
+		Urls             func(childComplexity int) int
+	}
+
 	Worker struct {
 		Key     func(childComplexity int) int
 		Started func(childComplexity int) int
@@ -553,6 +583,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Config.Storage(childComplexity), true
+	case "Config.torznab":
+		if e.ComplexityRoot.Config.Torznab == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Config.Torznab(childComplexity), true
+	case "Config.webhooks":
+		if e.ComplexityRoot.Config.Webhooks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Config.Webhooks(childComplexity), true
 
 	case "Content.adult":
 		if e.ComplexityRoot.Content.Adult == nil {
@@ -1880,6 +1922,123 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TorrentSourceAgg.Value(childComplexity), true
 
+	case "TorznabConfig.apiKey":
+		if e.ComplexityRoot.TorznabConfig.APIKey == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.APIKey(childComplexity), true
+	case "TorznabConfig.categories":
+		if e.ComplexityRoot.TorznabConfig.Categories == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.Categories(childComplexity), true
+	case "TorznabConfig.enabled":
+		if e.ComplexityRoot.TorznabConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.Enabled(childComplexity), true
+	case "TorznabConfig.maxResults":
+		if e.ComplexityRoot.TorznabConfig.MaxResults == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.MaxResults(childComplexity), true
+	case "TorznabConfig.path":
+		if e.ComplexityRoot.TorznabConfig.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.Path(childComplexity), true
+	case "TorznabConfig.trustProxyHeaders":
+		if e.ComplexityRoot.TorznabConfig.TrustProxyHeaders == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorznabConfig.TrustProxyHeaders(childComplexity), true
+
+	case "WebhookHeader.key":
+		if e.ComplexityRoot.WebhookHeader.Key == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookHeader.Key(childComplexity), true
+	case "WebhookHeader.value":
+		if e.ComplexityRoot.WebhookHeader.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookHeader.Value(childComplexity), true
+
+	case "WebhooksConfig.baseUrl":
+		if e.ComplexityRoot.WebhooksConfig.BaseURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.BaseURL(childComplexity), true
+	case "WebhooksConfig.categories":
+		if e.ComplexityRoot.WebhooksConfig.Categories == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Categories(childComplexity), true
+	case "WebhooksConfig.enabled":
+		if e.ComplexityRoot.WebhooksConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Enabled(childComplexity), true
+	case "WebhooksConfig.events":
+		if e.ComplexityRoot.WebhooksConfig.Events == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Events(childComplexity), true
+	case "WebhooksConfig.filenamePatterns":
+		if e.ComplexityRoot.WebhooksConfig.FilenamePatterns == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.FilenamePatterns(childComplexity), true
+	case "WebhooksConfig.headers":
+		if e.ComplexityRoot.WebhooksConfig.Headers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Headers(childComplexity), true
+	case "WebhooksConfig.maxRetries":
+		if e.ComplexityRoot.WebhooksConfig.MaxRetries == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.MaxRetries(childComplexity), true
+	case "WebhooksConfig.queueSize":
+		if e.ComplexityRoot.WebhooksConfig.QueueSize == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.QueueSize(childComplexity), true
+	case "WebhooksConfig.timeout":
+		if e.ComplexityRoot.WebhooksConfig.Timeout == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Timeout(childComplexity), true
+	case "WebhooksConfig.titlePatterns":
+		if e.ComplexityRoot.WebhooksConfig.TitlePatterns == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.TitlePatterns(childComplexity), true
+	case "WebhooksConfig.urls":
+		if e.ComplexityRoot.WebhooksConfig.Urls == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhooksConfig.Urls(childComplexity), true
+
 	case "Worker.key":
 		if e.ComplexityRoot.Worker.Key == nil {
 			break
@@ -1949,6 +2108,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputTorrentSearchOrderByInput,
 		ec.unmarshalInputTorrentSearchQueryInput,
 		ec.unmarshalInputTorrentSourceFacetInput,
+		ec.unmarshalInputTorznabConfigInput,
+		ec.unmarshalInputWebhookHeaderInput,
+		ec.unmarshalInputWebhooksConfigInput,
 	)
 	first := true
 
@@ -2037,6 +2199,8 @@ type Config {
   server: ServerConfig!
   classifier: ClassifierConfig!
   storage: StorageConfig!
+  torznab: TorznabConfig!
+  webhooks: WebhooksConfig!
 }
 
 type DHTConfig {
@@ -2157,11 +2321,41 @@ type EmbeddingConfig {
   instructionEnabled: Boolean!
 }
 
+type TorznabConfig {
+  enabled: Boolean!
+  apiKey: String!
+  path: String!
+  maxResults: Uint64!
+  categories: [String!]!
+  trustProxyHeaders: Boolean!
+}
+
+type WebhooksConfig {
+  enabled: Boolean!
+  urls: [String!]!
+  events: [String!]!
+  categories: [String!]!
+  titlePatterns: [String!]!
+  filenamePatterns: [String!]!
+  timeout: Uint64!
+  maxRetries: Uint64!
+  baseUrl: String!
+  headers: [WebhookHeader!]!
+  queueSize: Uint64!
+}
+
+type WebhookHeader {
+  key: String!
+  value: String!
+}
+
 input ConfigInput {
   dht: DHTConfigInput
   server: ServerConfigInput
   classifier: ClassifierConfigInput
   storage: StorageConfigInput
+  torznab: TorznabConfigInput
+  webhooks: WebhooksConfigInput
 }
 
 input DHTConfigInput {
@@ -2280,6 +2474,34 @@ input EmbeddingConfigInput {
   model: String
   dimensions: Int
   instructionEnabled: Boolean
+}
+
+input TorznabConfigInput {
+  enabled: Boolean
+  apiKey: String
+  path: String
+  maxResults: Uint64
+  categories: [String!]
+  trustProxyHeaders: Boolean
+}
+
+input WebhooksConfigInput {
+  enabled: Boolean
+  urls: [String!]
+  events: [String!]
+  categories: [String!]
+  titlePatterns: [String!]
+  filenamePatterns: [String!]
+  timeout: Uint64
+  maxRetries: Uint64
+  baseUrl: String
+  headers: [WebhookHeaderInput!]
+  queueSize: Uint64
+}
+
+input WebhookHeaderInput {
+  key: String!
+  value: String!
 }
 `, BuiltIn: false},
 	{Name: "../../graphql/schema/crawler.graphqls", Input: `type ActivityEntry {
@@ -2874,6 +3096,10 @@ func (ec *executionContext) childFields_Config(ctx context.Context, field graphq
 		return ec.fieldContext_Config_classifier(ctx, field)
 	case "storage":
 		return ec.fieldContext_Config_storage(ctx, field)
+	case "torznab":
+		return ec.fieldContext_Config_torznab(ctx, field)
+	case "webhooks":
+		return ec.fieldContext_Config_webhooks(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Config", field.Name)
 }
@@ -3546,6 +3772,62 @@ func (ec *executionContext) childFields_TorrentSourceAgg(ctx context.Context, fi
 	return nil, fmt.Errorf("no field named %q was found under type TorrentSourceAgg", field.Name)
 }
 
+func (ec *executionContext) childFields_TorznabConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "enabled":
+		return ec.fieldContext_TorznabConfig_enabled(ctx, field)
+	case "apiKey":
+		return ec.fieldContext_TorznabConfig_apiKey(ctx, field)
+	case "path":
+		return ec.fieldContext_TorznabConfig_path(ctx, field)
+	case "maxResults":
+		return ec.fieldContext_TorznabConfig_maxResults(ctx, field)
+	case "categories":
+		return ec.fieldContext_TorznabConfig_categories(ctx, field)
+	case "trustProxyHeaders":
+		return ec.fieldContext_TorznabConfig_trustProxyHeaders(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TorznabConfig", field.Name)
+}
+
+func (ec *executionContext) childFields_WebhookHeader(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "key":
+		return ec.fieldContext_WebhookHeader_key(ctx, field)
+	case "value":
+		return ec.fieldContext_WebhookHeader_value(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WebhookHeader", field.Name)
+}
+
+func (ec *executionContext) childFields_WebhooksConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "enabled":
+		return ec.fieldContext_WebhooksConfig_enabled(ctx, field)
+	case "urls":
+		return ec.fieldContext_WebhooksConfig_urls(ctx, field)
+	case "events":
+		return ec.fieldContext_WebhooksConfig_events(ctx, field)
+	case "categories":
+		return ec.fieldContext_WebhooksConfig_categories(ctx, field)
+	case "titlePatterns":
+		return ec.fieldContext_WebhooksConfig_titlePatterns(ctx, field)
+	case "filenamePatterns":
+		return ec.fieldContext_WebhooksConfig_filenamePatterns(ctx, field)
+	case "timeout":
+		return ec.fieldContext_WebhooksConfig_timeout(ctx, field)
+	case "maxRetries":
+		return ec.fieldContext_WebhooksConfig_maxRetries(ctx, field)
+	case "baseUrl":
+		return ec.fieldContext_WebhooksConfig_baseUrl(ctx, field)
+	case "headers":
+		return ec.fieldContext_WebhooksConfig_headers(ctx, field)
+	case "queueSize":
+		return ec.fieldContext_WebhooksConfig_queueSize(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WebhooksConfig", field.Name)
+}
+
 func (ec *executionContext) childFields_Worker(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "key":
@@ -4194,6 +4476,70 @@ func (ec *executionContext) fieldContext_Config_storage(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_StorageConfig(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Config_torznab(ctx context.Context, field graphql.CollectedField, obj *gen.Config) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Config_torznab(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Torznab, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.TorznabConfig) graphql.Marshaler {
+			return ec.marshalNTorznabConfig2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐTorznabConfig(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Config_torznab(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Config",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TorznabConfig(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Config_webhooks(ctx context.Context, field graphql.CollectedField, obj *gen.Config) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Config_webhooks(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Webhooks, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.WebhooksConfig) graphql.Marshaler {
+			return ec.marshalNWebhooksConfig2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhooksConfig(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Config_webhooks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Config",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WebhooksConfig(ctx, field)
 		},
 	}
 	return fc, nil
@@ -9543,6 +9889,452 @@ func (ec *executionContext) fieldContext_TorrentSourceAgg_isEstimate(_ context.C
 	return graphql.NewScalarFieldContext("TorrentSourceAgg", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _TorznabConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_enabled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _TorznabConfig_apiKey(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_apiKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TorznabConfig_path(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TorznabConfig_maxResults(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_maxResults(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxResults, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_maxResults(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
+func (ec *executionContext) _TorznabConfig_categories(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_categories(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Categories, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_categories(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TorznabConfig_trustProxyHeaders(ctx context.Context, field graphql.CollectedField, obj *gen.TorznabConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorznabConfig_trustProxyHeaders(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TrustProxyHeaders, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorznabConfig_trustProxyHeaders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TorznabConfig", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _WebhookHeader_key(ctx context.Context, field graphql.CollectedField, obj *gen.WebhookHeader) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhookHeader_key(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhookHeader_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhookHeader", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhookHeader_value(ctx context.Context, field graphql.CollectedField, obj *gen.WebhookHeader) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhookHeader_value(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhookHeader_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhookHeader", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_enabled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_urls(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_urls(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Urls, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_urls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_events(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_events(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Events, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_events(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_categories(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_categories(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Categories, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_categories(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_titlePatterns(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_titlePatterns(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TitlePatterns, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_titlePatterns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_filenamePatterns(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_filenamePatterns(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FilenamePatterns, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_filenamePatterns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_timeout(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_timeout(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Timeout, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_timeout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_maxRetries(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_maxRetries(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxRetries, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_maxRetries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_baseUrl(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_baseUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.BaseURL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_baseUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WebhooksConfig_headers(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_headers(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Headers, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []gen.WebhookHeader) graphql.Marshaler {
+			return ec.marshalNWebhookHeader2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_headers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhooksConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WebhookHeader(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WebhooksConfig_queueSize(ctx context.Context, field graphql.CollectedField, obj *gen.WebhooksConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WebhooksConfig_queueSize(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.QueueSize, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WebhooksConfig_queueSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WebhooksConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
 func (ec *executionContext) _Worker_key(ctx context.Context, field graphql.CollectedField, obj *gen.Worker) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10774,7 +11566,7 @@ func (ec *executionContext) unmarshalInputConfigInput(ctx context.Context, obj a
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"dht", "server", "classifier", "storage"}
+	fieldsInOrder := [...]string{"dht", "server", "classifier", "storage", "torznab", "webhooks"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10809,6 +11601,20 @@ func (ec *executionContext) unmarshalInputConfigInput(ctx context.Context, obj a
 				return it, err
 			}
 			it.Storage = graphql.OmittableOf(data)
+		case "torznab":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("torznab"))
+			data, err := ec.unmarshalOTorznabConfigInput2ᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐTorznabConfigInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Torznab = graphql.OmittableOf(data)
+		case "webhooks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("webhooks"))
+			data, err := ec.unmarshalOWebhooksConfigInput2ᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhooksConfigInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Webhooks = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -12422,6 +13228,208 @@ func (ec *executionContext) unmarshalInputTorrentSourceFacetInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputTorznabConfigInput(ctx context.Context, obj any) (gen.TorznabConfigInput, error) {
+	var it gen.TorznabConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"enabled", "apiKey", "path", "maxResults", "categories", "trustProxyHeaders"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = graphql.OmittableOf(data)
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = graphql.OmittableOf(data)
+		case "path":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Path = graphql.OmittableOf(data)
+		case "maxResults":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxResults"))
+			data, err := ec.unmarshalOUint642ᚖuint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxResults = graphql.OmittableOf(data)
+		case "categories":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("categories"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Categories = graphql.OmittableOf(data)
+		case "trustProxyHeaders":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("trustProxyHeaders"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TrustProxyHeaders = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputWebhookHeaderInput(ctx context.Context, obj any) (gen.WebhookHeaderInput, error) {
+	var it gen.WebhookHeaderInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"key", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputWebhooksConfigInput(ctx context.Context, obj any) (gen.WebhooksConfigInput, error) {
+	var it gen.WebhooksConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"enabled", "urls", "events", "categories", "titlePatterns", "filenamePatterns", "timeout", "maxRetries", "baseUrl", "headers", "queueSize"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = graphql.OmittableOf(data)
+		case "urls":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("urls"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Urls = graphql.OmittableOf(data)
+		case "events":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("events"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Events = graphql.OmittableOf(data)
+		case "categories":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("categories"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Categories = graphql.OmittableOf(data)
+		case "titlePatterns":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("titlePatterns"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TitlePatterns = graphql.OmittableOf(data)
+		case "filenamePatterns":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("filenamePatterns"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FilenamePatterns = graphql.OmittableOf(data)
+		case "timeout":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeout"))
+			data, err := ec.unmarshalOUint642ᚖuint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Timeout = graphql.OmittableOf(data)
+		case "maxRetries":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxRetries"))
+			data, err := ec.unmarshalOUint642ᚖuint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxRetries = graphql.OmittableOf(data)
+		case "baseUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseUrl"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BaseURL = graphql.OmittableOf(data)
+		case "headers":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("headers"))
+			data, err := ec.unmarshalOWebhookHeaderInput2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Headers = graphql.OmittableOf(data)
+		case "queueSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("queueSize"))
+			data, err := ec.unmarshalOUint642ᚖuint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.QueueSize = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -12565,6 +13573,16 @@ func (ec *executionContext) _Config(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "storage":
 			out.Values[i] = ec._Config_storage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "torznab":
+			out.Values[i] = ec._Config_torznab(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "webhooks":
+			out.Values[i] = ec._Config_webhooks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15890,6 +16908,200 @@ func (ec *executionContext) _TorrentSourceAgg(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var torznabConfigImplementors = []string{"TorznabConfig"}
+
+func (ec *executionContext) _TorznabConfig(ctx context.Context, sel ast.SelectionSet, obj *gen.TorznabConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, torznabConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TorznabConfig")
+		case "enabled":
+			out.Values[i] = ec._TorznabConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._TorznabConfig_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._TorznabConfig_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxResults":
+			out.Values[i] = ec._TorznabConfig_maxResults(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "categories":
+			out.Values[i] = ec._TorznabConfig_categories(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "trustProxyHeaders":
+			out.Values[i] = ec._TorznabConfig_trustProxyHeaders(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var webhookHeaderImplementors = []string{"WebhookHeader"}
+
+func (ec *executionContext) _WebhookHeader(ctx context.Context, sel ast.SelectionSet, obj *gen.WebhookHeader) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, webhookHeaderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WebhookHeader")
+		case "key":
+			out.Values[i] = ec._WebhookHeader_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._WebhookHeader_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var webhooksConfigImplementors = []string{"WebhooksConfig"}
+
+func (ec *executionContext) _WebhooksConfig(ctx context.Context, sel ast.SelectionSet, obj *gen.WebhooksConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, webhooksConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WebhooksConfig")
+		case "enabled":
+			out.Values[i] = ec._WebhooksConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "urls":
+			out.Values[i] = ec._WebhooksConfig_urls(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "events":
+			out.Values[i] = ec._WebhooksConfig_events(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "categories":
+			out.Values[i] = ec._WebhooksConfig_categories(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "titlePatterns":
+			out.Values[i] = ec._WebhooksConfig_titlePatterns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "filenamePatterns":
+			out.Values[i] = ec._WebhooksConfig_filenamePatterns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timeout":
+			out.Values[i] = ec._WebhooksConfig_timeout(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxRetries":
+			out.Values[i] = ec._WebhooksConfig_maxRetries(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baseUrl":
+			out.Values[i] = ec._WebhooksConfig_baseUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "headers":
+			out.Values[i] = ec._WebhooksConfig_headers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "queueSize":
+			out.Values[i] = ec._WebhooksConfig_queueSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var workerImplementors = []string{"Worker"}
 
 func (ec *executionContext) _Worker(ctx context.Context, sel ast.SelectionSet, obj *gen.Worker) graphql.Marshaler {
@@ -17074,6 +18286,10 @@ func (ec *executionContext) marshalNTorrentSourceAgg2githubᚗcomᚋhexsansᚋhe
 	return ec._TorrentSourceAgg(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNTorznabConfig2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐTorznabConfig(ctx context.Context, sel ast.SelectionSet, v gen.TorznabConfig) graphql.Marshaler {
+	return ec._TorznabConfig(ctx, sel, &v)
+}
+
 func (ec *executionContext) unmarshalNUint642uint64(ctx context.Context, v any) (uint64, error) {
 	res, err := graphql.UnmarshalUint64(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17088,6 +18304,35 @@ func (ec *executionContext) marshalNUint642uint64(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNWebhookHeader2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeader(ctx context.Context, sel ast.SelectionSet, v gen.WebhookHeader) graphql.Marshaler {
+	return ec._WebhookHeader(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWebhookHeader2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderᚄ(ctx context.Context, sel ast.SelectionSet, v []gen.WebhookHeader) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWebhookHeader2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeader(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNWebhookHeaderInput2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderInput(ctx context.Context, v any) (gen.WebhookHeaderInput, error) {
+	res, err := ec.unmarshalInputWebhookHeaderInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNWebhooksConfig2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhooksConfig(ctx context.Context, sel ast.SelectionSet, v gen.WebhooksConfig) graphql.Marshaler {
+	return ec._WebhooksConfig(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNWorker2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWorker(ctx context.Context, sel ast.SelectionSet, v gen.Worker) graphql.Marshaler {
@@ -18109,6 +19354,14 @@ func (ec *executionContext) unmarshalOTorrentSourceFacetInput2ᚖgithubᚗcomᚋ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalOTorznabConfigInput2ᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐTorznabConfigInput(ctx context.Context, v any) (*gen.TorznabConfigInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputTorznabConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOUint642ᚖuint64(ctx context.Context, v any) (*uint64, error) {
 	if v == nil {
 		return nil, nil
@@ -18143,6 +19396,31 @@ func (ec *executionContext) marshalOVoid2ᚖstring(ctx context.Context, sel ast.
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOWebhookHeaderInput2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderInputᚄ(ctx context.Context, v any) ([]gen.WebhookHeaderInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]gen.WebhookHeaderInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNWebhookHeaderInput2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhookHeaderInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOWebhooksConfigInput2ᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐWebhooksConfigInput(ctx context.Context, v any) (*gen.WebhooksConfigInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputWebhooksConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOYear2ᚕᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋmodelᚐYear(ctx context.Context, v any) ([]*model.Year, error) {

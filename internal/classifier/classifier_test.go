@@ -30,6 +30,25 @@ func TestClassifier(t *testing.T) {
 	}{
 		{
 			torrent: model.Torrent{
+				Name:       "The.Regular.Show.S03E04.The.Regular.Episode.1080p.WEBRip.6CH.x265.HEVC-PSA.mkv",
+				Size:       450000000,
+				FilesCount: model.NewNullUint(1),
+			},
+			flags: Flags{
+				"local_search_enabled": false,
+				"apis_enabled":         false,
+				"tmdb_enabled":         false,
+				"llm_enabled":          false,
+			},
+			expected: ClassificationResult{
+				ContentAttributes: ContentAttributes{
+					ContentType: model.NewNullContentType(model.ContentTypeTvShow),
+					BaseTitle:   model.NewNullString("The Regular Show"),
+				},
+			},
+		},
+		{
+			torrent: model.Torrent{
 				Name: "The Regular Movie (2000).mkv",
 				Size: 1000000000,
 			},
@@ -220,7 +239,7 @@ func newTestClassifierMocks(t *testing.T) testClassifierMocks {
 		compiler: compiler{
 			options: []compilerOption{
 				compilerFeatures(defaultFeatures),
-				celEnvOption,
+				exprEnvOption,
 			},
 			dependencies: dependencies{
 				search:     search,

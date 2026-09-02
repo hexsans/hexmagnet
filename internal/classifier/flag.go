@@ -3,9 +3,6 @@ package classifier
 import (
 	"fmt"
 
-	"cel.dev/cel-go/cel"
-	"cel.dev/cel-go/common/types"
-	"cel.dev/cel-go/common/types/ref"
 	"github.com/hexsans/hexmagnet/internal/model"
 )
 
@@ -54,36 +51,21 @@ func (f Flags) merge(other Flags) Flags {
 	return result
 }
 
-func (t FlagType) celType() *cel.Type {
+// validate checks a raw flag value against its declared type and returns a
+// normalized value suitable for expression evaluation.
+func (t FlagType) validate(rawVal any) (any, error) {
 	switch t {
 	case FlagTypeBool:
-		return cel.BoolType
-	case FlagTypeString:
-		return cel.StringType
-	case FlagTypeInt:
-		return cel.IntType
-	case FlagTypeStringList:
-		return cel.ListType(cel.StringType)
-	case FlagTypeContentTypeList:
-		return cel.ListType(cel.IntType)
-	default:
-		return nil
-	}
-}
-
-func (t FlagType) celVal(rawVal any) (ref.Val, error) {
-	switch t {
-	case FlagTypeBool:
-		if nativeVal, ok := rawVal.(bool); ok {
-			return types.Bool(nativeVal), nil
+		if _, ok := rawVal.(bool); ok {
+			return rawVal, nil
 		}
 	case FlagTypeString:
-		if nativeVal, ok := rawVal.(string); ok {
-			return types.String(nativeVal), nil
+		if _, ok := rawVal.(string); ok {
+			return rawVal, nil
 		}
 	case FlagTypeInt:
-		if nativeVal, ok := rawVal.(int); ok {
-			return types.Int(nativeVal), nil
+		if v, ok := rawVal.(int); ok {
+			return v, nil
 		}
 	case FlagTypeStringList:
 		if sliceVal, ok := rawVal.([]any); ok {
@@ -98,11 +80,11 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 				nativeVal[i] = strVal
 			}
 
-			return types.NewStringList(types.DefaultTypeAdapter, nativeVal), nil
+			return nativeVal, nil
 		}
 	case FlagTypeContentTypeList:
 		if sliceVal, ok := rawVal.([]any); ok {
-			celVal := make([]int32, len(sliceVal))
+			nativeVal := make([]int32, len(sliceVal))
 
 			for i, v := range sliceVal {
 				strVal, ok := v.(string)
@@ -125,10 +107,10 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 					ct = model.NewNullContentType(parsed)
 				}
 
-				celVal[i] = ContentTypeToInt(ct)
+				nativeVal[i] = ContentTypeToInt(ct)
 			}
 
-			return types.NewDynamicList(types.DefaultTypeAdapter, celVal), nil
+			return nativeVal, nil
 		}
 	default:
 		return nil, ErrInvalidFlagType
@@ -136,5 +118,3 @@ func (t FlagType) celVal(rawVal any) (ref.Val, error) {
 
 	return nil, fmt.Errorf("could not convert type %T to %s", rawVal, t)
 }
-
-type compiledFlags map[string]ref.Val

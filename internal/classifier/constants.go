@@ -21,16 +21,6 @@ const (
 	refCondition    = "#/definitions/condition"
 )
 
-// CEL field names of the exposed struct types.
-const (
-	celFieldBaseName  = "baseName"
-	celFieldBasePath  = "basePath"
-	celFieldExtension = "extension"
-	celFieldFileType  = "fileType"
-	celFieldPath      = "path"
-	celFieldSize      = "size"
-)
-
 // CEL type names.
 const (
 	celTypeBool      = "bool"

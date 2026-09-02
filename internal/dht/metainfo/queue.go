@@ -54,7 +54,7 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 
 					mi, err := p.Handler.HandleGetPeers(ctx, msg)
 					if err != nil {
-						p.Logger.Warnw("metainfo get_peers failed", "error", err)
+						p.Logger.Debugw("metainfo get_peers failed", "info_hash", msg.InfoHash, "error", err)
 						return
 					}
 

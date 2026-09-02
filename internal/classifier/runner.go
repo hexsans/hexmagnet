@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"cel.dev/cel-go/common/types/ref"
 	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type runner struct {
 	dependencies
 	flagDefinitions
-	compiledFlags
-	workflows map[string]action
+	defaultFlags Flags
+	exprEnv      ExprEnv
+	workflows    map[string]action
 }
 
 func (r runner) Run(ctx context.Context, workflow string, flags Flags, t model.Torrent) (ClassificationResult, error) {
@@ -21,11 +21,11 @@ func (r runner) Run(ctx context.Context, workflow string, flags Flags, t model.T
 		return ClassificationResult{}, fmt.Errorf("workflow not found: %s", workflow)
 	}
 
-	cfs := make(map[string]ref.Val, len(r.flagDefinitions))
+	f := make(map[string]any, len(r.flagDefinitions))
 
 	for k, d := range r.flagDefinitions {
 		if runtimeRawVal, ok := flags[k]; ok {
-			rcf, err := d.celVal(runtimeRawVal)
+			rcf, err := d.validate(runtimeRawVal)
 			if err != nil {
 				return ClassificationResult{}, fmt.Errorf(
 					"invalid value for runtime flag '%s': %w",
@@ -34,9 +34,9 @@ func (r runner) Run(ctx context.Context, workflow string, flags Flags, t model.T
 				)
 			}
 
-			cfs[k] = rcf
+			f[k] = rcf
 		} else {
-			cfs[k] = r.compiledFlags[k]
+			f[k] = r.defaultFlags[k]
 		}
 	}
 
@@ -46,11 +46,12 @@ func (r runner) Run(ctx context.Context, workflow string, flags Flags, t model.T
 		Context:      ctx,
 		dependencies: r.dependencies,
 		workflows:    r.workflows,
-		flags:        cfs,
+		flags:        f,
 		torrent:      t,
-		torrentPb:    NewTorrentFromModel(t),
+		torrentExpr:  NewTorrentFromModel(t),
 		result:       cl,
-		resultPb:     NewClassificationFromResult(cl),
+		resultExpr:   NewClassificationFromResult(cl),
+		exprEnv:      r.exprEnv,
 	}
 
 	return w.run(exCtx)

@@ -20,7 +20,7 @@ func NewRunnerFromConfig(cfg Config, src Source, deps Dependencies) (Runner, err
 	c := compiler{
 		options: []compilerOption{
 			compilerFeatures(defaultFeatures),
-			celEnvOption,
+			exprEnvOption,
 		},
 		defaultLLMConfig: cfg.LLM,
 		dependencies: dependencies{
@@ -74,8 +74,8 @@ func New(params Params) Result {
 			options: []compilerOption{
 				compilerFeatures(defaultFeatures),
 				func(src Source, ctx *compilerContext) error {
-					if err := celEnvOption(src, ctx); err != nil {
-						params.Logger.Warnw("cel env setup failed", "error", err)
+					if err := exprEnvOption(src, ctx); err != nil {
+						params.Logger.Warnw("expression env setup failed", "error", err)
 						return err
 					}
 

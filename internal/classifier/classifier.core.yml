@@ -1,9 +1,8 @@
-$schema: "https://hexmagnet.local/schemas/classifier-0.1.json"
 workflows:
   default:
     # try to identify content type for torrents without a hinted content type:
     - if_else:
-        condition: "result.contentType == contentType.unknown"
+        condition: "result.contentType == contentType[\"unknown\"]"
         if_action:
           find_match:
             # try LLM first (falls back to rules on failure):
@@ -12,22 +11,22 @@ workflows:
             - if_else:
                 condition:
                   and:
-                    - "torrent.files.map(f, f.extension in extensions.audio ? f.size : - f.size).sum() > 50*mb"
+                    - "sum(map(torrent.files, {.extension in extensions[\"audio\"] ? .size : -.size})) > 50*mb"
                     - or:
-                        - "torrent.baseName.matches(keywords.audiobook)"
-                        - "torrent.files.filter(f, f.extension in extensions.audiobook).size() > 0"
+                        - "torrent.baseName matches keywords[\"audiobook\"]"
+                        - "len(filter(torrent.files, {.extension in extensions[\"audiobook\"]})) > 0"
                 if_action:
                   set_content_type: audiobook
                 else_action: unmatched
             # match comics:
             - if_else:
-                condition: "torrent.files.map(f, f.extension in extensions.comic ? f.size : - f.size).sum() > 0"
+                condition: "sum(map(torrent.files, {.extension in extensions[\"comic\"] ? .size : -.size})) > 0"
                 if_action:
                   set_content_type: comic
                 else_action: unmatched
             # match ebooks:
             - if_else:
-                condition: "torrent.files.map(f, f.extension in extensions.ebook ? f.size : - f.size).sum() > 0"
+                condition: "sum(map(torrent.files, {.extension in extensions[\"ebook\"] ? .size : -.size})) > 0"
                 if_action:
                   set_content_type: ebook
                 else_action: unmatched
@@ -35,16 +34,16 @@ workflows:
             - if_else:
                 condition:
                   or:
-                    - "torrent.files.map(f, f.extension in extensions.music ? f.size : - f.size).sum() > 0"
+                    - "sum(map(torrent.files, {.extension in extensions[\"music\"] ? .size : -.size})) > 0"
                     - and:
-                        - "torrent.baseName.matches(keywords.music)"
-                        - "torrent.files.map(f, f.extension in extensions.audio ? f.size : - f.size).sum() > 0"
+                        - "torrent.baseName matches keywords[\"music\"]"
+                        - "sum(map(torrent.files, {.extension in extensions[\"audio\"] ? .size : -.size})) > 0"
                 if_action:
                   set_content_type: music
                 else_action: unmatched
             # match software:
             - if_else:
-                condition: "torrent.files.map(f, f.extension in extensions.software ? f.size : - f.size).sum() > 0"
+                condition: "sum(map(torrent.files, {.extension in extensions[\"software\"] ? .size : -.size})) > 0"
                 if_action:
                   set_content_type: software
                 else_action: unmatched
@@ -52,8 +51,8 @@ workflows:
             - if_else:
                 condition:
                   and:
-                    - "torrent.files.map(f, (f.extension in extensions.video || f.extension in extensions.image) ? f.size : - f.size).sum() > 0"
-                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches(keywords.adult)"
+                    - "sum(map(torrent.files, {(.extension in extensions[\"video\"] || .extension in extensions[\"image\"]) ? .size : -.size})) > 0"
+                    - "join(concat([torrent.baseName], map(torrent.files, {.basePath})), ' ') matches keywords[\"adult\"]"
                 if_action:
                   set_content_type: adult
                 else_action: unmatched
@@ -70,8 +69,8 @@ workflows:
           and:
             - "!result.hasBaseTitle"
             - or:
-                - "result.contentType in [contentType.movie, contentType.tv_show]"
-                - "torrent.files.map(f, f.extension in extensions.video ? f.size : - f.size).sum() > 100*mb"
+                - "result.contentType in [contentType[\"movie\"], contentType[\"tv_show\"]]"
+                - "sum(map(torrent.files, {.extension in extensions[\"video\"] ? .size : -.size})) > 100*mb"
         if_action:
           find_match:
             # parse video-related attributes from the torrent name;
@@ -79,15 +78,15 @@ workflows:
             - parse_video_content
     # if content isn't already attached, and a base title has been parsed, then search for the content, either from the local `content` table or an API integration:
     - if_else:
-        condition: "!result.hasAttachedContent && result.hasBaseTitle && result.contentType in [contentType.movie, contentType.tv_show, contentType.other]"
+        condition: "!result.hasAttachedContent && result.hasBaseTitle && result.contentType in [contentType[\"movie\"], contentType[\"tv_show\"], contentType[\"other\"]]"
         if_action:
           find_match:
             - if_else:
-                condition: "flags.local_search_enabled"
+                condition: "flags[\"local_search_enabled\"]"
                 if_action: attach_local_content_by_search
                 else_action: unmatched
             - if_else:
-                condition: "flags.apis_enabled && flags.tmdb_enabled"
+                condition: "flags[\"apis_enabled\"] && flags[\"tmdb_enabled\"]"
                 if_action: attach_tmdb_content_by_search
                 else_action: unmatched
 

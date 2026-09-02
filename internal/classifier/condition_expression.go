@@ -3,53 +3,40 @@ package classifier
 import (
 	"errors"
 	"fmt"
-	"reflect"
 
-	"cel.dev/cel-go/cel"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 )
 
 const expressionName = "expression"
 
 type expressionCondition struct{}
 
-var celProgramPayload = payloadTransformer[string, cel.Program]{
+var exprProgramPayload = payloadTransformer[string, *vm.Program]{
 	spec: payloadGeneric[string]{
 		jsonSchema: JSONSchema{
 			schemaType:    celTypeString,
 			"minLength":   1,
-			"description": "A CEL expression describing a condition",
+			"description": "An expression describing a condition",
 		},
 	},
-	transform: func(s string, ctx compilerContext) (cel.Program, error) {
-		ast, issues := ctx.celEnv.Compile(s)
-		if issues != nil && issues.Err() != nil {
-			return nil, ctx.error(fmt.Errorf("type-check error: %w", issues.Err()))
-		}
-
-		if !reflect.DeepEqual(ast.OutputType(), cel.BoolType) {
-			return nil, ctx.error(
-				fmt.Errorf("got %v, wanted %v output type", ast.OutputType(), cel.BoolType),
-			)
-		}
-
-		prg, prgErr := ctx.celEnv.Program(ast,
-			cel.EvalOptions(cel.OptOptimize),
-		)
-		if prgErr != nil {
-			return nil, ctx.error(fmt.Errorf("program construction error: %w", prgErr))
+	transform: func(s string, ctx compilerContext) (*vm.Program, error) {
+		prg, err := expr.Compile(s, expr.Env(ExprEnv{}), expr.AsBool())
+		if err != nil {
+			return nil, ctx.error(fmt.Errorf("type-check error: %w", err))
 		}
 
 		return prg, nil
 	},
 }
 
-var expressionConditionPayload = payloadUnion[cel.Program]{
-	oneOf: []TypedPayload[cel.Program]{
-		payloadSingleKeyValue[cel.Program]{
+var expressionConditionPayload = payloadUnion[*vm.Program]{
+	oneOf: []TypedPayload[*vm.Program]{
+		payloadSingleKeyValue[*vm.Program]{
 			key:       expressionName,
-			valueSpec: payloadMustSucceed[cel.Program]{celProgramPayload},
+			valueSpec: payloadMustSucceed[*vm.Program]{exprProgramPayload},
 		},
-		payloadMustSucceed[cel.Program]{celProgramPayload},
+		payloadMustSucceed[*vm.Program]{exprProgramPayload},
 	},
 }
 
@@ -65,20 +52,17 @@ func (expressionCondition) compileCondition(ctx compilerContext) (condition, err
 
 	return condition{
 		check: func(ctx executionContext) (bool, error) {
-			vars := map[string]any{
-				"torrent": ctx.torrentPb,
-				"result":  ctx.resultPb,
-			}
-			for k, v := range ctx.flags {
-				vars["flags."+k] = v
-			}
+			env := ctx.exprEnv
+			env.Torrent = ctx.torrentExpr
+			env.Result = ctx.resultExpr
+			env.Flags = ctx.flags
 
-			result, _, err := prg.ContextEval(ctx.Context, vars)
+			out, err := expr.Run(prg, env)
 			if err != nil {
 				return false, err
 			}
 
-			bl, ok := result.Value().(bool)
+			bl, ok := out.(bool)
 			if !ok {
 				return false, errors.New("not bool")
 			}

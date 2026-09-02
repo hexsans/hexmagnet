@@ -13,7 +13,7 @@ gen-schema:
 	cat database/migrations/*.up.sql > database/schema/schema.sql
 
 gen-sqlc: gen-schema
-	$(GO) run github.com/sqlc-dev/sqlc/cmd/sqlc generate
+	$(GO) run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
 
 gen-gql-enums:
 	$(GO) run ./internal/gql/enums/gen/genenums.go

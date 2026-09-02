@@ -29,15 +29,23 @@ const (
 	ContentTypeAdult     = 10
 )
 
-func NewClassificationFromResult(r ClassificationResult) map[string]any {
-	var (
-		contentID     *string
-		contentSource *string
-	)
+type Classification struct {
+	ContentType        int32    `expr:"contentType"`
+	HasAttachedContent bool     `expr:"hasAttachedContent"`
+	HasBaseTitle       bool     `expr:"hasBaseTitle"`
+	Date               int64    `expr:"date"`
+	Languages          []string `expr:"languages"`
+	ContentID          string   `expr:"contentId"`
+	ContentSource      string   `expr:"contentSource"`
+}
+
+func NewClassificationFromResult(r ClassificationResult) Classification {
+	contentID := ""
+	contentSource := ""
 
 	if r.Content != nil {
-		contentID = &r.Content.ID
-		contentSource = &r.Content.Source
+		contentID = r.Content.ID
+		contentSource = r.Content.Source
 	}
 
 	var dateVal int64
@@ -45,23 +53,15 @@ func NewClassificationFromResult(r ClassificationResult) map[string]any {
 		dateVal = r.Date.Time().Unix()
 	}
 
-	return map[string]any{
-		"contentType":        ContentTypeToInt(r.ContentType),
-		"hasAttachedContent": r.Content != nil,
-		"hasBaseTitle":       r.BaseTitle.Valid,
-		"date":               dateVal,
-		"languages":          utils.Map(r.Languages.Slice(), func(l model.Language) string { return l.ID() }),
-		"contentId":          nullableStringPtr(contentID),
-		"contentSource":      nullableStringPtr(contentSource),
+	return Classification{
+		ContentType:        ContentTypeToInt(r.ContentType),
+		HasAttachedContent: r.Content != nil,
+		HasBaseTitle:       r.BaseTitle.Valid,
+		Date:               dateVal,
+		Languages:          utils.Map(r.Languages.Slice(), func(l model.Language) string { return l.ID() }),
+		ContentID:          contentID,
+		ContentSource:      contentSource,
 	}
-}
-
-func nullableStringPtr(s *string) any {
-	if s == nil {
-		return nil
-	}
-
-	return *s
 }
 
 func FileTypeToInt(ft model.NullFileType) int32 {

@@ -63,7 +63,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 	c.wg.Add(1)
 
-	go (func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				c.logger.Errorw("memory queue consumer panicked",
@@ -73,7 +73,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 		}()
 
 		c.run(ctx)
-	})()
+	}()
 
 	return nil
 }

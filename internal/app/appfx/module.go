@@ -28,7 +28,6 @@ import (
 	search "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/search/searchfx"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
-	"github.com/hexsans/hexmagnet/internal/telemetry"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
 	"github.com/hexsans/hexmagnet/internal/torrent"
 	"github.com/hexsans/hexmagnet/internal/torrentstore"
@@ -113,7 +112,6 @@ func New(queueCfg queue.Config) fx.Option {
 		fx.Provide(torrentmetrics.New),
 		processor.NewProcessorFxModule(),
 		queue.NewModule(queueCfg),
-		telemetry.NewModule(),
 		tmdb.NewModule(),
 		torrent.NewModule(),
 

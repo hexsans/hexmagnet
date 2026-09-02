@@ -4,8 +4,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable/btree"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 )
 
@@ -16,13 +14,7 @@ type Params struct {
 
 type Result struct {
 	fx.Out
-	Table                Table
-	NodesCountGauge      prometheus.Collector `group:"prometheus_collectors"`
-	NodesAddedCounter    prometheus.Collector `group:"prometheus_collectors"`
-	NodesDroppedCounter  prometheus.Collector `group:"prometheus_collectors"`
-	HashesCountGauge     prometheus.Collector `group:"prometheus_collectors"`
-	HashesAddedCounter   prometheus.Collector `group:"prometheus_collectors"`
-	HashesDroppedCounter prometheus.Collector `group:"prometheus_collectors"`
+	Table Table
 }
 
 const (
@@ -48,7 +40,6 @@ func New(p Params) Result {
 			},
 		),
 	}
-	nodesCollector := patchPrometheusCollector("nodes", &nodes.keyspace)
 	hashes := hashKeyspace{
 		keyspace: newKeyspace[[]HashPeer, HashOption, Hash, *hash](
 			p.NodeID,
@@ -69,7 +60,6 @@ func New(p Params) Result {
 			},
 		),
 	}
-	hashesCollector := patchPrometheusCollector("hashes", &hashes.keyspace)
 
 	return Result{
 		Table: &table{
@@ -80,48 +70,5 @@ func New(p Params) Result {
 			hashes:  hashes,
 			addrs:   rm,
 		},
-		NodesCountGauge:      nodesCollector.CountGauge,
-		NodesAddedCounter:    nodesCollector.AddedCounter,
-		NodesDroppedCounter:  nodesCollector.DroppedCounter,
-		HashesCountGauge:     hashesCollector.CountGauge,
-		HashesAddedCounter:   hashesCollector.AddedCounter,
-		HashesDroppedCounter: hashesCollector.DroppedCounter,
 	}
-}
-
-const (
-	namespace = "hexmagnet"
-	subsystem = "dht_ktable"
-)
-
-func patchPrometheusCollector[
-	Input any,
-	Option any,
-	ItemPublic keyspaceItem,
-	ItemPrivate keyspaceItemPrivate[Input, Option, ItemPublic],
-](itemName string, ks *keyspace[Input, Option, ItemPublic, ItemPrivate]) btree.PrometheusCollector {
-	collector := btree.PrometheusCollector{
-		Btree: ks.btree,
-		CountGauge: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      itemName + "_count",
-			Help:      "Number of " + itemName + " in routing table.",
-		}),
-		AddedCounter: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      itemName + "_added",
-			Help:      "Total number of " + itemName + " added to routing table.",
-		}),
-		DroppedCounter: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      itemName + "_dropped",
-			Help:      "Total number of " + itemName + " dropped from routing table.",
-		}),
-	}
-	ks.btree = collector
-
-	return collector
 }

@@ -97,7 +97,7 @@ func TestIDInt160(t *testing.T) {
 func TestIDIsZero(t *testing.T) {
 	t.Parallel()
 	assert.True(t, (ID{}).IsZero())
-	assert.False(t, (mustParseID("0102030405060708090a0b0c0d0e0f1011121314")).IsZero())
+	assert.False(t, mustParseID("0102030405060708090a0b0c0d0e0f1011121314").IsZero())
 }
 
 func TestIDGetBit(t *testing.T) {

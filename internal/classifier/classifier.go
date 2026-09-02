@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"cel.dev/cel-go/cel"
-	"cel.dev/cel-go/common/types/ref"
 	"github.com/hexsans/hexmagnet/internal/model"
 )
 
@@ -27,7 +25,7 @@ type compiler struct {
 
 type compilerContext struct {
 	features
-	celEnv        *cel.Env
+	exprEnv       ExprEnv
 	source        any
 	path          []string
 	workflowNames map[string]struct{}
@@ -38,17 +36,18 @@ type compilerOption func(Source, *compilerContext) error
 type executionContext struct {
 	context.Context
 	dependencies
-	flags     map[string]ref.Val
-	workflows map[string]action
-	torrent   model.Torrent
-	torrentPb map[string]any
-	result    ClassificationResult
-	resultPb  map[string]any
+	flags       map[string]any
+	workflows   map[string]action
+	torrent     model.Torrent
+	torrentExpr Torrent
+	result      ClassificationResult
+	resultExpr  Classification
+	exprEnv     ExprEnv
 }
 
 func (c executionContext) withResult(result ClassificationResult) executionContext {
 	c.result = result
-	c.resultPb = NewClassificationFromResult(result)
+	c.resultExpr = NewClassificationFromResult(result)
 
 	return c
 }
@@ -133,7 +132,7 @@ func (c compiler) Compile(source Source) (Runner, error) {
 		}
 	}
 
-	cfs := make(compiledFlags, len(source.FlagDefinitions))
+	defaultFlags := make(Flags, len(source.FlagDefinitions))
 
 	for k, def := range source.FlagDefinitions {
 		rawVal, ok := source.Flags[k]
@@ -141,18 +140,19 @@ func (c compiler) Compile(source Source) (Runner, error) {
 			return nil, ctx.fatal(fmt.Errorf("missing value for flag '%q'", k))
 		}
 
-		val, err := def.celVal(rawVal)
+		val, err := def.validate(rawVal)
 		if err != nil {
 			return nil, ctx.fatal(fmt.Errorf("invalid value for flag '%s': %w", k, err))
 		}
 
-		cfs[k] = val
+		defaultFlags[k] = val
 	}
 
 	return runner{
 		dependencies:    c.dependencies,
 		flagDefinitions: source.FlagDefinitions,
-		compiledFlags:   cfs,
+		defaultFlags:    defaultFlags,
+		exprEnv:         ctx.exprEnv,
 		workflows:       workflows,
 	}, nil
 }

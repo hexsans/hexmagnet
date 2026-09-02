@@ -1,8 +1,6 @@
 package classifier
 
 import (
-	"os"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -10,7 +8,6 @@ func newSourceProvider(tmdbEnabled bool) sourceProvider {
 	return mergeSourceProvider{
 		providers: []sourceProvider{
 			yamlSourceProvider{rawSourceProvider: coreSourceProvider{}},
-			yamlSourceProvider{rawSourceProvider: cwdSourceProvider{}},
 			configSourceProvider{tmdbEnabled: tmdbEnabled},
 		},
 	}
@@ -82,18 +79,6 @@ type coreSourceProvider struct{}
 
 func (coreSourceProvider) source() ([]byte, error) {
 	return classifierCoreYaml, nil
-}
-
-type cwdSourceProvider struct{}
-
-func (cwdSourceProvider) source() ([]byte, error) {
-	if bytes, readErr := os.ReadFile("./classifier.yml"); readErr == nil {
-		return bytes, nil
-	} else if !os.IsNotExist(readErr) {
-		return nil, readErr
-	}
-
-	return []byte{'{', '}'}, nil
 }
 
 type configSourceProvider struct {

@@ -15,6 +15,15 @@ import (
 
 type Language string
 
+func namesToLower(names ...string) []string {
+	result := make([]string, len(names))
+	for i, name := range names {
+		result[i] = strings.ToLower(name)
+	}
+
+	return result
+}
+
 type languageInfo struct {
 	name          string
 	alpha3        [3]rune

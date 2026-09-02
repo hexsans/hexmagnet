@@ -158,7 +158,9 @@ func ParseTitleYearEpisodes(
 	contentType model.NullContentType,
 	input string,
 ) (string, model.Year, model.Episodes, string, error) {
-	if !contentType.Valid || contentType.ContentType == model.ContentTypeTvShow {
+	if !contentType.Valid ||
+		contentType.ContentType == model.ContentTypeTvShow ||
+		contentType.ContentType == model.ContentTypeUnknown {
 		if title, year, episodes, rest, err := parseTitleYearEpisodes(input); err == nil {
 			return title, year, episodes, rest, nil
 		}
@@ -176,7 +178,7 @@ func ParseTitleYearEpisodes(
 }
 
 func ParseVideoContent(torrent model.Torrent, result ClassificationResult) (ContentAttributes, error) {
-	title, year, _, rest, err := ParseTitleYearEpisodes(result.ContentType, torrent.Name)
+	title, year, episodes, rest, err := ParseTitleYearEpisodes(result.ContentType, torrent.Name)
 	if err != nil {
 		if !result.ContentType.Valid {
 			return ContentAttributes{}, err
@@ -188,13 +190,15 @@ func ParseVideoContent(torrent model.Torrent, result ClassificationResult) (Cont
 	ct := model.NullContentType{}
 
 	switch {
+	case len(episodes) > 0:
+		ct = model.NullContentType{Valid: true, ContentType: model.ContentTypeTvShow}
 	case result.ContentType.Valid:
 		ct = model.NullContentType{Valid: true, ContentType: result.ContentType.ContentType}
 	case !year.IsNil():
 		ct = model.NullContentType{Valid: true, ContentType: model.ContentTypeMovie}
 	}
 
-	if year.IsNil() {
+	if year.IsNil() && len(episodes) == 0 {
 		title = ""
 		rest = torrent.Name
 	}

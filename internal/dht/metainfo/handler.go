@@ -100,7 +100,7 @@ func (h *handler) HandleGetPeers(ctx context.Context, msg dht.GetPeersMessage) (
 
 	mi, err := h.fetchMetaInfo(ctx, blockingManager, id, peers)
 	if err != nil {
-		h.logger.Debugw("failed to fetch metainfo", "info_hash", msg.InfoHash, "error", err)
+		h.logger.Infow("all peers failed to return metainfo, skipping info_hash", "info_hash", msg.InfoHash)
 		return nil, err
 	}
 
@@ -186,7 +186,9 @@ func (h *handler) fetchMetaInfo(
 	for i := range maxPeers {
 		res, reqErr := h.metainfoRequester.Request(ctx, hash, peers[i])
 		if reqErr != nil {
+			h.logger.Debugw("failed to request metainfo from peer", "info_hash", hash.String(), "addr", peers[i].String(), "error", reqErr)
 			addErr(reqErr)
+
 			continue
 		}
 

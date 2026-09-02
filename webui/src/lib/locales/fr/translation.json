@@ -67,8 +67,8 @@
     "magnetCopied": "Lien magnétique copié !",
     "magnetCopiedMulti": "{{count}} lien(s) magnétique(s) copié(s)",
     "infoHashCopiedMulti": "{{count}} infohash copié(s)",
-    "reprocessing": "Retraitement de {{count}} torrent(s)",
-    "reprocessingSingle": "Retraitement du torrent",
+    "reprocessing": "{{count}} torrent(s) mis en file de retraitement",
+    "reprocessingSingle": "Torrent mis en file de retraitement",
     "failed": {
       "reprocess": "Échec du retraitement : {{message}}"
     }

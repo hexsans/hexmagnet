@@ -71,8 +71,8 @@
     "magnetCopied": "Магнитная ссылка скопирована!",
     "magnetCopiedMulti": "Скопировано {{count}} магнитных ссылок",
     "infoHashCopiedMulti": "Скопировано {{count}} infohash",
-    "reprocessing": "Переобработка {{count}} торрентов",
-    "reprocessingSingle": "Переобработка торрента",
+    "reprocessing": "{{count}} торрентов поставлены в очередь на переобработку",
+    "reprocessingSingle": "Торрент поставлен в очередь на переобработку",
     "failed": {
       "reprocess": "Не удалось переобработать: {{message}}"
     }

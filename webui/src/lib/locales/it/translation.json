@@ -67,8 +67,8 @@
     "magnetCopied": "Link magnet copiato!",
     "magnetCopiedMulti": "Copiati {{count}} link magnet",
     "infoHashCopiedMulti": "Copiati {{count}} infohash",
-    "reprocessing": "Rielaborazione di {{count}} torrent",
-    "reprocessingSingle": "Rielaborazione torrent",
+    "reprocessing": "{{count}} torrent in coda per la rielaborazione",
+    "reprocessingSingle": "Torrent in coda per la rielaborazione",
     "failed": {
       "reprocess": "Rielaborazione fallita: {{message}}"
     }

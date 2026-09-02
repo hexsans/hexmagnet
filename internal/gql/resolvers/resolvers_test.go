@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/hexsans/hexmagnet/internal/classifier"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
 	"github.com/hexsans/hexmagnet/internal/health"
@@ -14,6 +13,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/hexsans/hexmagnet/internal/processor"
 	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/queue/kafka"
 	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/hexsans/hexmagnet/internal/version"
 	"github.com/hexsans/hexmagnet/internal/worker"
@@ -41,21 +42,17 @@ func (m *mockHealthChecker) Check(ctx context.Context) health.CheckerResult {
 	return m.Called(ctx).Get(0).(health.CheckerResult)
 }
 
-type mockProcessor struct {
+type captureProducer struct {
 	mock.Mock
 }
 
-func (m *mockProcessor) Process(ctx context.Context, params processor.MessageParams) error {
-	return m.Called(ctx, params).Error(0)
+var _ queue.Producer = (*captureProducer)(nil)
+
+func (m *captureProducer) Produce(topic string, key string, value any) {
+	m.Called(topic, key, value)
 }
 
-func (m *mockProcessor) UpdateTorrentFilter(cfg classifier.TorrentFilterConfig) error {
-	return m.Called(cfg).Error(0)
-}
-
-func (m *mockProcessor) SwapRunner(runner classifier.Runner) {
-	m.Called(runner)
-}
+func (*captureProducer) Close() error { return nil }
 
 func TestMutation_Getter(t *testing.T) {
 	t.Parallel()
@@ -86,37 +83,38 @@ func TestTorrentMutation_ReturnsMutation(t *testing.T) {
 func TestReprocess(t *testing.T) {
 	t.Parallel()
 
-	mockProc := new(mockProcessor)
-	mockProc.On("Process", mock.Anything, mock.Anything).Return(nil)
+	ih := testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-	r := &Resolver{Processor: mockProc}
+	mockProd := new(captureProducer)
+	mockProd.On("Produce", kafka.TopicProcessTorrent, ih.String(), mock.MatchedBy(func(params processor.MessageParams) bool {
+		return assert.ObjectsAreEqual(params.InfoHashes, []protocol.ID{ih})
+	})).Return()
+
+	r := &Resolver{Producer: mockProd}
 	tm := &torrentMutationResolver{r}
 
 	input := gen.TorrentReprocessInput{
-		InfoHashes: []protocol.ID{
-			testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-		},
+		InfoHashes: []protocol.ID{ih},
 	}
 
 	result, err := tm.Reprocess(context.Background(), &gqlmodel.TorrentMutation{}, input)
 	require.NoError(t, err)
 	assert.Nil(t, result)
-	mockProc.AssertExpectations(t)
+	mockProd.AssertExpectations(t)
 }
 
 func TestReprocess_ClassifierRematch(t *testing.T) {
 	t.Parallel()
 
-	mockProc := new(mockProcessor)
-	rematch := true
-
-	mockProc.On("Process", mock.Anything, mock.MatchedBy(func(params processor.MessageParams) bool {
+	mockProd := new(captureProducer)
+	mockProd.On("Produce", kafka.TopicProcessTorrent, mock.Anything, mock.MatchedBy(func(params processor.MessageParams) bool {
 		return params.ClassifyMode == processor.ClassifyModeRematch
-	})).Return(nil)
+	})).Return()
 
-	r := &Resolver{Processor: mockProc}
+	r := &Resolver{Producer: mockProd}
 	tm := &torrentMutationResolver{r}
 
+	rematch := true
 	input := gen.TorrentReprocessInput{
 		InfoHashes:        []protocol.ID{testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")},
 		ClassifierRematch: graphql.OmittableOf[*bool](&rematch),
@@ -124,16 +122,18 @@ func TestReprocess_ClassifierRematch(t *testing.T) {
 
 	_, err := tm.Reprocess(context.Background(), &gqlmodel.TorrentMutation{}, input)
 	require.NoError(t, err)
-	mockProc.AssertExpectations(t)
+	mockProd.AssertExpectations(t)
 }
 
 func TestReprocess_ContentType(t *testing.T) {
 	t.Parallel()
 
-	mockProc := new(mockProcessor)
-	mockProc.On("Process", mock.Anything, mock.Anything).Return(nil)
+	mockProd := new(captureProducer)
+	mockProd.On("Produce", kafka.TopicProcessTorrent, mock.Anything, mock.MatchedBy(func(params processor.MessageParams) bool {
+		return params.ContentType == string(model.ContentTypeMovie)
+	})).Return()
 
-	r := &Resolver{Processor: mockProc}
+	r := &Resolver{Producer: mockProd}
 	tm := &torrentMutationResolver{r}
 
 	ct := model.ContentTypeMovie
@@ -144,7 +144,7 @@ func TestReprocess_ContentType(t *testing.T) {
 
 	_, err := tm.Reprocess(context.Background(), &gqlmodel.TorrentMutation{}, input)
 	require.NoError(t, err)
-	mockProc.AssertExpectations(t)
+	mockProd.AssertExpectations(t)
 }
 
 func TestQueueMetricsBucket_Getter(t *testing.T) {

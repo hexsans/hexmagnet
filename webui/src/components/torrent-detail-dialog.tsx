@@ -154,7 +154,7 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
     setCollapsedPaths(allExpanded ? folderPaths : new Set(),);
   }
 
-  const [, reprocessTorrents,] = useMutation(TorrentReprocessDocument,);
+  const [reprocessState, reprocessTorrents,] = useMutation(TorrentReprocessDocument,);
 
   if (!torrent) return null;
 
@@ -398,8 +398,9 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
             size="sm"
             className="gap-1.5 font-mono text-xs text-muted-foreground hover:text-cyan"
             onClick={handleReprocess}
+            disabled={reprocessState.fetching}
           >
-            <RefreshCw className="size-3.5" />
+            <RefreshCw className={`size-3.5 ${reprocessState.fetching ? "animate-spin" : ""}`} />
             {t("detail.reprocess",)}
           </Button>
 

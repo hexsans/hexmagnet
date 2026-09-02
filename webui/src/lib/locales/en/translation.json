@@ -67,8 +67,8 @@
     "magnetCopied": "Magnet link copied!",
     "magnetCopiedMulti": "Copied {{count}} magnet link(s)",
     "infoHashCopiedMulti": "Copied {{count}} info hash(es)",
-    "reprocessing": "Reprocessing {{count}} torrent(s)",
-    "reprocessingSingle": "Reprocessing torrent",
+    "reprocessing": "Queued {{count}} torrent(s) for reprocessing",
+    "reprocessingSingle": "Queued torrent for reprocessing",
     "failed": {
       "reprocess": "Failed to reprocess: {{message}}"
     }

@@ -67,8 +67,8 @@
     "magnetCopied": "마그넷 링크가 복사되었습니다!",
     "magnetCopiedMulti": "{{count}}개의 마그넷 링크가 복사되었습니다",
     "infoHashCopiedMulti": "{{count}}개의 인포해시가 복사되었습니다",
-    "reprocessing": "{{count}}개의 토렌트 재처리 중",
-    "reprocessingSingle": "토렌트 재처리 중",
+    "reprocessing": "{{count}}개의 토렌트 재처리 대기열에 추가됨",
+    "reprocessingSingle": "토렌트 재처리 대기열에 추가됨",
     "failed": {
       "reprocess": "재처리 실패: {{message}}"
     }

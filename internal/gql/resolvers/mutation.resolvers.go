@@ -12,6 +12,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
 	"github.com/hexsans/hexmagnet/internal/processor"
+	"github.com/hexsans/hexmagnet/internal/queue/kafka"
 )
 
 // Torrent is the resolver for the torrent field.
@@ -33,7 +34,14 @@ func (r *torrentMutationResolver) Reprocess(ctx context.Context, obj *gqlmodel.T
 		params.ContentType = string(*ct)
 	}
 
-	return nil, r.Processor.Process(ctx, params)
+	key := ""
+	if len(params.InfoHashes) > 0 {
+		key = params.InfoHashes[0].String()
+	}
+
+	r.Producer.Produce(kafka.TopicProcessTorrent, key, params)
+
+	return nil, nil
 }
 
 // ReindexToElasticsearch is the resolver for the reindexToElasticsearch field.

@@ -286,7 +286,9 @@ type mockConsumerGroup struct {
 func (m *mockConsumerGroup) Consume(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
 	return m.Called(ctx, topics, handler).Error(0)
 }
-func (m *mockConsumerGroup) Errors() <-chan error                      { return m.Called().Get(0).(<-chan error) }
+
+func (m *mockConsumerGroup) Errors() <-chan error { return m.Called().Get(0).(<-chan error) }
+
 func (m *mockConsumerGroup) Close() error                              { return m.Called().Error(0) }
 func (m *mockConsumerGroup) Pause(topicPartitions map[string][]int32)  { m.Called(topicPartitions) }
 func (m *mockConsumerGroup) PauseAll()                                 { m.Called() }
@@ -643,7 +645,9 @@ func (m *mockClient) InitProducerID() (*sarama.InitProducerIDResponse, error) {
 	a := m.Called()
 	return a.Get(0).(*sarama.InitProducerIDResponse), a.Error(1)
 }
+
 func (m *mockClient) LeastLoadedBroker() *sarama.Broker { return m.Called().Get(0).(*sarama.Broker) }
+
 func (m *mockClient) PartitionNotReadable(topic string, partition int32) bool {
 	return m.Called(topic, partition).Bool(0)
 }

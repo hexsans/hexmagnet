@@ -212,11 +212,11 @@ func (s *server) Query(
 	s.queries[transactionID] = ch
 	s.mutex.Unlock()
 
-	defer (func() {
+	defer func() {
 		s.mutex.Lock()
 		delete(s.queries, transactionID)
 		s.mutex.Unlock()
-	})()
+	}()
 
 	msg := dht.Msg{
 		Q: q,

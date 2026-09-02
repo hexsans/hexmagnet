@@ -11,7 +11,6 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/dht/responder"
 	"github.com/hexsans/hexmagnet/internal/utils"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
@@ -27,49 +26,36 @@ type Params struct {
 
 type Result struct {
 	fx.Out
-	Server            utils.Lazy[Server]
-	ResponderEnabled  *atomic.Bool
-	LastResponses     *concurrency.AtomicValue[LastResponses] `name:"dht_server_last_responses"`
-	AppHook           fx.Hook                                 `                                 group:"app_hooks"`
-	QueryDuration     prometheus.Collector                    `                                 group:"prometheus_collectors"`
-	QuerySuccessTotal prometheus.Collector                    `                                 group:"prometheus_collectors"`
-	QueryErrorTotal   prometheus.Collector                    `                                 group:"prometheus_collectors"`
-	QueryConcurrency  prometheus.Collector                    `                                 group:"prometheus_collectors"`
+	Server           utils.Lazy[Server]
+	ResponderEnabled *atomic.Bool
+	LastResponses    *concurrency.AtomicValue[LastResponses] `name:"dht_server_last_responses"`
+	AppHook          fx.Hook                                 `group:"app_hooks"`
 }
-
-const (
-	namespace = "hexmagnet"
-	subsystem = "dht_server"
-)
 
 func New(p Params) Result {
 	lastResponses := &concurrency.AtomicValue[LastResponses]{}
 	responderEnabled := &atomic.Bool{}
 	responderEnabled.Store(p.Config.ResponderEnabled)
 
-	collector := newPrometheusCollector()
 	ls := utils.NewLazy(func() (Server, error) {
 		base := queryLimiter{
-			server: prometheusServerWrapper{
-				prometheusCollector: collector,
-				server: healthCollector{
-					baseServer: &server{
-						stopped: make(chan struct{}),
-						localAddr: netip.AddrPortFrom(
-							netip.IPv4Unspecified(),
-							p.Config.Port,
-						),
-						socket:           NewSocket(),
-						queries:          make(map[string]chan dht.RecvMsg),
-						queryTimeout:     5 * time.Second,
-						responder:        p.Responder,
-						responderTimeout: time.Second * 5,
-						responderEnabled: responderEnabled,
-						idIssuer:         &variantIDIssuer{},
-						logger:           p.Logger.Named(subsystem),
-					},
-					lastResponses: lastResponses,
+			server: healthCollector{
+				baseServer: &server{
+					stopped: make(chan struct{}),
+					localAddr: netip.AddrPortFrom(
+						netip.IPv4Unspecified(),
+						p.Config.Port,
+					),
+					socket:           NewSocket(),
+					queries:          make(map[string]chan dht.RecvMsg),
+					queryTimeout:     5 * time.Second,
+					responder:        p.Responder,
+					responderTimeout: time.Second * 5,
+					responderEnabled: responderEnabled,
+					idIssuer:         &variantIDIssuer{},
+					logger:           p.Logger.Named("dht_server"),
 				},
+				lastResponses: lastResponses,
 			},
 			queryLimiter: concurrency.NewKeyedLimiter(rate.Every(time.Second), 4, 1000, time.Second*20),
 		}
@@ -100,10 +86,6 @@ func New(p Params) Result {
 				})
 			},
 		},
-		LastResponses:     lastResponses,
-		QueryDuration:     collector.queryDuration,
-		QuerySuccessTotal: collector.querySuccessTotal,
-		QueryErrorTotal:   collector.queryErrorTotal,
-		QueryConcurrency:  collector.queryConcurrency,
+		LastResponses: lastResponses,
 	}
 }

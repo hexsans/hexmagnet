@@ -23,7 +23,7 @@ docker compose -f deployment/local/docker-compose.yml up -d
 
 ### Production stack
 
-This pulls the prebuilt image from GHCR and adds the optional observability stack (Grafana, Prometheus, Loki, Grafana Agent, postgres-exporter). It assumes your config and data live on the host under `/srv/hexmagnet/`:
+This pulls the prebuilt image from GHCR and starts HexMagnet with PostgreSQL, Elasticsearch and Kafka. It assumes your config and data live on the host under `/srv/hexmagnet/`:
 
 ```bash
 docker compose -f deployment/docker-compose.yml up -d
@@ -34,7 +34,6 @@ A few things to know about the production compose file:
 - Your config lives at `/srv/hexmagnet/app/hexmagnet.yaml` (mounted into `/app`)
 - The container data dirs (`/app/data`, `/app/logs`) are inside the mounted `/srv/hexmagnet/app` volume, so torrent files and logs survive restarts
 - Kafka, Elasticsearch and PostgreSQL each get their own volume under `/srv/hexmagnet/`
-- The observability services (grafana, prometheus, loki, grafana-agent, postgres-exporter) are **optional** — remove them from the file if you don't need dashboards
 - Default database credentials in the compose file are `postgres` / `postgres` — change them if the machine is not fully isolated
 
 ## Docker (no Compose)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/hexsans/hexmagnet/internal/concurrency"
 	"github.com/hexsans/hexmagnet/internal/protocol"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -23,26 +22,20 @@ type Params struct {
 
 type Result struct {
 	fx.Out
-	Requester           Requester
-	RequestDuration     prometheus.Collector `group:"prometheus_collectors"`
-	RequestSuccessTotal prometheus.Collector `group:"prometheus_collectors"`
-	RequestErrorTotal   prometheus.Collector `group:"prometheus_collectors"`
-	RequestConcurrency  prometheus.Collector `group:"prometheus_collectors"`
+	Requester Requester
 }
 
 func New(p Params) Result {
-	collector := newPrometheusCollector(requester{
-		clientID: protocol.RandomPeerID(),
-		timeout:  5 * time.Second,
-		dialer: &net.Dialer{
-			Timeout:   3 * time.Second,
-			KeepAlive: -1,
-		},
-	})
-
 	base := requestLimiter{
 		requester: requestLogger{
-			requester: collector,
+			requester: requester{
+				clientID: protocol.RandomPeerID(),
+				timeout:  5 * time.Second,
+				dialer: &net.Dialer{
+					Timeout:   3 * time.Second,
+					KeepAlive: -1,
+				},
+			},
 			logger: p.Logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 				return zapcore.NewSamplerWithOptions(core, time.Minute, 10, 0)
 			})).Named("meta_info_requester"),
@@ -64,10 +57,6 @@ func New(p Params) Result {
 	}
 
 	return Result{
-		Requester:           req,
-		RequestDuration:     collector.requestDuration,
-		RequestSuccessTotal: collector.requestSuccessTotal,
-		RequestErrorTotal:   collector.requestErrorTotal,
-		RequestConcurrency:  collector.requestConcurrency,
+		Requester: req,
 	}
 }

@@ -16,7 +16,7 @@ Once running, open the web UI at http://localhost:3333/ and start searching. The
 
 ### Docker Compose (recommended)
 
-For local development with the full stack (including the observability services), use:
+For local development with the full stack, use:
 
 ```bash
 docker compose -f deployment/local/docker-compose.yml up -d

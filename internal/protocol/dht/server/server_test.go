@@ -426,38 +426,6 @@ func TestGlobalRequestRateLimiter_Blocks(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestPrometheusServerWrapper_StartStop(t *testing.T) {
-	t.Parallel()
-
-	psw := prometheusServerWrapper{
-		prometheusCollector: newPrometheusCollector(),
-		server:              mockServer{},
-	}
-
-	err := psw.start()
-	require.NoError(t, err)
-
-	psw.stop()
-}
-
-func TestPrometheusServerWrapper_Query(t *testing.T) {
-	t.Parallel()
-
-	inner := mockServer{
-		queryFn: func(_ context.Context, _ netip.AddrPort, _ string, _ dht.MsgArgs) (dht.RecvMsg, error) {
-			return dht.RecvMsg{}, nil
-		},
-	}
-
-	psw := prometheusServerWrapper{
-		prometheusCollector: newPrometheusCollector(),
-		server:              inner,
-	}
-
-	_, err := psw.Query(context.Background(), netip.MustParseAddrPort("1.2.3.4:6881"), "ping", dht.MsgArgs{})
-	require.NoError(t, err)
-}
-
 func TestServer_StartStop(t *testing.T) {
 	t.Parallel()
 

@@ -67,8 +67,8 @@
     "magnetCopied": "マグネットリンクをコピーしました！",
     "magnetCopiedMulti": "{{count}} 件のマグネットリンクをコピーしました",
     "infoHashCopiedMulti": "{{count}} 件のインフォハッシュをコピーしました",
-    "reprocessing": "{{count}} 件の torrent を再処理中",
-    "reprocessingSingle": "Torrent を再処理中",
+    "reprocessing": "{{count}} 件の torrent を再処理キューに追加しました",
+    "reprocessingSingle": "Torrent を再処理キューに追加しました",
     "failed": {
       "reprocess": "再処理に失敗しました: {{message}}"
     }

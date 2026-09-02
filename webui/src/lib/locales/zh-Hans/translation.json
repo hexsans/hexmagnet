@@ -67,8 +67,8 @@
     "magnetCopied": "磁力链接已复制！",
     "magnetCopiedMulti": "已复制 {{count}} 个磁力链接",
     "infoHashCopiedMulti": "已复制 {{count}} 个信息哈希",
-    "reprocessing": "正在重新处理 {{count}} 个种子",
-    "reprocessingSingle": "正在重新处理种子",
+    "reprocessing": "已提交 {{count}} 个种子重新处理",
+    "reprocessingSingle": "已提交种子重新处理",
     "failed": {
       "reprocess": "重新处理失败：{{message}}"
     }

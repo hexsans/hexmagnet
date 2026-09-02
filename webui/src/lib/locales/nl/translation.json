@@ -67,8 +67,8 @@
     "magnetCopied": "Magnetlink gekopieerd!",
     "magnetCopiedMulti": "{{count}} magnetlink(s) gekopieerd",
     "infoHashCopiedMulti": "{{count}} infohash(s) gekopieerd",
-    "reprocessing": "{{count}} torrent(s) herverwerken",
-    "reprocessingSingle": "Torrent herverwerken",
+    "reprocessing": "{{count}} torrent(s) in wachtrij voor herverwerking",
+    "reprocessingSingle": "Torrent in wachtrij voor herverwerking",
     "failed": {
       "reprocess": "Herverwerken mislukt: {{message}}"
     }

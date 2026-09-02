@@ -92,6 +92,7 @@ func New() fx.Option {
 							TorrentMetricsClient: tm,
 							Processor:            pr,
 							BlockingManager:      bm,
+							Producer:             p.Producer,
 							Logger:               p.Logger,
 							ServerCfg:            p.ServerCfg,
 							DhtCfg:               p.DhtCfg,
@@ -342,6 +343,7 @@ type Params struct {
 	TorrentMetricsClient utils.Lazy[torrentmetrics.Client]
 	Processor            utils.Lazy[processor.Processor]
 	BlockingManager      utils.Lazy[blocking.Manager]
+	Producer             queue.Producer
 	Logger               *zap.SugaredLogger
 
 	ServerCfg         servercfg.Config

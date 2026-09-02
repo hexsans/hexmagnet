@@ -18,7 +18,7 @@ export function BulkActionsToolbar({ selectedTorrents, onMutate, onClearSelectio
   const { t, } = useTranslation();
   const [copiedMagnets, setCopiedMagnets,] = useState(false,);
   const [copiedHashes, setCopiedHashes,] = useState(false,);
-  const [, reprocessTorrents,] = useMutation(TorrentReprocessDocument,);
+  const [reprocessState, reprocessTorrents,] = useMutation(TorrentReprocessDocument,);
 
   const infoHashes = selectedTorrents.map((t,) => t.infoHash,);
 
@@ -97,10 +97,11 @@ export function BulkActionsToolbar({ selectedTorrents, onMutate, onClearSelectio
                 size="sm"
                 className="gap-1 font-mono text-xs text-muted-foreground hover:text-cyan"
                 onClick={handleReprocess}
+                disabled={reprocessState.fetching}
               />
             }
           >
-            <RefreshCw className="size-3.5" />
+            <RefreshCw className={`size-3.5 ${reprocessState.fetching ? "animate-spin" : ""}`} />
             {t("detail.reprocess",)}
           </TooltipTrigger>
           <TooltipContent>{t("tooltip.reprocessTooltip",)}</TooltipContent>

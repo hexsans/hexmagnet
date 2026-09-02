@@ -46,10 +46,11 @@ export function TorrentRow({ torrent, onClickDetail, selected = false, onToggleS
       }}
     >
       <div className="grid items-center gap-x-3 px-3 py-2.5" style={{ gridTemplateColumns: "var(--torrent-grid-cols)", }}>
-        <span className="flex items-center justify-center self-stretch w-full" onClick={(e,) => {
-          e.stopPropagation();
-          onToggleSelect?.();
-        }}>
+        <span
+          className="flex items-center justify-center self-stretch w-full"
+          onClick={(e,) => e.stopPropagation()}
+          onKeyDown={(e,) => e.stopPropagation()}
+        >
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label={t("tooltip.selectTorrent", { name: torrent.name, },)} />
         </span>
         <CategoryBadge contentType={torrent.contentType} />

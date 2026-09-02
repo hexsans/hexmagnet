@@ -33,6 +33,7 @@ type Resolver struct {
 	TorrentMetricsClient torrentmetrics.Client
 	Processor            processor.Processor
 	BlockingManager      blocking.Manager
+	Producer             queue.Producer
 	Logger               *zap.SugaredLogger
 
 	ServerCfg       servercfg.Config

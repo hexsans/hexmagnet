@@ -124,6 +124,11 @@ func (r *queryResolver) Queue(ctx context.Context) (gqlmodel.QueueQuery, error) 
 	}, nil
 }
 
+// RetryQueue is the resolver for the retryQueue field.
+func (r *queryResolver) RetryQueue(ctx context.Context) (gqlmodel.RetryQueueQuery, error) {
+	return gqlmodel.RetryQueueQuery{Queue: r.RetryQueueSvc}, nil
+}
+
 // ReindexStatus is the resolver for the reindexStatus field.
 func (r *queryResolver) ReindexStatus(ctx context.Context) (gen.ReindexProgress, error) {
 	total, indexed, done, running, errMsg := r.Resolver.ReindexTracker.Progress()

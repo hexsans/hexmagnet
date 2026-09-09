@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/anacrolix/torrent/bencode"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 type NodeAddr struct {
@@ -17,7 +18,7 @@ type NodeAddr struct {
 
 func (a NodeAddr) ToAddrPort() netip.AddrPort {
 	addr, _ := netip.AddrFromSlice(a.IP)
-	return netip.AddrPortFrom(addr, uint16(a.Port))
+	return netip.AddrPortFrom(addr, utils.ClampUint16(a.Port))
 }
 
 func NewNodeAddrFromAddrPort(f netip.AddrPort) NodeAddr {

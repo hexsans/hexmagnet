@@ -92,6 +92,21 @@ storage:
         dimensions: 1024
         instruction_enabled: false
 
+# --- Retry queue (failed external-dependency calls) ---
+# Torrents whose classification (LLM classifier, TMDB) or enrichment
+# (semantic embedding / Elasticsearch indexing) failed are tracked in the
+# torrent_retry_queue database table and retried with exponential backoff.
+# When the retry budget is exhausted the torrent is deleted.
+retry_queue:
+  enabled: true
+  max_retries: 3        # max retry attempts before the torrent is deleted; -1 = always retry
+  interval: 5m          # base delay before the first retry
+  backoff_factor: 2.0   # delay multiplier on every subsequent failure
+  max_interval: 1h      # cap for the exponential backoff delay
+  scan_interval: 30s    # how often due entries are scanned and re-dispatched
+  batch_size: 100       # max entries dispatched per scan
+  dispatch_lease: 15m   # how long a dispatched entry is held before it becomes due again
+
 # --- Torznab API (Servarr integration) ---
 # Lets Lidarr / Radarr / Sonarr / Readarr and Prowlarr use HexMagnet as a
 # torrent indexer. Endpoint: http://<host>:<port>/torznab/api

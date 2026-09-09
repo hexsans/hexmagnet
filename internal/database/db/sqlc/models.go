@@ -63,3 +63,14 @@ type TorrentFile struct {
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
+
+type TorrentRetryQueue struct {
+	InfoHash      string
+	Stage         string
+	Payload       []byte
+	FailCount     int32
+	LastError     string
+	LastFailureAt pgtype.Timestamptz
+	NextRetryAt   pgtype.Timestamptz
+	DispatchedAt  pgtype.Timestamptz
+}

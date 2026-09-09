@@ -15,6 +15,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
@@ -43,6 +44,7 @@ type Params struct {
 	Runtime          *queue.Runtime
 	ConfigNotifier   *ConfigNotifier
 	ReindexTracker   *ReindexTracker
+	RetryQueue       *retryqueue.Queue `optional:"true"`
 }
 
 type Result struct {
@@ -53,7 +55,10 @@ type Result struct {
 func New(p Params) Result {
 	logger := p.Logger.Named("message_queue.enrich.indexer")
 
-	var wg sync.WaitGroup
+	var (
+		wg     sync.WaitGroup
+		cancel context.CancelFunc
+	)
 
 	return Result{
 		Worker: worker.NewWorker("message_queue_enrich_indexer", fx.Hook{
@@ -76,8 +81,15 @@ func New(p Params) Result {
 					ensureIndex(ctx, p.ESClient, dimsOrDefault(startup.Elasticsearch.Embedding.Dimensions), logger)
 				}
 
+				// The lifecycle start context may be cancelled or short-lived
+				// depending on how the app is run; the indexer must run on its
+				// own context that OnStop can cancel.
+				runCtx, runCancel := context.WithCancel(context.WithoutCancel(ctx))
+				cancel = runCancel
+
 				wg.Add(1)
-				go runManagedIndexer(ctx, managedIndexerParams{
+
+				go runManagedIndexer(runCtx, managedIndexerParams{
 					cm:               p.ConsumerMaker,
 					runtime:          p.Runtime,
 					logger:           logger,
@@ -85,6 +97,7 @@ func New(p Params) Result {
 					configNotifier:   p.ConfigNotifier,
 					reindexTracker:   p.ReindexTracker,
 					queries:          q,
+					retryQueue:       p.RetryQueue,
 					startES:          esClient,
 					lastESAddr:       lastESAddr,
 					wg:               &wg,
@@ -93,7 +106,12 @@ func New(p Params) Result {
 				return nil
 			},
 			OnStop: func(_ context.Context) error {
+				if cancel != nil {
+					cancel()
+				}
+
 				wg.Wait()
+
 				return nil
 			},
 		}),
@@ -125,6 +143,7 @@ type managedIndexerParams struct {
 	configNotifier   *ConfigNotifier
 	reindexTracker   *ReindexTracker
 	queries          *db.Queries
+	retryQueue       *retryqueue.Queue
 	startES          *elasticsearch.Client
 	lastESAddr       []string
 	wg               *sync.WaitGroup
@@ -138,6 +157,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 	configNotifier := p.configNotifier
 	reindexTracker := p.reindexTracker
 	queries := p.queries
+	retryQueue := p.retryQueue
 	wg := p.wg
 	lastESAddr := p.lastESAddr
 
@@ -181,6 +201,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 		}
 
 		docs := make([]TorrentContentDocument, 0, len(ids))
+		parsed := make([]parsedEnrichID, 0, len(ids))
 
 		for _, id := range ids {
 			infoHash, _, _, _, parseErr := parseCompositeID(id)
@@ -195,6 +216,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 				continue
 			}
 
+			parsed = append(parsed, parsedEnrichID{compositeID: id, infoHash: infoHash.String()})
 			docs = append(docs, NewDocument(*t))
 		}
 
@@ -211,23 +233,35 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 			vectors, embedErr := currentEmbedder.Embed(ctx, texts)
 			if embedErr != nil {
 				logger.Warnw("failed to generate embeddings, continuing without vectors", "error", embedErr)
-			} else {
-				for i := range docs {
-					docs[i].SearchVector = vectors[i]
-				}
+
+				enqueueEnrichRetries(ctx, retryQueue, parsed, embedErr)
+
+				return nil
+			}
+
+			for i := range docs {
+				docs[i].SearchVector = vectors[i]
 			}
 		}
 
 		body, bulkErr := BulkBody(docs)
 		if bulkErr != nil {
 			logger.Errorw("failed to build bulk body", "error", bulkErr)
-			return bulkErr
+
+			enqueueEnrichRetries(ctx, retryQueue, parsed, bulkErr)
+
+			return nil
 		}
 
 		if indexErr := es.BulkIndex(ctx, bytes.NewReader(body)); indexErr != nil {
 			logger.Warnw("failed to bulk index documents, skipping batch", "error", indexErr)
+
+			enqueueEnrichRetries(ctx, retryQueue, parsed, indexErr)
+
 			return nil
 		}
+
+		removeEnrichRetries(ctx, retryQueue, parsed)
 
 		logger.Debugw("indexed torrent contents to ES", "count", len(docs))
 
@@ -347,4 +381,54 @@ func ensureIndex(ctx context.Context, es *elasticsearch.Client, dims int, logger
 	} else {
 		logger.Infow("created elasticsearch index", "index", IndexName)
 	}
+}
+
+// parsedEnrichID pairs a composite enriched ID with its info hash.
+type parsedEnrichID struct {
+	compositeID string
+	infoHash    string
+}
+
+// enqueueEnrichRetries records indexing failures in the retry queue as a
+// single batched upsert. When the retry queue is nil or disabled failures keep
+// the legacy behaviour (logged and dropped).
+func enqueueEnrichRetries(
+	ctx context.Context,
+	retryQueue *retryqueue.Queue,
+	parsed []parsedEnrichID,
+	cause error,
+) {
+	if retryQueue == nil || !retryQueue.Enabled() {
+		return
+	}
+
+	items := make([]retryqueue.RetryItem, 0, len(parsed))
+	for _, id := range parsed {
+		items = append(items, retryqueue.RetryItem{
+			Stage:    retryqueue.StageEnrich,
+			InfoHash: id.infoHash,
+			Payload:  []string{id.compositeID},
+		})
+	}
+
+	// EnqueueBatch logs failures internally.
+	_ = retryQueue.EnqueueBatch(ctx, items, cause)
+}
+
+// removeEnrichRetries clears retry entries after a successful index run.
+func removeEnrichRetries(
+	ctx context.Context,
+	retryQueue *retryqueue.Queue,
+	parsed []parsedEnrichID,
+) {
+	if retryQueue == nil {
+		return
+	}
+
+	hashes := make([]string, 0, len(parsed))
+	for _, id := range parsed {
+		hashes = append(hashes, id.infoHash)
+	}
+
+	retryQueue.Remove(ctx, hashes...)
 }

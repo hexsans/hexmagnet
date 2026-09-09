@@ -19,6 +19,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
@@ -37,6 +38,7 @@ type Resolver struct {
 	BlockingManager      blocking.Manager
 	Producer             queue.Producer
 	Logger               *zap.SugaredLogger
+	RetryQueueSvc        *retryqueue.Queue
 
 	ServerCfg       servercfg.Config
 	DhtCfg          dht.Config
@@ -48,6 +50,7 @@ type Resolver struct {
 	DHTRequesterCfg metainforequester.Config
 	TorznabCfg      torznab.Config
 	WebhooksCfg     webhook.Config
+	RetryQueueCfg   retryqueue.Config
 
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime

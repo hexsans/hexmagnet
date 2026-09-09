@@ -6,6 +6,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const yamlKeyEnabled = "enabled"
+
 func WriteSnapshotToYAML(path string, snap *Snapshot) error {
 	out := map[string]any{
 		"dht": map[string]any{
@@ -27,7 +29,7 @@ func WriteSnapshotToYAML(path string, snap *Snapshot) error {
 			"queue":    snap.Queue,
 		},
 		"torznab": map[string]any{
-			"enabled":             snap.Torznab.Enabled,
+			yamlKeyEnabled:        snap.Torznab.Enabled,
 			"api_key":             snap.Torznab.APIKey,
 			"path":                snap.Torznab.Path,
 			"max_results":         snap.Torznab.MaxResults,
@@ -35,7 +37,7 @@ func WriteSnapshotToYAML(path string, snap *Snapshot) error {
 			"trust_proxy_headers": snap.Torznab.TrustProxyHeaders,
 		},
 		"webhooks": map[string]any{
-			"enabled":           snap.Webhooks.Enabled,
+			yamlKeyEnabled:      snap.Webhooks.Enabled,
 			"urls":              snap.Webhooks.Urls,
 			"events":            snap.Webhooks.Events,
 			"categories":        snap.Webhooks.Categories,
@@ -46,6 +48,16 @@ func WriteSnapshotToYAML(path string, snap *Snapshot) error {
 			"base_url":          snap.Webhooks.BaseURL,
 			"headers":           snap.Webhooks.Headers,
 			"queue_size":        snap.Webhooks.QueueSize,
+		},
+		"retry_queue": map[string]any{
+			yamlKeyEnabled:   snap.RetryQueue.Enabled,
+			"max_retries":    snap.RetryQueue.MaxRetries,
+			"interval":       snap.RetryQueue.Interval.String(),
+			"backoff_factor": snap.RetryQueue.BackoffFactor,
+			"max_interval":   snap.RetryQueue.MaxInterval.String(),
+			"scan_interval":  snap.RetryQueue.ScanInterval.String(),
+			"batch_size":     snap.RetryQueue.BatchSize,
+			"dispatch_lease": snap.RetryQueue.DispatchLease.String(),
 		},
 	}
 

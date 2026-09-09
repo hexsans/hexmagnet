@@ -5,6 +5,7 @@ type Query {
   torrent: TorrentQuery!
   torrentSearch: TorrentSearchQuery!
   queue: QueueQuery!
+  retryQueue: RetryQueueQuery!
   reindexStatus: ReindexProgress!
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/configmgr"
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/webhook"
@@ -28,6 +29,7 @@ type Params struct {
 	ConfigManager    *configmgr.Manager                                 `optional:"true"`
 	RebuildRunner    func(classifier.Config) (classifier.Runner, error) `optional:"true"`
 	WebhookPublisher *webhook.Publisher                                 `optional:"true"`
+	RetryQueue       *retryqueue.Queue                                  `optional:"true"`
 	Logger           *zap.SugaredLogger
 }
 
@@ -61,6 +63,7 @@ func New(p Params) Result {
 				runner:          w,
 				kafkaProducer:   p.Producer,
 				webhook:         p.WebhookPublisher,
+				retryQueue:      p.RetryQueue,
 				defaultWorkflow: "default",
 				logger:          p.Logger,
 			}

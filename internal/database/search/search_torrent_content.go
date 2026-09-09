@@ -11,6 +11,7 @@ import (
 
 	"github.com/hexsans/hexmagnet/internal/database/fts"
 	search "github.com/hexsans/hexmagnet/internal/search"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 func (s *pgSearch) TorrentSearch(ctx context.Context, params search.TorrentSearchParams) (search.TorrentSearchResult, error) {
@@ -173,7 +174,7 @@ func (s *pgSearch) TorrentSearch(ctx context.Context, params search.TorrentSearc
 		facetArgs = append(facetArgs, args[ctArgStart-1+ctArgCount:]...)
 	}
 
-	offset := int32(params.Offset)
+	offset := utils.ClampInt32(params.Offset)
 
 	q := buildTorrentContentQueries(params, whereClause, args, argIdx, offset)
 
@@ -574,9 +575,9 @@ func buildTorrentContentQueries(
 	preOrderByArgsLen := len(args)
 	orderByClause := buildTorrentContentOrderBy(params, &args, &argIdx)
 
-	limit := int32(10)
-	if params.Limit > 0 {
-		limit = int32(params.Limit)
+	limit := utils.ClampInt32(params.Limit)
+	if limit <= 0 {
+		limit = 10
 	}
 
 	query := fmt.Sprintf(`SELECT %s FROM torrents t

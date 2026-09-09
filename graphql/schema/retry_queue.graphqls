@@ -1,0 +1,27 @@
+type RetryQueueQuery {
+  entries(input: RetryQueueEntriesInput): RetryQueueEntriesResult!
+}
+
+input RetryQueueEntriesInput {
+  limit: Int
+  offset: Int
+}
+
+type RetryQueueEntry {
+  infoHash: Hash20!
+  stage: String!
+  failCount: Int!
+  lastError: String!
+  lastFailureAt: DateTime!
+  nextRetryAt: DateTime!
+}
+
+type RetryQueueEntriesResult {
+  total: Uint64!
+  items: [RetryQueueEntry!]!
+}
+
+type RetryQueueMutation {
+  retry(infoHash: Hash20!): Boolean!
+  clear: Void
+}

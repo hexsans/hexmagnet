@@ -306,6 +306,25 @@ type ReleaseYearFacetInput struct {
 	Filter    graphql.Omittable[[]*model.Year] `json:"filter,omitempty"`
 }
 
+type RetryQueueEntriesInput struct {
+	Limit  graphql.Omittable[*int] `json:"limit,omitempty"`
+	Offset graphql.Omittable[*int] `json:"offset,omitempty"`
+}
+
+type RetryQueueEntriesResult struct {
+	Total uint64            `json:"total"`
+	Items []RetryQueueEntry `json:"items"`
+}
+
+type RetryQueueEntry struct {
+	InfoHash      protocol.ID `json:"infoHash"`
+	Stage         string      `json:"stage"`
+	FailCount     int         `json:"failCount"`
+	LastError     string      `json:"lastError"`
+	LastFailureAt time.Time   `json:"lastFailureAt"`
+	NextRetryAt   time.Time   `json:"nextRetryAt"`
+}
+
 type SearchConfig struct {
 	Backend       string              `json:"backend"`
 	Elasticsearch ElasticsearchConfig `json:"elasticsearch"`

@@ -18,6 +18,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/webhook"
 	"go.uber.org/zap"
@@ -68,6 +69,7 @@ type processor struct {
 	blockingManager    blocking.Manager
 	kafkaProducer      queue.Producer
 	webhook            *webhook.Publisher
+	retryQueue         *retryqueue.Queue
 	logger             *zap.SugaredLogger
 	sf                 singleflight.Group
 	recentlyClassified sync.Map
@@ -113,21 +115,18 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 	}
 
 	var (
-		mtx  sync.Mutex
-		wg   sync.WaitGroup
-		errs []error
+		mtx sync.Mutex
+		wg  sync.WaitGroup
 	)
 
 	tcs := make([]model.Torrent, 0, len(searchResult.Torrents))
 
-	failedHashes := make([]protocol.ID, 0, len(searchResult.MissingInfoHashes))
+	missingHashes := make([]protocol.ID, 0, len(searchResult.MissingInfoHashes))
 	for _, h := range searchResult.MissingInfoHashes {
-		failedHashes = append(failedHashes, db.ToProtocolID(h))
+		missingHashes = append(missingHashes, db.ToProtocolID(h))
 	}
 
-	if len(failedHashes) > 0 {
-		errs = append(errs, MissingHashesError{InfoHashes: failedHashes})
-	}
+	classifyFailures := make([]classifyFailure, 0, len(searchResult.Torrents))
 
 	for _, torrent := range searchResult.Torrents {
 		wg.Add(1)
@@ -186,8 +185,11 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 			if !ok {
 				mtx.Lock()
 
-				errs = append(errs, fmt.Errorf("unexpected type from singleflight: %T", v))
-				failedHashes = append(failedHashes, torrent.InfoHash)
+				err := fmt.Errorf("unexpected type from singleflight: %T", v)
+				classifyFailures = append(classifyFailures, classifyFailure{
+					infoHash: torrent.InfoHash,
+					err:      err,
+				})
 				mtx.Unlock()
 
 				return
@@ -207,8 +209,10 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 					"workflow", workflowName,
 					"error", classifyErr,
 				)
-				failedHashes = append(failedHashes, torrent.InfoHash)
-				errs = append(errs, classifyErr)
+				classifyFailures = append(classifyFailures, classifyFailure{
+					infoHash: torrent.InfoHash,
+					err:      classifyErr,
+				})
 			} else {
 				torrentContent := newTorrentContent(torrent, cl)
 
@@ -224,7 +228,13 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 
 	wg.Wait()
 
-	return c.handleClassified(ctx, tcs, failedHashes, errs, params)
+	return c.handleClassified(ctx, tcs, missingHashes, classifyFailures, params)
+}
+
+// classifyFailure pairs a failed info hash with the error that caused it.
+type classifyFailure struct {
+	infoHash protocol.ID
+	err      error
 }
 
 func (c *processor) fetchAndJoinData(ctx context.Context, params MessageParams) (dbsearch.TorrentsWithMissingInfoHashesResult, error) {
@@ -298,25 +308,50 @@ func (c *processor) filteredByTorrentFilter(torrent model.Torrent) bool {
 func (c *processor) handleClassified(
 	ctx context.Context,
 	tcs []model.Torrent,
-	failedHashes []protocol.ID,
-	errs []error,
+	missingHashes []protocol.ID,
+	classifyFailures []classifyFailure,
 	params MessageParams,
 ) error {
-	if len(failedHashes) > 0 {
-		if len(tcs) == 0 {
-			return errors.Join(errs...)
-		}
+	retryEnabled := c.retryQueue != nil && c.retryQueue.Enabled()
 
-		key := ""
-		if len(failedHashes) > 0 {
-			key = failedHashes[0].String()
+	if len(classifyFailures) > 0 {
+		if retryEnabled {
+			c.enqueueClassifyRetries(ctx, classifyFailures, params)
+		} else {
+			// Legacy behaviour: immediately re-produce every failed hash.
+			for _, f := range classifyFailures {
+				missingHashes = append(missingHashes, f.infoHash)
+			}
 		}
+	}
+
+	if len(missingHashes) > 0 {
+		key := missingHashes[0].String()
 
 		c.kafkaProducer.Produce(kafka.TopicProcessTorrent, key, MessageParams{
-			InfoHashes:   failedHashes,
+			InfoHashes:   missingHashes,
 			ClassifyMode: params.ClassifyMode,
 			ContentType:  params.ContentType,
 		})
+	}
+
+	if retryEnabled {
+		// Classification failures are tracked in the retry queue; only
+		// genuinely missing torrents are surfaced as an error.
+		if len(tcs) == 0 && len(missingHashes) > 0 {
+			return MissingHashesError{InfoHashes: missingHashes}
+		}
+	} else if len(tcs) == 0 {
+		failureErrs := make([]error, 0, len(classifyFailures)+1)
+		if len(missingHashes) > 0 {
+			failureErrs = append(failureErrs, MissingHashesError{InfoHashes: missingHashes})
+		}
+
+		for _, f := range classifyFailures {
+			failureErrs = append(failureErrs, f.err)
+		}
+
+		return errors.Join(failureErrs...)
 	}
 
 	if len(tcs) == 0 {
@@ -327,6 +362,15 @@ func (c *processor) handleClassified(
 		torrents: tcs,
 	}); err != nil {
 		return err
+	}
+
+	if retryEnabled {
+		classified := make([]string, 0, len(tcs))
+		for _, t := range tcs {
+			classified = append(classified, t.InfoHash.String())
+		}
+
+		c.retryQueue.Remove(ctx, classified...)
 	}
 
 	c.publishClassified(ctx, tcs)
@@ -342,6 +386,41 @@ func (c *processor) handleClassified(
 	}
 
 	return nil
+}
+
+// enqueueClassifyRetries records classification failures in the retry queue
+// as a single batched upsert, keyed per info hash with the error that caused
+// the failure.
+func (c *processor) enqueueClassifyRetries(
+	ctx context.Context,
+	failures []classifyFailure,
+	params MessageParams,
+) {
+	items := make([]retryqueue.RetryItem, 0, len(failures))
+	for _, f := range failures {
+		items = append(items, retryqueue.RetryItem{
+			Stage:    retryqueue.StageClassify,
+			InfoHash: f.infoHash.String(),
+			Payload: MessageParams{
+				InfoHashes:   []protocol.ID{f.infoHash},
+				ClassifyMode: params.ClassifyMode,
+				ContentType:  params.ContentType,
+			},
+		})
+	}
+
+	if err := c.retryQueue.EnqueueBatch(ctx, items, errors.Join(classifyFailureErrs(failures)...)); err != nil {
+		c.logger.Errorw("failed to enqueue classify retry entries", "error", err)
+	}
+}
+
+func classifyFailureErrs(failures []classifyFailure) []error {
+	errs := make([]error, 0, len(failures))
+	for _, f := range failures {
+		errs = append(errs, f.err)
+	}
+
+	return errs
 }
 
 // publishClassified emits webhook events for torrents that were just

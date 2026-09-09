@@ -11,16 +11,36 @@ type Integer interface {
 // ClampInt32 converts an integer of architecture-dependent size to int32,
 // saturating to [math.MinInt32, math.MaxInt32] instead of wrapping.
 func ClampInt32[T Integer](v T) int32 {
-	if v > T(math.MaxInt32) {
-		return math.MaxInt32
+	switch x := any(v).(type) {
+	case int:
+		if x > math.MaxInt32 {
+			return math.MaxInt32
+		}
+		if x < math.MinInt32 {
+			return math.MinInt32
+		}
+		return int32(x)
+	case int64:
+		if x > math.MaxInt32 {
+			return math.MaxInt32
+		}
+		if x < math.MinInt32 {
+			return math.MinInt32
+		}
+		return int32(x)
+	case uint:
+		if x > math.MaxInt32 {
+			return math.MaxInt32
+		}
+		return int32(x)
+	case uint64:
+		if x > math.MaxInt32 {
+			return math.MaxInt32
+		}
+		return int32(x)
+	default:
+		panic("unsupported integer type")
 	}
-
-	sv := int64(v)
-	if sv < math.MinInt32 {
-		return math.MinInt32
-	}
-
-	return int32(sv)
 }
 
 // ClampUint16 converts an integer of architecture-dependent size to uint16,

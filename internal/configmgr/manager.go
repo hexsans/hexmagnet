@@ -14,6 +14,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +27,8 @@ type Snapshot struct {
 	Postgres     postgres.Config
 	Queue        queue.Config
 	Search       indexer.SearchConfig
+	Torznab      torznab.Config
+	Webhooks     webhook.Config
 }
 
 type ApplyMode int

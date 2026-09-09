@@ -30,7 +30,9 @@ import (
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/torznab"
 	"github.com/hexsans/hexmagnet/internal/utils"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/fx"
@@ -102,6 +104,8 @@ func New() fx.Option {
 							SearchCfg:            p.SearchCfg,
 							QueueCfg:             p.QueueCfg,
 							DHTRequesterCfg:      p.DHTRequesterCfg,
+							TorznabCfg:           p.TorznabCfg,
+							WebhooksCfg:          p.WebhooksCfg,
 							ConfigManager:        p.ConfigManager,
 							DhtCrawlerRuntime:    p.DhtCrawlerRuntime,
 							LogManager:           p.LogManager,
@@ -355,6 +359,8 @@ type Params struct {
 	SearchCfg         indexer.SearchConfig
 	QueueCfg          queue.Config
 	DHTRequesterCfg   metainforequester.Config
+	TorznabCfg        torznab.Config
+	WebhooksCfg       webhook.Config
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime `name:"dht_crawler_runtime" optional:"true"`
 	LogManager        *logging.Manager    `optional:"true"`

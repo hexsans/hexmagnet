@@ -82,8 +82,6 @@ services:
     container_name: hexmagnet-postgres
     volumes:
       - ../../.testing/data/postgres:/var/lib/postgresql
-    ports:
-      - "5432:5432"
     shm_size: 1g
     restart: unless-stopped
     environment:

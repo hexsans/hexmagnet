@@ -5,6 +5,8 @@ import { ServerConfigForm, } from "@/components/dashboard/server-config-form";
 import { ClassifierLLMConfigForm, } from "@/components/dashboard/classifier-llm-config-form";
 import { StorageConfigForm, } from "@/components/dashboard/storage-config-form";
 import { DHTConfigForm, } from "@/components/dashboard/dht-config-form";
+import { TorznabConfigForm, } from "@/components/dashboard/torznab-config-form";
+import { WebhooksConfigForm, } from "@/components/dashboard/webhooks-config-form";
 
 export function ConfigTabs() {
   const { t, } = useTranslation();
@@ -25,6 +27,12 @@ export function ConfigTabs() {
         </TabsTrigger>
         <TabsTrigger value="storage" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
           {t("dashboard.storage",)}
+        </TabsTrigger>
+        <TabsTrigger value="torznab" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+          {t("dashboard.torznab",)}
+        </TabsTrigger>
+        <TabsTrigger value="webhooks" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+          {t("dashboard.webhooks",)}
         </TabsTrigger>
       </TabsList>
 
@@ -49,6 +57,18 @@ export function ConfigTabs() {
       <TabsContent value="storage">
         <div className="flex flex-col gap-6 pt-4">
           <StorageConfigForm />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="torznab">
+        <div className="flex flex-col gap-6 pt-4">
+          <TorznabConfigForm />
+        </div>
+      </TabsContent>
+
+      <TabsContent value="webhooks">
+        <div className="flex flex-col gap-6 pt-4">
+          <WebhooksConfigForm />
         </div>
       </TabsContent>
     </Tabs>

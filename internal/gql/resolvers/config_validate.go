@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/hexsans/hexmagnet/internal/classifier"
 	"github.com/hexsans/hexmagnet/internal/configcheck"
@@ -15,6 +16,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 )
 
 // ConfigValidator runs structural checks and connectivity probes against a
@@ -58,6 +61,14 @@ func (v *ConfigValidator) Validate(ctx context.Context, input gen.ConfigInput, d
 
 	if in, ok := input.Storage.ValueOK(); ok && in != nil {
 		errs = append(errs, v.checkStorage(ctx, *in, data)...)
+	}
+
+	if in, ok := input.Torznab.ValueOK(); ok && in != nil {
+		errs = append(errs, v.checkTorznab(*in, data)...)
+	}
+
+	if in, ok := input.Webhooks.ValueOK(); ok && in != nil {
+		errs = append(errs, v.checkWebhooks(*in, data)...)
 	}
 
 	return errors.Join(errs...)
@@ -239,6 +250,64 @@ func (v *ConfigValidator) checkStorage(ctx context.Context, input gen.StorageCon
 	}
 
 	return errs
+}
+
+func (*ConfigValidator) checkTorznab(input gen.TorznabConfigInput, data map[string]any) []error {
+	var errs []error
+
+	if p, ok := input.Path.ValueOK(); ok && p != nil && *p == "" {
+		errs = append(errs, fmt.Errorf("torznab: path must not be empty"))
+	}
+
+	if m, ok := input.MaxResults.ValueOK(); ok && m != nil && *m < 1 {
+		errs = append(errs, fmt.Errorf("torznab: max_results must be at least 1, got %d", *m))
+	}
+
+	if cats, ok := input.Categories.ValueOK(); ok {
+		if len(cats) == 0 {
+			errs = append(errs, fmt.Errorf("torznab: categories must not be empty (use \"*\" for all)"))
+		} else {
+			for _, c := range cats {
+				if c == "*" {
+					continue
+				}
+
+				cat, err := strconv.Atoi(c)
+				if err != nil || cat < 1 {
+					errs = append(errs, fmt.Errorf("torznab: invalid category %q (expected a Newznab category ID or \"*\")", c))
+				}
+			}
+		}
+	}
+
+	if rawMap, ok := data["torznab"].(map[string]any); ok {
+		var cfg torznab.Config
+		if err := reloadConfigSection(rawMap, &cfg); err != nil {
+			errs = append(errs, fmt.Errorf("torznab: %w", err))
+		} else if cfg.Path == "" {
+			errs = append(errs, fmt.Errorf("torznab: path must not be empty"))
+		}
+	}
+
+	return errs
+}
+
+func (*ConfigValidator) checkWebhooks(_ gen.WebhooksConfigInput, data map[string]any) []error {
+	rawMap, ok := data["webhooks"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	var cfg webhook.Config
+	if err := reloadConfigSection(rawMap, &cfg); err != nil {
+		return []error{fmt.Errorf("webhooks: %w", err)}
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return []error{err}
+	}
+
+	return nil
 }
 
 var (

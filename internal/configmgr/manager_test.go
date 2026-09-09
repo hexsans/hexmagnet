@@ -3,13 +3,19 @@ package configmgr
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
+	"gopkg.in/yaml.v3"
 )
 
 func TestNewManager(t *testing.T) {
@@ -424,4 +430,83 @@ func TestAsyncChannelFullReplacesPending(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("latest pending snapshot was never applied")
 	}
+}
+
+func TestWriteSnapshotToYAML_IncludesTorznabAndWebhooks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	path := dir + "/hexmagnet.yaml"
+
+	snap := &Snapshot{
+		Torznab: torznab.Config{
+			Enabled:    true,
+			APIKey:     "k",
+			Path:       "/torznab",
+			MaxResults: 50,
+			Categories: []string{"2000", "3000"},
+		},
+		Webhooks: webhook.Config{
+			Enabled:    true,
+			Urls:       []string{"https://example.com/hook"},
+			Events:     []string{"classified"},
+			Timeout:    10 * time.Second,
+			MaxRetries: 3,
+			BaseURL:    "http://localhost:3333",
+			QueueSize:  1000,
+		},
+	}
+
+	require.NoError(t, WriteSnapshotToYAML(path, snap))
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	doc := string(data)
+
+	assert.Contains(t, doc, "torznab:")
+	assert.Contains(t, doc, "enabled: true")
+	assert.Contains(t, doc, "api_key: k")
+	assert.Contains(t, doc, "webhooks:")
+	assert.Contains(t, doc, "urls:")
+	assert.Contains(t, doc, "- https://example.com/hook")
+	assert.Contains(t, doc, "timeout: 10s")
+	assert.Contains(t, doc, "max_retries: 3")
+	assert.Contains(t, doc, "base_url: http://localhost:3333")
+}
+
+func TestWriteSnapshotToYAML_WebhookFiltersRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	path := dir + "/hexmagnet.yaml"
+
+	want := webhook.Config{
+		Enabled:          true,
+		Urls:             []string{"https://example.com/hook"},
+		Events:           []string{"classified"},
+		Categories:       []string{"movie", "music"},
+		TitlePatterns:    []string{`\bflac\b`},
+		FilenamePatterns: []string{`\.mkv$`},
+		Timeout:          7 * time.Second,
+		MaxRetries:       2,
+		BaseURL:          "http://localhost:3333",
+		Headers:          map[string]string{"Authorization": "Bearer token123"},
+		QueueSize:        64,
+	}
+
+	require.NoError(t, WriteSnapshotToYAML(path, &Snapshot{Webhooks: want}))
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	var doc struct {
+		Webhooks webhook.Config `yaml:"webhooks"`
+	}
+
+	require.NoError(t, yaml.Unmarshal(data, &doc))
+
+	assert.Equal(t, want, doc.Webhooks)
 }

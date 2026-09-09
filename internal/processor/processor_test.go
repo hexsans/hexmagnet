@@ -1,7 +1,11 @@
 package processor
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +20,7 @@ import (
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/hexsans/hexmagnet/internal/utils"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -377,4 +382,68 @@ func TestNewProcessorFxModule(t *testing.T) {
 
 	mod := NewProcessorFxModule()
 	assert.NotNil(t, mod)
+}
+
+func TestPublishClassified_SendsEvent(t *testing.T) {
+	t.Parallel()
+
+	var received atomic.Value
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			received.Store(body)
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	defer srv.Close()
+
+	cfg := webhook.NewDefaultConfig()
+	cfg.Enabled = true
+	cfg.Urls = []string{srv.URL}
+
+	pub := webhook.NewPublisher(cfg, zap.NewNop().Sugar())
+	require.NoError(t, pub.Start(context.Background()))
+
+	defer func() { _ = pub.Stop(context.Background()) }()
+
+	p := newTestProcessor()
+	p.webhook = pub
+
+	torrents := []model.Torrent{sampleTorrentForProcessor()}
+
+	p.publishClassified(context.Background(), torrents)
+
+	require.Eventually(t, func() bool {
+		return received.Load() != nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	body := received.Load().(map[string]any)
+	assert.Equal(t, "classified", body["event"])
+	assert.Equal(t, "Artist - Album (2022) FLAC", body["name"])
+}
+
+func TestPublishClassified_NilPublisher(t *testing.T) {
+	t.Parallel()
+
+	p := newTestProcessor()
+	p.publishClassified(context.Background(), []model.Torrent{sampleTorrentForProcessor()})
+}
+
+func TestPublishClassified_EmptyTorrents(t *testing.T) {
+	t.Parallel()
+
+	p := newTestProcessor()
+	p.publishClassified(context.Background(), nil)
+}
+
+func sampleTorrentForProcessor() model.Torrent {
+	return model.Torrent{
+		InfoHash:    testutil.MustParseID("abcdef1234567890abcdef1234567890abcdef12"),
+		Name:        "Artist - Album (2022) FLAC",
+		Size:        999,
+		ContentType: model.NewNullContentType("music"),
+	}
 }

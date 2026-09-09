@@ -281,3 +281,156 @@ func Test_UpdateConfigMutation_validationFailureCollectsAll(t *testing.T) {
 	assert.Contains(t, err.Error(), "server: log")
 	assert.Contains(t, err.Error(), "server: torrent_file_path")
 }
+
+func TestConfigValidator_Validate_torznabChecks(t *testing.T) {
+	t.Parallel()
+
+	v := &ConfigValidator{}
+	data := map[string]any{}
+
+	t.Run("empty path", func(t *testing.T) {
+		t.Parallel()
+
+		input := gen.ConfigInput{
+			Torznab: graphql.OmittableOf[*gen.TorznabConfigInput](&gen.TorznabConfigInput{
+				Path: graphql.OmittableOf[*string](testutil.StrPtr("")),
+			}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "path must not be empty")
+	})
+
+	t.Run("zero max results", func(t *testing.T) {
+		t.Parallel()
+
+		input := gen.ConfigInput{
+			Torznab: graphql.OmittableOf[*gen.TorznabConfigInput](&gen.TorznabConfigInput{
+				MaxResults: graphql.OmittableOf[*uint64](uint64Ptr(0)),
+			}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_results must be at least 1")
+	})
+
+	t.Run("invalid category", func(t *testing.T) {
+		t.Parallel()
+
+		input := gen.ConfigInput{
+			Torznab: graphql.OmittableOf[*gen.TorznabConfigInput](&gen.TorznabConfigInput{
+				Categories: graphql.OmittableOf[[]string]([]string{"bogus"}),
+			}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid category")
+	})
+
+	t.Run("empty categories", func(t *testing.T) {
+		t.Parallel()
+
+		input := gen.ConfigInput{
+			Torznab: graphql.OmittableOf[*gen.TorznabConfigInput](&gen.TorznabConfigInput{
+				Categories: graphql.OmittableOf[[]string]([]string{}),
+			}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "categories must not be empty")
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		t.Parallel()
+
+		input := gen.ConfigInput{
+			Torznab: graphql.OmittableOf[*gen.TorznabConfigInput](&gen.TorznabConfigInput{
+				Enabled:    graphql.OmittableOf[*bool](boolPtr(true)),
+				Path:       graphql.OmittableOf[*string](testutil.StrPtr("/torznab")),
+				MaxResults: graphql.OmittableOf[*uint64](uint64Ptr(100)),
+				Categories: graphql.OmittableOf[[]string]([]string{"*"}),
+			}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.NoError(t, err)
+	})
+}
+
+func TestConfigValidator_Validate_webhooksChecks(t *testing.T) {
+	t.Parallel()
+
+	v := &ConfigValidator{}
+
+	t.Run("invalid url", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{"webhooks": map[string]any{"urls": []string{"not-a-url"}}}
+		input := gen.ConfigInput{
+			Webhooks: graphql.OmittableOf[*gen.WebhooksConfigInput](&gen.WebhooksConfigInput{}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid webhook url")
+	})
+
+	t.Run("unsupported event", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{"webhooks": map[string]any{"events": []string{"bogus"}}}
+		input := gen.ConfigInput{
+			Webhooks: graphql.OmittableOf[*gen.WebhooksConfigInput](&gen.WebhooksConfigInput{}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported webhook event")
+	})
+
+	t.Run("invalid filters", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{"webhooks": map[string]any{
+			"categories":        []string{"music", "3d"},
+			"title_patterns":    []string{"("},
+			"filename_patterns": []string{`[z-a]`},
+		}}
+		input := gen.ConfigInput{
+			Webhooks: graphql.OmittableOf[*gen.WebhooksConfigInput](&gen.WebhooksConfigInput{}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported webhook category")
+		assert.Contains(t, err.Error(), "invalid title pattern")
+		assert.Contains(t, err.Error(), "invalid filename pattern")
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{"webhooks": map[string]any{
+			"enabled":           true,
+			"urls":              []string{"https://example.com/hook"},
+			"events":            []string{"classified"},
+			"categories":        []string{"movie", "music"},
+			"title_patterns":    []string{`\bflac\b`},
+			"filename_patterns": []string{`\.mkv$`},
+			"timeout":           "10s",
+			"max_retries":       3,
+			"base_url":          "http://localhost:3333",
+			"queue_size":        1000,
+		}}
+		input := gen.ConfigInput{
+			Webhooks: graphql.OmittableOf[*gen.WebhooksConfigInput](&gen.WebhooksConfigInput{}),
+		}
+
+		err := v.Validate(context.Background(), input, data)
+		require.NoError(t, err)
+	})
+}

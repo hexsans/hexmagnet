@@ -14,6 +14,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -38,6 +40,8 @@ func New() *fx.App {
 		config.SpecEntry{Key: "storage.queue", DefaultValue: queue.NewDefaultConfig()},
 		config.SpecEntry{Key: "classifier", DefaultValue: classifier.NewDefaultConfig()},
 		config.SpecEntry{Key: "dht.requester", DefaultValue: metainforequester.NewDefaultConfig()},
+		config.SpecEntry{Key: "torznab", DefaultValue: torznab.NewDefaultConfig()},
+		config.SpecEntry{Key: "webhooks", DefaultValue: webhook.NewDefaultConfig()},
 	)
 	if err != nil {
 		return fx.New(fx.Error(fmt.Errorf("config error: %w", err)))
@@ -53,6 +57,8 @@ func New() *fx.App {
 		fx.Supply(resolved.Resolved.NodeMap["classifier"].Value.(classifier.Config)),
 		fx.Supply(resolved.Resolved.NodeMap["classifier"].Value.(classifier.Config).Tmdb),
 		fx.Supply(resolved.Resolved.NodeMap["dht.requester"].Value.(metainforequester.Config)),
+		fx.Supply(resolved.Resolved.NodeMap["torznab"].Value.(torznab.Config)),
+		fx.Supply(resolved.Resolved.NodeMap["webhooks"].Value.(webhook.Config)),
 		fx.Supply(*resolved.Resolved),
 		appfx.New(resolved.Resolved.NodeMap["storage.queue"].Value.(queue.Config)),
 		logging.WithLogger(),

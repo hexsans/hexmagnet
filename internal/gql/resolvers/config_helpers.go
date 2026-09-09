@@ -2,7 +2,9 @@ package resolvers
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -14,6 +16,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"gopkg.in/yaml.v3"
 )
 
@@ -114,6 +118,42 @@ func configToStorage(pg postgres.Config, search indexer.SearchConfig, q queue.Co
 		Postgres: configToPostgres(pg),
 		Search:   configToSearch(search),
 		Queue:    configToQueue(q),
+	}
+}
+
+func configToTorznab(c torznab.Config) gen.TorznabConfig {
+	return gen.TorznabConfig{
+		Enabled:           c.Enabled,
+		APIKey:            maskSecret(c.APIKey),
+		Path:              c.Path,
+		MaxResults:        uint64(c.MaxResults),
+		Categories:        c.Categories,
+		TrustProxyHeaders: c.TrustProxyHeaders,
+	}
+}
+
+func configToWebhooks(c webhook.Config) gen.WebhooksConfig {
+	headers := make([]gen.WebhookHeader, 0, len(c.Headers))
+
+	for _, k := range slices.Sorted(maps.Keys(c.Headers)) {
+		headers = append(headers, gen.WebhookHeader{
+			Key:   k,
+			Value: maskSecret(c.Headers[k]),
+		})
+	}
+
+	return gen.WebhooksConfig{
+		Enabled:          c.Enabled,
+		Urls:             c.Urls,
+		Events:           c.Events,
+		Categories:       c.Categories,
+		TitlePatterns:    c.TitlePatterns,
+		FilenamePatterns: c.FilenamePatterns,
+		Timeout:          uint64(c.Timeout.Seconds()),
+		MaxRetries:       uint64(c.MaxRetries),
+		BaseURL:          c.BaseURL,
+		Headers:          headers,
+		QueueSize:        uint64(c.QueueSize),
 	}
 }
 
@@ -384,6 +424,9 @@ func applyClassifierInput(data map[string]any, input gen.ClassifierConfigInput) 
 func reloadConfigSection(raw any, target any) error {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result: target,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+		),
 		MatchName: func(mapKey, fieldName string) bool {
 			return strings.EqualFold(
 				strings.ReplaceAll(mapKey, "_", ""),
@@ -562,6 +605,114 @@ func applyStorageInput(data map[string]any, input gen.StorageConfigInput) error 
 	}
 
 	data["storage"] = storageSection
+
+	return nil
+}
+
+func applyTorznabInput(data map[string]any, input gen.TorznabConfigInput) error {
+	torznabSection := getOrCreateSection(data, "torznab")
+
+	if v, ok := input.Enabled.ValueOK(); ok && v != nil {
+		torznabSection["enabled"] = *v
+	}
+
+	if v, ok := input.APIKey.ValueOK(); ok && v != nil {
+		// Skip masked values echoed back by the UI so the real key is kept.
+		if existing, _ := torznabSection["api_key"].(string); *v != maskSecret(existing) {
+			torznabSection["api_key"] = *v
+		}
+	}
+
+	if v, ok := input.Path.ValueOK(); ok && v != nil {
+		torznabSection["path"] = *v
+	}
+
+	if v, ok := input.MaxResults.ValueOK(); ok && v != nil {
+		torznabSection["max_results"] = *v
+	}
+
+	if v, ok := input.Categories.ValueOK(); ok {
+		torznabSection["categories"] = v
+	}
+
+	if v, ok := input.TrustProxyHeaders.ValueOK(); ok && v != nil {
+		torznabSection["trust_proxy_headers"] = *v
+	}
+
+	data["torznab"] = torznabSection
+
+	return nil
+}
+
+func applyWebhooksInput(data map[string]any, input gen.WebhooksConfigInput) error {
+	webhooksSection := getOrCreateSection(data, "webhooks")
+
+	if v, ok := input.Enabled.ValueOK(); ok && v != nil {
+		webhooksSection["enabled"] = *v
+	}
+
+	if v, ok := input.Urls.ValueOK(); ok {
+		webhooksSection["urls"] = v
+	}
+
+	if v, ok := input.Events.ValueOK(); ok {
+		webhooksSection["events"] = v
+	}
+
+	if v, ok := input.Categories.ValueOK(); ok {
+		webhooksSection["categories"] = v
+	}
+
+	if v, ok := input.TitlePatterns.ValueOK(); ok {
+		webhooksSection["title_patterns"] = v
+	}
+
+	if v, ok := input.FilenamePatterns.ValueOK(); ok {
+		webhooksSection["filename_patterns"] = v
+	}
+
+	if v, ok := input.Timeout.ValueOK(); ok && v != nil {
+		webhooksSection["timeout"] = fmt.Sprintf("%ds", *v)
+	}
+
+	if v, ok := input.MaxRetries.ValueOK(); ok && v != nil {
+		webhooksSection["max_retries"] = *v
+	}
+
+	if v, ok := input.BaseURL.ValueOK(); ok && v != nil {
+		webhooksSection["base_url"] = *v
+	}
+
+	if v, ok := input.Headers.ValueOK(); ok && v != nil {
+		existing, _ := webhooksSection["headers"].(map[string]any)
+
+		// Replace the whole header set: rows omitted by the caller are
+		// removed. Masked values echoed back by the UI keep the stored value.
+		headers := make(map[string]any, len(v))
+
+		for _, h := range v {
+			if strings.TrimSpace(h.Key) == "" {
+				continue
+			}
+
+			if cur, present := existing[h.Key]; present {
+				if s, isStr := cur.(string); isStr && h.Value == maskSecret(s) {
+					headers[h.Key] = s
+					continue
+				}
+			}
+
+			headers[h.Key] = h.Value
+		}
+
+		webhooksSection["headers"] = headers
+	}
+
+	if v, ok := input.QueueSize.ValueOK(); ok && v != nil {
+		webhooksSection["queue_size"] = *v
+	}
+
+	data["webhooks"] = webhooksSection
 
 	return nil
 }

@@ -11,6 +11,8 @@ type Config {
   server: ServerConfig!
   classifier: ClassifierConfig!
   storage: StorageConfig!
+  torznab: TorznabConfig!
+  webhooks: WebhooksConfig!
 }
 
 type DHTConfig {
@@ -131,11 +133,41 @@ type EmbeddingConfig {
   instructionEnabled: Boolean!
 }
 
+type TorznabConfig {
+  enabled: Boolean!
+  apiKey: String!
+  path: String!
+  maxResults: Uint64!
+  categories: [String!]!
+  trustProxyHeaders: Boolean!
+}
+
+type WebhooksConfig {
+  enabled: Boolean!
+  urls: [String!]!
+  events: [String!]!
+  categories: [String!]!
+  titlePatterns: [String!]!
+  filenamePatterns: [String!]!
+  timeout: Uint64!
+  maxRetries: Uint64!
+  baseUrl: String!
+  headers: [WebhookHeader!]!
+  queueSize: Uint64!
+}
+
+type WebhookHeader {
+  key: String!
+  value: String!
+}
+
 input ConfigInput {
   dht: DHTConfigInput
   server: ServerConfigInput
   classifier: ClassifierConfigInput
   storage: StorageConfigInput
+  torznab: TorznabConfigInput
+  webhooks: WebhooksConfigInput
 }
 
 input DHTConfigInput {
@@ -254,4 +286,32 @@ input EmbeddingConfigInput {
   model: String
   dimensions: Int
   instructionEnabled: Boolean
+}
+
+input TorznabConfigInput {
+  enabled: Boolean
+  apiKey: String
+  path: String
+  maxResults: Uint64
+  categories: [String!]
+  trustProxyHeaders: Boolean
+}
+
+input WebhooksConfigInput {
+  enabled: Boolean
+  urls: [String!]
+  events: [String!]
+  categories: [String!]
+  titlePatterns: [String!]
+  filenamePatterns: [String!]
+  timeout: Uint64
+  maxRetries: Uint64
+  baseUrl: String
+  headers: [WebhookHeaderInput!]
+  queueSize: Uint64
+}
+
+input WebhookHeaderInput {
+  key: String!
+  value: String!
 }

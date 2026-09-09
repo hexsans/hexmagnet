@@ -22,6 +22,8 @@ import (
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
+	"github.com/hexsans/hexmagnet/internal/torznab"
+	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -272,6 +274,8 @@ func Test_configToStorage(t *testing.T) {
 func uint64Ptr(v uint64) *uint64 { return &v }
 
 func boolPtr(v bool) *bool { return &v }
+
+func strPtr(v string) *string { return &v }
 
 func Test_applyDHTInput(t *testing.T) {
 	t.Parallel()
@@ -1013,4 +1017,151 @@ func fixedResolver() *Resolver {
 			},
 		},
 	}
+}
+
+func Test_applyTorznabInput_maskedAPIKeyKept(t *testing.T) {
+	t.Parallel()
+
+	data := map[string]any{
+		"torznab": map[string]any{
+			"api_key": "supersecret",
+		},
+	}
+
+	masked := maskSecret("supersecret")
+	require.NotEqual(t, "supersecret", masked)
+
+	input := gen.TorznabConfigInput{
+		APIKey:            graphql.OmittableOf[*string](&masked),
+		TrustProxyHeaders: graphql.OmittableOf[*bool](boolPtr(false)),
+	}
+
+	require.NoError(t, applyTorznabInput(data, input))
+
+	section := data["torznab"].(map[string]any)
+	assert.Equal(t, "supersecret", section["api_key"], "masked key must not clobber the real one")
+	assert.Equal(t, false, section["trust_proxy_headers"])
+}
+
+func Test_applyTorznabInput_newAPIKeyApplied(t *testing.T) {
+	t.Parallel()
+
+	data := map[string]any{
+		"torznab": map[string]any{
+			"api_key": "supersecret",
+		},
+	}
+
+	input := gen.TorznabConfigInput{
+		APIKey: graphql.OmittableOf[*string](strPtr("brand-new-key")),
+	}
+
+	require.NoError(t, applyTorznabInput(data, input))
+
+	section := data["torznab"].(map[string]any)
+	assert.Equal(t, "brand-new-key", section["api_key"])
+}
+
+func Test_applyWebhooksInput_headers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sets headers", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{}
+
+		input := gen.WebhooksConfigInput{
+			Headers: graphql.OmittableOf[[]gen.WebhookHeaderInput]([]gen.WebhookHeaderInput{
+				{Key: "Authorization", Value: "Bearer tok"},
+				{Key: "  ", Value: "ignored"},
+			}),
+		}
+
+		require.NoError(t, applyWebhooksInput(data, input))
+
+		headers := data["webhooks"].(map[string]any)["headers"].(map[string]any)
+		assert.Equal(t, map[string]any{"Authorization": "Bearer tok"}, headers)
+	})
+
+	t.Run("masked value keeps existing", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"webhooks": map[string]any{
+				"headers": map[string]any{
+					"Authorization": "Bearer real-token",
+				},
+			},
+		}
+
+		masked := maskSecret("Bearer real-token")
+
+		input := gen.WebhooksConfigInput{
+			Headers: graphql.OmittableOf[[]gen.WebhookHeaderInput]([]gen.WebhookHeaderInput{
+				{Key: "Authorization", Value: masked},
+				{Key: "X-New", Value: "v"},
+			}),
+		}
+
+		require.NoError(t, applyWebhooksInput(data, input))
+
+		headers := data["webhooks"].(map[string]any)["headers"].(map[string]any)
+		assert.Equal(t, "Bearer real-token", headers["Authorization"])
+		assert.Equal(t, "v", headers["X-New"])
+	})
+
+	t.Run("omitted headers are removed", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"webhooks": map[string]any{
+				"headers": map[string]any{
+					"Authorization": "Bearer real-token",
+					"X-Old":         "gone",
+				},
+			},
+		}
+
+		masked := maskSecret("Bearer real-token")
+
+		input := gen.WebhooksConfigInput{
+			Headers: graphql.OmittableOf[[]gen.WebhookHeaderInput]([]gen.WebhookHeaderInput{
+				{Key: "Authorization", Value: masked},
+			}),
+		}
+
+		require.NoError(t, applyWebhooksInput(data, input))
+
+		headers := data["webhooks"].(map[string]any)["headers"].(map[string]any)
+		assert.Equal(t, "Bearer real-token", headers["Authorization"])
+		assert.NotContains(t, headers, "X-Old")
+	})
+}
+
+func Test_configToWebhooks_headersMaskedAndSorted(t *testing.T) {
+	t.Parallel()
+
+	cfg := webhook.Config{
+		Enabled: true,
+		Headers: map[string]string{
+			"Authorization": "Bearer secret-token",
+			"X-Custom":      "plain",
+		},
+	}
+
+	out := configToWebhooks(cfg)
+
+	require.Len(t, out.Headers, 2)
+	assert.Equal(t, "Authorization", out.Headers[0].Key)
+	assert.Equal(t, maskSecret("Bearer secret-token"), out.Headers[0].Value)
+	assert.Equal(t, "X-Custom", out.Headers[1].Key)
+	assert.Equal(t, maskSecret("plain"), out.Headers[1].Value)
+}
+
+func Test_configToTorznab_trustProxyHeaders(t *testing.T) {
+	t.Parallel()
+
+	cfg := torznab.NewDefaultConfig()
+	assert.True(t, cfg.TrustProxyHeaders)
+	assert.True(t, configToTorznab(cfg).TrustProxyHeaders)
 }

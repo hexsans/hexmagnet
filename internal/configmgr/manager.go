@@ -13,6 +13,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/torznab"
 	"github.com/hexsans/hexmagnet/internal/webhook"
@@ -29,6 +30,7 @@ type Snapshot struct {
 	Search       indexer.SearchConfig
 	Torznab      torznab.Config
 	Webhooks     webhook.Config
+	RetryQueue   retryqueue.Config
 }
 
 type ApplyMode int

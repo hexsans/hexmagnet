@@ -27,6 +27,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/dht/responder"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/tmdb"
@@ -96,6 +97,7 @@ func New() fx.Option {
 							BlockingManager:      bm,
 							Producer:             p.Producer,
 							Logger:               p.Logger,
+							RetryQueueSvc:        p.RetryQueue,
 							ServerCfg:            p.ServerCfg,
 							DhtCfg:               p.DhtCfg,
 							ClassifierCfg:        p.ClassifierCfg,
@@ -106,6 +108,7 @@ func New() fx.Option {
 							DHTRequesterCfg:      p.DHTRequesterCfg,
 							TorznabCfg:           p.TorznabCfg,
 							WebhooksCfg:          p.WebhooksCfg,
+							RetryQueueCfg:        p.RetryQueueCfg,
 							ConfigManager:        p.ConfigManager,
 							DhtCrawlerRuntime:    p.DhtCrawlerRuntime,
 							LogManager:           p.LogManager,
@@ -361,6 +364,8 @@ type Params struct {
 	DHTRequesterCfg   metainforequester.Config
 	TorznabCfg        torznab.Config
 	WebhooksCfg       webhook.Config
+	RetryQueueCfg     retryqueue.Config
+	RetryQueue        *retryqueue.Queue
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime `name:"dht_crawler_runtime" optional:"true"`
 	LogManager        *logging.Manager    `optional:"true"`

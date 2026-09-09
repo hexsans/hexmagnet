@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/model"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 // Event is the payload delivered to every configured webhook URL.
@@ -69,17 +70,17 @@ func NewClassifiedEvent(t model.Torrent) Event {
 	}
 
 	if t.Seeders.Valid {
-		s := int32(t.Seeders.Uint)
+		s := utils.ClampInt32(t.Seeders.Uint)
 		e.Seeders = &s
 	}
 
 	if t.Leechers.Valid {
-		l := int32(t.Leechers.Uint)
+		l := utils.ClampInt32(t.Leechers.Uint)
 		e.Leechers = &l
 	}
 
 	if t.FilesCount.Valid {
-		f := int32(t.FilesCount.Uint)
+		f := utils.ClampInt32(t.FilesCount.Uint)
 		e.FilesCount = &f
 	}
 

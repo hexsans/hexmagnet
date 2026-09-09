@@ -14,6 +14,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/hexsans/hexmagnet/internal/search"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -564,8 +565,8 @@ func (s *ESearch) TorrentsWithMissingInfoHashes(
 func (s *ESearch) TorrentFiles(ctx context.Context, params search.TorrentFilesSearchParams) (search.TorrentFilesResult, error) {
 	result := search.TorrentFilesResult{Items: []db.TorrentFile{}}
 
-	limit := int32(params.Limit)
-	offset := int32(params.Offset)
+	limit := utils.ClampInt32(params.Limit)
+	offset := utils.ClampInt32(params.Offset)
 
 	if limit > 0 {
 		rows, err := s.q.ListTorrentFilesPaginated(ctx, db.ListTorrentFilesPaginatedParams{
@@ -691,21 +692,21 @@ func hitToRow(src json.RawMessage) (search.TorrentSearchRow, error) {
 	var seeders *int32
 
 	if doc.Seeders != nil {
-		v := int32(*doc.Seeders)
+		v := utils.ClampInt32(*doc.Seeders)
 		seeders = &v
 	}
 
 	var leechers *int32
 
 	if doc.Leechers != nil {
-		v := int32(*doc.Leechers)
+		v := utils.ClampInt32(*doc.Leechers)
 		leechers = &v
 	}
 
 	var filesCount *int32
 
 	if doc.FilesCount != nil {
-		v := int32(*doc.FilesCount)
+		v := utils.ClampInt32(*doc.FilesCount)
 		filesCount = &v
 	}
 

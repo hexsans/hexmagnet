@@ -37,6 +37,7 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
 	QueueMetricsBucket() QueueMetricsBucketResolver
+	RetryQueueMutation() RetryQueueMutationResolver
 	TorrentMutation() TorrentMutationResolver
 	TorrentQuery() TorrentQueryResolver
 }
@@ -180,6 +181,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		RetryQueue   func(childComplexity int) int
 		Torrent      func(childComplexity int) int
 		UpdateConfig func(childComplexity int, input gen.ConfigInput) int
 	}
@@ -204,6 +206,7 @@ type ComplexityRoot struct {
 		Health        func(childComplexity int) int
 		Queue         func(childComplexity int) int
 		ReindexStatus func(childComplexity int) int
+		RetryQueue    func(childComplexity int) int
 		Torrent       func(childComplexity int) int
 		TorrentSearch func(childComplexity int) int
 		Version       func(childComplexity int) int
@@ -270,6 +273,29 @@ type ComplexityRoot struct {
 		IsEstimate func(childComplexity int) int
 		Label      func(childComplexity int) int
 		Value      func(childComplexity int) int
+	}
+
+	RetryQueueEntriesResult struct {
+		Items func(childComplexity int) int
+		Total func(childComplexity int) int
+	}
+
+	RetryQueueEntry struct {
+		FailCount     func(childComplexity int) int
+		InfoHash      func(childComplexity int) int
+		LastError     func(childComplexity int) int
+		LastFailureAt func(childComplexity int) int
+		NextRetryAt   func(childComplexity int) int
+		Stage         func(childComplexity int) int
+	}
+
+	RetryQueueMutation struct {
+		Clear func(childComplexity int) int
+		Retry func(childComplexity int, infoHash protocol.ID) int
+	}
+
+	RetryQueueQuery struct {
+		Entries func(childComplexity int, input gen.RetryQueueEntriesInput) int
 	}
 
 	SearchConfig struct {
@@ -467,6 +493,7 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	Torrent(ctx context.Context) (gqlmodel.TorrentMutation, error)
+	RetryQueue(ctx context.Context) (gqlmodel.RetryQueueMutation, error)
 	UpdateConfig(ctx context.Context, input gen.ConfigInput) (gen.Config, error)
 }
 type QueryResolver interface {
@@ -476,12 +503,16 @@ type QueryResolver interface {
 	Torrent(ctx context.Context) (gqlmodel.TorrentQuery, error)
 	TorrentSearch(ctx context.Context) (gqlmodel.TorrentSearchQuery, error)
 	Queue(ctx context.Context) (gqlmodel.QueueQuery, error)
+	RetryQueue(ctx context.Context) (gqlmodel.RetryQueueQuery, error)
 	ReindexStatus(ctx context.Context) (gen.ReindexProgress, error)
 	Config(ctx context.Context) (gen.Config, error)
 	DhtCrawler(ctx context.Context) (gqlmodel.DhtCrawlerStatus, error)
 }
 type QueueMetricsBucketResolver interface {
 	Status(ctx context.Context, obj *queuemetrics.Bucket) (gen.QueueJobStatus, error)
+}
+type RetryQueueMutationResolver interface {
+	Clear(ctx context.Context, obj *gqlmodel.RetryQueueMutation) (*string, error)
 }
 type TorrentMutationResolver interface {
 	Reprocess(ctx context.Context, obj *gqlmodel.TorrentMutation, input gen.TorrentReprocessInput) (*string, error)
@@ -1007,6 +1038,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.LanguageInfo.Name(childComplexity), true
 
+	case "Mutation.retryQueue":
+		if e.ComplexityRoot.Mutation.RetryQueue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.RetryQueue(childComplexity), true
 	case "Mutation.torrent":
 		if e.ComplexityRoot.Mutation.Torrent == nil {
 			break
@@ -1123,6 +1160,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ReindexStatus(childComplexity), true
+	case "Query.retryQueue":
+		if e.ComplexityRoot.Query.RetryQueue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.RetryQueue(childComplexity), true
 	case "Query.torrent":
 		if e.ComplexityRoot.Query.Torrent == nil {
 			break
@@ -1359,6 +1402,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ReleaseYearAgg.Value(childComplexity), true
+
+	case "RetryQueueEntriesResult.items":
+		if e.ComplexityRoot.RetryQueueEntriesResult.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntriesResult.Items(childComplexity), true
+	case "RetryQueueEntriesResult.total":
+		if e.ComplexityRoot.RetryQueueEntriesResult.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntriesResult.Total(childComplexity), true
+
+	case "RetryQueueEntry.failCount":
+		if e.ComplexityRoot.RetryQueueEntry.FailCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.FailCount(childComplexity), true
+	case "RetryQueueEntry.infoHash":
+		if e.ComplexityRoot.RetryQueueEntry.InfoHash == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.InfoHash(childComplexity), true
+	case "RetryQueueEntry.lastError":
+		if e.ComplexityRoot.RetryQueueEntry.LastError == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.LastError(childComplexity), true
+	case "RetryQueueEntry.lastFailureAt":
+		if e.ComplexityRoot.RetryQueueEntry.LastFailureAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.LastFailureAt(childComplexity), true
+	case "RetryQueueEntry.nextRetryAt":
+		if e.ComplexityRoot.RetryQueueEntry.NextRetryAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.NextRetryAt(childComplexity), true
+	case "RetryQueueEntry.stage":
+		if e.ComplexityRoot.RetryQueueEntry.Stage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueEntry.Stage(childComplexity), true
+
+	case "RetryQueueMutation.clear":
+		if e.ComplexityRoot.RetryQueueMutation.Clear == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RetryQueueMutation.Clear(childComplexity), true
+	case "RetryQueueMutation.retry":
+		if e.ComplexityRoot.RetryQueueMutation.Retry == nil {
+			break
+		}
+
+		args, err := ec.field_RetryQueueMutation_retry_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.RetryQueueMutation.Retry(childComplexity, args["infoHash"].(protocol.ID)), true
+
+	case "RetryQueueQuery.entries":
+		if e.ComplexityRoot.RetryQueueQuery.Entries == nil {
+			break
+		}
+
+		args, err := ec.field_RetryQueueQuery_entries_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.RetryQueueQuery.Entries(childComplexity, args["input"].(gen.RetryQueueEntriesInput)), true
 
 	case "SearchConfig.backend":
 		if e.ComplexityRoot.SearchConfig.Backend == nil {
@@ -2092,6 +2215,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputQueueJobsQueryInput,
 		ec.unmarshalInputQueueMetricsQueryInput,
 		ec.unmarshalInputReleaseYearFacetInput,
+		ec.unmarshalInputRetryQueueEntriesInput,
 		ec.unmarshalInputSearchConfigInput,
 		ec.unmarshalInputServerConfigInput,
 		ec.unmarshalInputServerFileRotatorConfigInput,
@@ -2749,6 +2873,7 @@ type Content {
 `, BuiltIn: false},
 	{Name: "../../graphql/schema/mutation.graphqls", Input: `type Mutation {
   torrent: TorrentMutation!
+  retryQueue: RetryQueueMutation!
 }
 
 type TorrentMutation {
@@ -2777,6 +2902,7 @@ type ReindexProgress {
   torrent: TorrentQuery!
   torrentSearch: TorrentSearchQuery!
   queue: QueueQuery!
+  retryQueue: RetryQueueQuery!
   reindexStatus: ReindexProgress!
 }
 
@@ -2902,6 +3028,34 @@ type QueueQuery {
 }
 
 
+`, BuiltIn: false},
+	{Name: "../../graphql/schema/retry_queue.graphqls", Input: `type RetryQueueQuery {
+  entries(input: RetryQueueEntriesInput): RetryQueueEntriesResult!
+}
+
+input RetryQueueEntriesInput {
+  limit: Int
+  offset: Int
+}
+
+type RetryQueueEntry {
+  infoHash: Hash20!
+  stage: String!
+  failCount: Int!
+  lastError: String!
+  lastFailureAt: DateTime!
+  nextRetryAt: DateTime!
+}
+
+type RetryQueueEntriesResult {
+  total: Uint64!
+  items: [RetryQueueEntry!]!
+}
+
+type RetryQueueMutation {
+  retry(infoHash: Hash20!): Boolean!
+  clear: Void
+}
 `, BuiltIn: false},
 	{Name: "../../graphql/schema/scalars.graphqls", Input: `scalar Hash20
 scalar Date
@@ -3478,6 +3632,52 @@ func (ec *executionContext) childFields_ReleaseYearAgg(ctx context.Context, fiel
 	return nil, fmt.Errorf("no field named %q was found under type ReleaseYearAgg", field.Name)
 }
 
+func (ec *executionContext) childFields_RetryQueueEntriesResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "total":
+		return ec.fieldContext_RetryQueueEntriesResult_total(ctx, field)
+	case "items":
+		return ec.fieldContext_RetryQueueEntriesResult_items(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RetryQueueEntriesResult", field.Name)
+}
+
+func (ec *executionContext) childFields_RetryQueueEntry(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "infoHash":
+		return ec.fieldContext_RetryQueueEntry_infoHash(ctx, field)
+	case "stage":
+		return ec.fieldContext_RetryQueueEntry_stage(ctx, field)
+	case "failCount":
+		return ec.fieldContext_RetryQueueEntry_failCount(ctx, field)
+	case "lastError":
+		return ec.fieldContext_RetryQueueEntry_lastError(ctx, field)
+	case "lastFailureAt":
+		return ec.fieldContext_RetryQueueEntry_lastFailureAt(ctx, field)
+	case "nextRetryAt":
+		return ec.fieldContext_RetryQueueEntry_nextRetryAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RetryQueueEntry", field.Name)
+}
+
+func (ec *executionContext) childFields_RetryQueueMutation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "retry":
+		return ec.fieldContext_RetryQueueMutation_retry(ctx, field)
+	case "clear":
+		return ec.fieldContext_RetryQueueMutation_clear(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RetryQueueMutation", field.Name)
+}
+
+func (ec *executionContext) childFields_RetryQueueQuery(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "entries":
+		return ec.fieldContext_RetryQueueQuery_entries(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RetryQueueQuery", field.Name)
+}
+
 func (ec *executionContext) childFields_SearchConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "backend":
@@ -4018,6 +4218,34 @@ func (ec *executionContext) field_QueueQuery_metrics_args(ctx context.Context, r
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (gen.QueueMetricsQueryInput, error) {
 			return ec.unmarshalNQueueMetricsQueryInput2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐQueueMetricsQueryInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_RetryQueueMutation_retry_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "infoHash",
+		func(ctx context.Context, v any) (protocol.ID, error) {
+			return ec.unmarshalNHash202githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋprotocolᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["infoHash"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_RetryQueueQuery_entries_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (gen.RetryQueueEntriesInput, error) {
+			return ec.unmarshalORetryQueueEntriesInput2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntriesInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6149,6 +6377,38 @@ func (ec *executionContext) fieldContext_Mutation_torrent(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_retryQueue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_retryQueue(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().RetryQueue(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gqlmodel.RetryQueueMutation) graphql.Marshaler {
+			return ec.marshalNRetryQueueMutation2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚐRetryQueueMutation(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_retryQueue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RetryQueueMutation(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6624,6 +6884,38 @@ func (ec *executionContext) fieldContext_Query_queue(_ context.Context, field gr
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_QueueQuery(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_retryQueue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_retryQueue(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().RetryQueue(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gqlmodel.RetryQueueQuery) graphql.Marshaler {
+			return ec.marshalNRetryQueueQuery2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚐRetryQueueQuery(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_retryQueue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RetryQueueQuery(ctx, field)
 		},
 	}
 	return fc, nil
@@ -7622,6 +7914,310 @@ func (ec *executionContext) _ReleaseYearAgg_isEstimate(ctx context.Context, fiel
 }
 func (ec *executionContext) fieldContext_ReleaseYearAgg_isEstimate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ReleaseYearAgg", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntriesResult_total(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntriesResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntriesResult_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntriesResult_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntriesResult", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntriesResult_items(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntriesResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntriesResult_items(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []gen.RetryQueueEntry) graphql.Marshaler {
+			return ec.marshalNRetryQueueEntry2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntryᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntriesResult_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RetryQueueEntriesResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RetryQueueEntry(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RetryQueueEntry_infoHash(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_infoHash(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InfoHash, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v protocol.ID) graphql.Marshaler {
+			return ec.marshalNHash202githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋprotocolᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_infoHash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type Hash20 does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntry_stage(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_stage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stage, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_stage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntry_failCount(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_failCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FailCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_failCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntry_lastError(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_lastError(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastError, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_lastError(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntry_lastFailureAt(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_lastFailureAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastFailureAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDateTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_lastFailureAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueEntry_nextRetryAt(ctx context.Context, field graphql.CollectedField, obj *gen.RetryQueueEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueEntry_nextRetryAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.NextRetryAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDateTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueEntry_nextRetryAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueEntry", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueMutation_retry(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.RetryQueueMutation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueMutation_retry(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return obj.Retry(ctx, fc.Args["infoHash"].(protocol.ID))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueMutation_retry(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RetryQueueMutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_RetryQueueMutation_retry_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RetryQueueMutation_clear(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.RetryQueueMutation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueMutation_clear(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.RetryQueueMutation().Clear(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOVoid2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueMutation_clear(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RetryQueueMutation", field, true, true, errors.New("field of type Void does not have child fields"))
+}
+
+func (ec *executionContext) _RetryQueueQuery_entries(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.RetryQueueQuery) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RetryQueueQuery_entries(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return obj.Entries(ctx, fc.Args["input"].(gen.RetryQueueEntriesInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.RetryQueueEntriesResult) graphql.Marshaler {
+			return ec.marshalNRetryQueueEntriesResult2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntriesResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RetryQueueQuery_entries(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RetryQueueQuery",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RetryQueueEntriesResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_RetryQueueQuery_entries_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _SearchConfig_backend(ctx context.Context, field graphql.CollectedField, obj *gen.SearchConfig) (ret graphql.Marshaler) {
@@ -12408,6 +13004,43 @@ func (ec *executionContext) unmarshalInputReleaseYearFacetInput(ctx context.Cont
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputRetryQueueEntriesInput(ctx context.Context, obj any) (gen.RetryQueueEntriesInput, error) {
+	var it gen.RetryQueueEntriesInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"limit", "offset"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "limit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Limit = graphql.OmittableOf(data)
+		case "offset":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Offset = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputSearchConfigInput(ctx context.Context, obj any) (gen.SearchConfigInput, error) {
 	var it gen.SearchConfigInput
 	if obj == nil {
@@ -14690,6 +15323,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "retryQueue":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_retryQueue(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateConfig":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateConfig(ctx, field)
@@ -14946,6 +15586,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_queue(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "retryQueue":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_retryQueue(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -15627,6 +16289,292 @@ func (ec *executionContext) _ReleaseYearAgg(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var retryQueueEntriesResultImplementors = []string{"RetryQueueEntriesResult"}
+
+func (ec *executionContext) _RetryQueueEntriesResult(ctx context.Context, sel ast.SelectionSet, obj *gen.RetryQueueEntriesResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, retryQueueEntriesResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RetryQueueEntriesResult")
+		case "total":
+			out.Values[i] = ec._RetryQueueEntriesResult_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "items":
+			out.Values[i] = ec._RetryQueueEntriesResult_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var retryQueueEntryImplementors = []string{"RetryQueueEntry"}
+
+func (ec *executionContext) _RetryQueueEntry(ctx context.Context, sel ast.SelectionSet, obj *gen.RetryQueueEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, retryQueueEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RetryQueueEntry")
+		case "infoHash":
+			out.Values[i] = ec._RetryQueueEntry_infoHash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stage":
+			out.Values[i] = ec._RetryQueueEntry_stage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failCount":
+			out.Values[i] = ec._RetryQueueEntry_failCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastError":
+			out.Values[i] = ec._RetryQueueEntry_lastError(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastFailureAt":
+			out.Values[i] = ec._RetryQueueEntry_lastFailureAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nextRetryAt":
+			out.Values[i] = ec._RetryQueueEntry_nextRetryAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var retryQueueMutationImplementors = []string{"RetryQueueMutation"}
+
+func (ec *executionContext) _RetryQueueMutation(ctx context.Context, sel ast.SelectionSet, obj *gqlmodel.RetryQueueMutation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, retryQueueMutationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RetryQueueMutation")
+		case "retry":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._RetryQueueMutation_retry(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "clear":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._RetryQueueMutation_clear(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var retryQueueQueryImplementors = []string{"RetryQueueQuery"}
+
+func (ec *executionContext) _RetryQueueQuery(ctx context.Context, sel ast.SelectionSet, obj *gqlmodel.RetryQueueQuery) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, retryQueueQueryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RetryQueueQuery")
+		case "entries":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._RetryQueueQuery_entries(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -18047,6 +18995,38 @@ func (ec *executionContext) marshalNReleaseYearAgg2githubᚗcomᚋhexsansᚋhexm
 	return ec._ReleaseYearAgg(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNRetryQueueEntriesResult2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntriesResult(ctx context.Context, sel ast.SelectionSet, v gen.RetryQueueEntriesResult) graphql.Marshaler {
+	return ec._RetryQueueEntriesResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRetryQueueEntry2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntry(ctx context.Context, sel ast.SelectionSet, v gen.RetryQueueEntry) graphql.Marshaler {
+	return ec._RetryQueueEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRetryQueueEntry2ᚕgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []gen.RetryQueueEntry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRetryQueueEntry2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRetryQueueMutation2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚐRetryQueueMutation(ctx context.Context, sel ast.SelectionSet, v gqlmodel.RetryQueueMutation) graphql.Marshaler {
+	return ec._RetryQueueMutation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRetryQueueQuery2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚐRetryQueueQuery(ctx context.Context, sel ast.SelectionSet, v gqlmodel.RetryQueueQuery) graphql.Marshaler {
+	return ec._RetryQueueQuery(ctx, sel, &v)
+}
+
 func (ec *executionContext) marshalNSearchConfig2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐSearchConfig(ctx context.Context, sel ast.SelectionSet, v gen.SearchConfig) graphql.Marshaler {
 	return ec._SearchConfig(ctx, sel, &v)
 }
@@ -19106,6 +20086,11 @@ func (ec *executionContext) unmarshalOReleaseYearFacetInput2ᚖgithubᚗcomᚋhe
 	}
 	res, err := ec.unmarshalInputReleaseYearFacetInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalORetryQueueEntriesInput2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐRetryQueueEntriesInput(ctx context.Context, v any) (gen.RetryQueueEntriesInput, error) {
+	res, err := ec.unmarshalInputRetryQueueEntriesInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOSearchConfigInput2ᚖgithubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐSearchConfigInput(ctx context.Context, v any) (*gen.SearchConfigInput, error) {

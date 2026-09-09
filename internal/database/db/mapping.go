@@ -7,6 +7,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/database/fts"
 	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -41,7 +42,7 @@ func fromNullUint(v model.NullUint) *int32 {
 		return nil
 	}
 
-	i := int32(v.Uint)
+	i := utils.ClampInt32(v.Uint)
 
 	return &i
 }

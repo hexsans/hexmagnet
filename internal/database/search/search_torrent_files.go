@@ -6,13 +6,14 @@ import (
 
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	search "github.com/hexsans/hexmagnet/internal/search"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 func (s *pgSearch) TorrentFiles(ctx context.Context, params search.TorrentFilesSearchParams) (search.TorrentFilesResult, error) {
 	result := search.TorrentFilesResult{Items: []db.TorrentFile{}}
 
-	limit := int32(params.Limit)
-	offset := int32(params.Offset)
+	limit := utils.ClampInt32(params.Limit)
+	offset := utils.ClampInt32(params.Offset)
 
 	if limit > 0 {
 		rows, err := s.q.ListTorrentFilesPaginated(ctx, db.ListTorrentFilesPaginatedParams{

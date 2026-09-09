@@ -20,6 +20,11 @@ func (r *mutationResolver) Torrent(ctx context.Context) (gqlmodel.TorrentMutatio
 	return gqlmodel.TorrentMutation{DB: r.DB, ESClient: r.ES(), Embedder: r.EM()}, nil
 }
 
+// RetryQueue is the resolver for the retryQueue field.
+func (r *mutationResolver) RetryQueue(ctx context.Context) (gqlmodel.RetryQueueMutation, error) {
+	return gqlmodel.RetryQueueMutation{Queue: r.RetryQueueSvc}, nil
+}
+
 // Reprocess is the resolver for the reprocess field.
 func (r *torrentMutationResolver) Reprocess(ctx context.Context, obj *gqlmodel.TorrentMutation, input gen.TorrentReprocessInput) (*string, error) {
 	params := processor.MessageParams{

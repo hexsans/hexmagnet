@@ -27,6 +27,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainfofx"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	search "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/search/searchfx"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
@@ -81,6 +82,20 @@ func New(queueCfg queue.Config) fx.Option {
 			cm.Subscribe(context.Background(), "webhooks",
 				func(_ context.Context, snap *configmgr.Snapshot) error {
 					publisher.Update(snap.Webhooks)
+					return nil
+				}, configmgr.ApplyAsync)
+		}),
+		fx.Invoke(func(
+			retryQueue *retryqueue.Queue,
+			cm *configmgr.Manager,
+		) {
+			if cm == nil {
+				return
+			}
+
+			cm.Subscribe(context.Background(), "retry_queue",
+				func(_ context.Context, snap *configmgr.Snapshot) error {
+					retryQueue.UpdateConfig(snap.RetryQueue)
 					return nil
 				}, configmgr.ApplyAsync)
 		}),
@@ -166,6 +181,7 @@ func newConfigManager(
 	dhtRequesterCfg metainforequester.Config,
 	torznabCfg torznab.Config,
 	webhooksCfg webhook.Config,
+	retryQueueCfg retryqueue.Config,
 ) *configmgr.Manager {
 	initial := &configmgr.Snapshot{
 		DHTRequester: dhtRequesterCfg,
@@ -177,6 +193,7 @@ func newConfigManager(
 		Search:       searchCfg,
 		Torznab:      torznabCfg,
 		Webhooks:     webhooksCfg,
+		RetryQueue:   retryQueueCfg,
 	}
 
 	return configmgr.NewManager(initial, "./hexmagnet.yaml",

@@ -4,6 +4,7 @@ import (
 	"net/netip"
 
 	"github.com/hexsans/hexmagnet/internal/protocol"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 type ID = protocol.ID
@@ -35,7 +36,7 @@ func (m RecvMsg) AnnouncePort() uint16 {
 	if args != nil && !args.ImpliedPort {
 		argsPort := args.Port
 		if argsPort != nil {
-			port = uint16(*argsPort)
+			port = utils.ClampUint16(*argsPort)
 		}
 	}
 

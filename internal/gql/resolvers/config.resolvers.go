@@ -166,6 +166,7 @@ func (r *mutationResolver) UpdateConfig(ctx context.Context, input gen.ConfigInp
 			Search:       r.SearchCfg,
 			Torznab:      r.TorznabCfg,
 			Webhooks:     r.WebhooksCfg,
+			RetryQueue:   r.RetryQueueCfg,
 		}
 		if err := r.ConfigManager.Apply(ctx, snap); err != nil {
 			r.Logger.Warnw("failed to apply config update", "error", err)

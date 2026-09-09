@@ -13,6 +13,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/queue"
+	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 	"github.com/hexsans/hexmagnet/internal/torznab"
 	"github.com/hexsans/hexmagnet/internal/webhook"
@@ -42,6 +43,7 @@ func New() *fx.App {
 		config.SpecEntry{Key: "dht.requester", DefaultValue: metainforequester.NewDefaultConfig()},
 		config.SpecEntry{Key: "torznab", DefaultValue: torznab.NewDefaultConfig()},
 		config.SpecEntry{Key: "webhooks", DefaultValue: webhook.NewDefaultConfig()},
+		config.SpecEntry{Key: "retry_queue", DefaultValue: retryqueue.NewDefaultConfig()},
 	)
 	if err != nil {
 		return fx.New(fx.Error(fmt.Errorf("config error: %w", err)))
@@ -59,6 +61,7 @@ func New() *fx.App {
 		fx.Supply(resolved.Resolved.NodeMap["dht.requester"].Value.(metainforequester.Config)),
 		fx.Supply(resolved.Resolved.NodeMap["torznab"].Value.(torznab.Config)),
 		fx.Supply(resolved.Resolved.NodeMap["webhooks"].Value.(webhook.Config)),
+		fx.Supply(resolved.Resolved.NodeMap["retry_queue"].Value.(retryqueue.Config)),
 		fx.Supply(*resolved.Resolved),
 		appfx.New(resolved.Resolved.NodeMap["storage.queue"].Value.(queue.Config)),
 		logging.WithLogger(),

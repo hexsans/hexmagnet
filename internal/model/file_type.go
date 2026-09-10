@@ -1,5 +1,7 @@
 package model
 
+import "sort"
+
 // FileType represents the general type of a file
 /* ENUM(
   archive,
@@ -114,4 +116,19 @@ func FileTypeFromExtension(ext string) NullFileType {
 	}
 
 	return NullFileType{}
+}
+
+// Extensions returns the known file extensions mapped to this file type, sorted.
+func (f FileType) Extensions() []string {
+	exts := make([]string, 0, len(extensionToFileTypeMap))
+
+	for ext, ft := range extensionToFileTypeMap {
+		if ft == f {
+			exts = append(exts, ext)
+		}
+	}
+
+	sort.Strings(exts)
+
+	return exts
 }

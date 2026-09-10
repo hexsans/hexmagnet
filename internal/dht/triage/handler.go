@@ -99,9 +99,10 @@ func (h *handler) HandleTriage(ctx context.Context, msg dht.DiscoveredHash) (Res
 
 	row := q.Read(ctx).QueryRow(ctx, `
 		SELECT t.files_count,
-			COALESCE(t.seeders, 0), COALESCE(t.leechers, 0),
+			COALESCE(s.seeders, 0), COALESCE(s.leechers, 0),
 			t.updated_at
 		FROM torrents t
+		LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
 		WHERE t.info_hash = $1
 	`, db.FromProtocolID(id))
 

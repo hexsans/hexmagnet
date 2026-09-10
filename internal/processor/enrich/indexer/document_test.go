@@ -155,6 +155,25 @@ func TestNewDocument_WithFiles(t *testing.T) {
 	assert.Equal(t, []string{"video.mp4"}, doc.Files[0].PathParts)
 	assert.Equal(t, "mp4", doc.Files[0].Extension)
 	assert.Equal(t, uint64(500), doc.Files[0].Size)
+	assert.Equal(t, []string{"video", "subtitles"}, doc.FileTypes)
+}
+
+func TestNewDocument_FileTypesDeduplicated(t *testing.T) {
+	t.Parallel()
+
+	torrent := model.Torrent{
+		InfoHash: testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		Files: []model.TorrentFile{
+			{PathParts: []string{"a.mkv"}, Extension: model.NewNullString("mkv"), Size: 1},
+			{PathParts: []string{"b.mp4"}, Extension: model.NewNullString("mp4"), Size: 1},
+			{PathParts: []string{"c.mp3"}, Extension: model.NewNullString("mp3"), Size: 1},
+			{PathParts: []string{"d.unknownext"}, Extension: model.NewNullString("unknownext"), Size: 1},
+			{PathParts: []string{"e.srt"}, Extension: model.NewNullString("srt"), Size: 1},
+		},
+	}
+
+	doc := NewDocument(torrent)
+	assert.Equal(t, []string{"video", "audio", "subtitles"}, doc.FileTypes)
 }
 
 func TestIndexMapping_ValidJSON(t *testing.T) {
@@ -259,7 +278,7 @@ func TestBuildSearchText_WithContentMetadata(t *testing.T) {
 		ReleaseYear: &year,
 	}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Contains(t, result, "Fake Movie Title")
 	assert.Contains(t, result, "movie")
 	assert.Contains(t, result, "2023")
@@ -274,7 +293,7 @@ func TestBuildSearchText_RawNameOnly(t *testing.T) {
 		Name: "Placeholder.Name.2024.1080p.WEB-DL.AAC2.0.x264-FAKEGROUP.mkv",
 	}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Contains(t, result, "Placeholder.Name.2024.1080p.WEB-DL.AAC2.0.x264-FAKEGROUP")
 	assert.NotContains(t, result, ".mkv")
 }
@@ -287,7 +306,7 @@ func TestBuildSearchText_TitleSameAsName(t *testing.T) {
 		Title: "Nonsense Title",
 	}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Contains(t, result, "Nonsense Title")
 	lines := strings.Count(result, "Nonsense Title")
 	assert.LessOrEqual(t, lines, 2)
@@ -305,7 +324,7 @@ func TestBuildSearchText_WithFiles(t *testing.T) {
 		},
 	}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Contains(t, result, "Fictional Bundle")
 	assert.Contains(t, result, "feature")
 	assert.Contains(t, result, "en")
@@ -316,7 +335,7 @@ func TestBuildSearchText_NoNameNoTitle(t *testing.T) {
 
 	doc := TorrentContentDocument{}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Empty(t, result)
 }
 
@@ -327,7 +346,7 @@ func TestBuildSearchText_CleanedName(t *testing.T) {
 		Name: "[Foo.Bar.Baz] Totally Fake Show (2023) [1080p] [BluRay] [5.1] [FAKEGRP].mp4",
 	}
 
-	result := BuildSearchText(doc)
+	result := BuildSearchText(doc, 30)
 	assert.Contains(t, result, "Totally Fake Show")
 	assert.NotContains(t, result, "[Foo.Bar.Baz]")
 	assert.NotContains(t, result, "[FAKEGRP]")

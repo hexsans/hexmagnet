@@ -448,7 +448,6 @@ type TorrentReprocessInput struct {
 
 type TorrentSearchAggregations struct {
 	ContentType     []ContentTypeAgg     `json:"contentType,omitempty"`
-	TorrentSource   []TorrentSourceAgg   `json:"torrentSource,omitempty"`
 	TorrentFileType []TorrentFileTypeAgg `json:"torrentFileType,omitempty"`
 	Language        []LanguageAgg        `json:"language,omitempty"`
 	ReleaseYear     []ReleaseYearAgg     `json:"releaseYear,omitempty"`
@@ -456,7 +455,6 @@ type TorrentSearchAggregations struct {
 
 type TorrentSearchFacetsInput struct {
 	ContentType     graphql.Omittable[*ContentTypeFacetInput]     `json:"contentType,omitempty"`
-	TorrentSource   graphql.Omittable[*TorrentSourceFacetInput]   `json:"torrentSource,omitempty"`
 	TorrentFileType graphql.Omittable[*TorrentFileTypeFacetInput] `json:"torrentFileType,omitempty"`
 	Language        graphql.Omittable[*LanguageFacetInput]        `json:"language,omitempty"`
 	ReleaseYear     graphql.Omittable[*ReleaseYearFacetInput]     `json:"releaseYear,omitempty"`
@@ -465,19 +463,6 @@ type TorrentSearchFacetsInput struct {
 type TorrentSearchOrderByInput struct {
 	Field     TorrentSearchOrderByField `json:"field"`
 	Direction SortDirection             `json:"direction"`
-}
-
-type TorrentSourceAgg struct {
-	Value      string `json:"value"`
-	Label      string `json:"label"`
-	Count      int    `json:"count"`
-	IsEstimate bool   `json:"isEstimate"`
-}
-
-type TorrentSourceFacetInput struct {
-	Aggregate graphql.Omittable[*bool]             `json:"aggregate,omitempty"`
-	Logic     graphql.Omittable[*model.FacetLogic] `json:"logic,omitempty"`
-	Filter    graphql.Omittable[[]string]          `json:"filter,omitempty"`
 }
 
 type TorznabConfig struct {

@@ -35,7 +35,7 @@ func TestBuildTorrentContentOrderBy_SingleFieldDesc(t *testing.T) {
 			{Field: search.FieldSeeders, Direction: search.SortDesc},
 		},
 	}, &[]any{}, new(int))
-	require.Equal(t, "ORDER BY COALESCE(t.seeders, -1) DESC, t.info_hash DESC", result)
+	require.Equal(t, "ORDER BY COALESCE(s.seeders, -1) DESC, t.info_hash DESC", result)
 }
 
 func TestBuildTorrentContentOrderBy_SingleFieldAsc(t *testing.T) {
@@ -58,7 +58,7 @@ func TestBuildTorrentContentOrderBy_MultipleFields(t *testing.T) {
 			{Field: search.FieldSize, Direction: search.SortDesc},
 		},
 	}, &[]any{}, new(int))
-	require.Equal(t, "ORDER BY COALESCE(t.seeders, -1) DESC, t.size DESC, t.info_hash DESC", result)
+	require.Equal(t, "ORDER BY COALESCE(s.seeders, -1) DESC, t.size DESC, t.info_hash DESC", result)
 }
 
 func TestBuildTorrentContentOrderBy_MultipleFieldsMixedDir(t *testing.T) {
@@ -83,7 +83,7 @@ func TestBuildTorrentContentOrderBy_ThreeFields(t *testing.T) {
 			{Field: search.FieldSize, Direction: search.SortAsc},
 		},
 	}, &[]any{}, new(int))
-	require.Equal(t, "ORDER BY COALESCE(t.seeders, -1) DESC, COALESCE(t.leechers, -1) DESC, t.size ASC, t.info_hash ASC", result)
+	require.Equal(t, "ORDER BY COALESCE(s.seeders, -1) DESC, COALESCE(s.leechers, -1) DESC, t.size ASC, t.info_hash ASC", result)
 }
 
 func TestBuildTorrentContentOrderBy_RelevanceWithQuery(t *testing.T) {
@@ -122,7 +122,7 @@ func TestBuildTorrentContentOrderBy_RelevanceSkippedFallbackToNext(t *testing.T)
 			{Field: search.FieldSeeders, Direction: search.SortDesc},
 		},
 	}, &[]any{}, new(int))
-	require.Equal(t, "ORDER BY t.created_at DESC, COALESCE(t.seeders, -1) DESC, t.info_hash DESC", result)
+	require.Equal(t, "ORDER BY t.created_at DESC, COALESCE(s.seeders, -1) DESC, t.info_hash DESC", result)
 }
 
 func TestBuildTorrentContentOrderBy_AllFields(t *testing.T) {
@@ -137,8 +137,8 @@ func TestBuildTorrentContentOrderBy_AllFields(t *testing.T) {
 		{"updated_at", search.FieldUpdatedAt, "ORDER BY t.updated_at DESC, t.info_hash DESC"},
 		{"size", search.FieldSize, "ORDER BY t.size DESC, t.info_hash DESC"},
 		{"files_count", search.FieldFilesCount, "ORDER BY COALESCE(t.files_count, 0) DESC, t.info_hash DESC"},
-		{"seeders", search.FieldSeeders, "ORDER BY COALESCE(t.seeders, -1) DESC, t.info_hash DESC"},
-		{"leechers", search.FieldLeechers, "ORDER BY COALESCE(t.leechers, -1) DESC, t.info_hash DESC"},
+		{"seeders", search.FieldSeeders, "ORDER BY COALESCE(s.seeders, -1) DESC, t.info_hash DESC"},
+		{"leechers", search.FieldLeechers, "ORDER BY COALESCE(s.leechers, -1) DESC, t.info_hash DESC"},
 		{"name", search.FieldName, "ORDER BY t.name DESC, t.info_hash DESC"},
 		{"info_hash", search.FieldInfoHash, "ORDER BY t.info_hash DESC, t.info_hash DESC"},
 	}
@@ -169,7 +169,7 @@ func TestBuildTorrentContentOrderBy_AllFieldsMultiple(t *testing.T) {
 	}, &[]any{}, new(int))
 	require.Equal(
 		t,
-		"ORDER BY COALESCE(t.files_count, 0) DESC, COALESCE(t.leechers, -1) ASC, t.updated_at DESC, t.info_hash ASC, t.info_hash ASC",
+		"ORDER BY COALESCE(t.files_count, 0) DESC, COALESCE(s.leechers, -1) ASC, t.updated_at DESC, t.info_hash ASC, t.info_hash ASC",
 		result,
 	)
 }

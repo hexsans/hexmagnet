@@ -79,7 +79,7 @@ func TorrentFileToModel(tf TorrentFile) model.TorrentFile {
 	}
 }
 
-func TorrentToModel(t Torrent) model.Torrent {
+func TorrentToModel(t Torrent, seeders, leechers *int32) model.Torrent {
 	return model.Torrent{
 		InfoHash:      ToProtocolID(t.InfoHash),
 		Name:          t.Name,
@@ -91,8 +91,8 @@ func TorrentToModel(t Torrent) model.Torrent {
 		ContentID:     model.NewNullStringFromPtr(t.ContentID),
 		Languages:     languagesFromBytes(t.Languages),
 		Tsv:           parseTsv(t.Tsv),
-		Seeders:       toNullUint(t.Seeders),
-		Leechers:      toNullUint(t.Leechers),
+		Seeders:       toNullUint(seeders),
+		Leechers:      toNullUint(leechers),
 		CreatedAt:     t.CreatedAt.Time,
 		UpdatedAt:     t.UpdatedAt.Time,
 	}

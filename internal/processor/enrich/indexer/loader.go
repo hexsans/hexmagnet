@@ -15,7 +15,7 @@ func loadTorrent(ctx context.Context, q *db.Queries, infoHash protocol.ID) (*mod
 		return nil, fmt.Errorf("get torrent for %x: %w", infoHash, err)
 	}
 
-	t := db.TorrentToModel(raw)
+	t := db.TorrentToModel(raw.Torrent, raw.Seeders, raw.Leechers)
 
 	files, err := q.ListTorrentFiles(ctx, db.FromProtocolID(infoHash))
 	if err != nil {

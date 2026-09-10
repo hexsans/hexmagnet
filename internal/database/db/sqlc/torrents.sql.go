@@ -43,59 +43,77 @@ func (q *Queries) DeleteTorrent(ctx context.Context, infoHash string) error {
 }
 
 const GetTorrent = `-- name: GetTorrent :one
-SELECT info_hash, name, size, private, files_count, content_type, content_source, content_id, languages, tsv, seeders, leechers, created_at, updated_at FROM torrents WHERE info_hash = $1
+SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
+FROM torrents t
+LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
+WHERE t.info_hash = $1
 `
 
-func (q *Queries) GetTorrent(ctx context.Context, infoHash string) (Torrent, error) {
+type GetTorrentRow struct {
+	Torrent  Torrent
+	Seeders  *int32
+	Leechers *int32
+}
+
+func (q *Queries) GetTorrent(ctx context.Context, infoHash string) (GetTorrentRow, error) {
 	row := q.db.QueryRow(ctx, GetTorrent, infoHash)
-	var i Torrent
+	var i GetTorrentRow
 	err := row.Scan(
-		&i.InfoHash,
-		&i.Name,
-		&i.Size,
-		&i.Private,
-		&i.FilesCount,
-		&i.ContentType,
-		&i.ContentSource,
-		&i.ContentID,
-		&i.Languages,
-		&i.Tsv,
+		&i.Torrent.InfoHash,
+		&i.Torrent.Name,
+		&i.Torrent.Size,
+		&i.Torrent.Private,
+		&i.Torrent.FilesCount,
+		&i.Torrent.ContentType,
+		&i.Torrent.ContentSource,
+		&i.Torrent.ContentID,
+		&i.Torrent.Languages,
+		&i.Torrent.Tsv,
+		&i.Torrent.CreatedAt,
+		&i.Torrent.UpdatedAt,
 		&i.Seeders,
 		&i.Leechers,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const ListTorrentsByInfoHashes = `-- name: ListTorrentsByInfoHashes :many
-SELECT info_hash, name, size, private, files_count, content_type, content_source, content_id, languages, tsv, seeders, leechers, created_at, updated_at FROM torrents WHERE info_hash = ANY($1::text[])
+SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
+FROM torrents t
+LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
+WHERE t.info_hash = ANY($1::text[])
 `
 
-func (q *Queries) ListTorrentsByInfoHashes(ctx context.Context, dollar_1 []string) ([]Torrent, error) {
+type ListTorrentsByInfoHashesRow struct {
+	Torrent  Torrent
+	Seeders  *int32
+	Leechers *int32
+}
+
+func (q *Queries) ListTorrentsByInfoHashes(ctx context.Context, dollar_1 []string) ([]ListTorrentsByInfoHashesRow, error) {
 	rows, err := q.db.Query(ctx, ListTorrentsByInfoHashes, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Torrent
+	var items []ListTorrentsByInfoHashesRow
 	for rows.Next() {
-		var i Torrent
+		var i ListTorrentsByInfoHashesRow
 		if err := rows.Scan(
-			&i.InfoHash,
-			&i.Name,
-			&i.Size,
-			&i.Private,
-			&i.FilesCount,
-			&i.ContentType,
-			&i.ContentSource,
-			&i.ContentID,
-			&i.Languages,
-			&i.Tsv,
+			&i.Torrent.InfoHash,
+			&i.Torrent.Name,
+			&i.Torrent.Size,
+			&i.Torrent.Private,
+			&i.Torrent.FilesCount,
+			&i.Torrent.ContentType,
+			&i.Torrent.ContentSource,
+			&i.Torrent.ContentID,
+			&i.Torrent.Languages,
+			&i.Torrent.Tsv,
+			&i.Torrent.CreatedAt,
+			&i.Torrent.UpdatedAt,
 			&i.Seeders,
 			&i.Leechers,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -108,7 +126,10 @@ func (q *Queries) ListTorrentsByInfoHashes(ctx context.Context, dollar_1 []strin
 }
 
 const ListTorrentsPaginated = `-- name: ListTorrentsPaginated :many
-SELECT info_hash, name, size, private, files_count, content_type, content_source, content_id, languages, tsv, seeders, leechers, created_at, updated_at FROM torrents ORDER BY created_at LIMIT $1 OFFSET $2
+SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
+FROM torrents t
+LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
+ORDER BY t.created_at LIMIT $1 OFFSET $2
 `
 
 type ListTorrentsPaginatedParams struct {
@@ -116,30 +137,36 @@ type ListTorrentsPaginatedParams struct {
 	Offset int32
 }
 
-func (q *Queries) ListTorrentsPaginated(ctx context.Context, arg ListTorrentsPaginatedParams) ([]Torrent, error) {
+type ListTorrentsPaginatedRow struct {
+	Torrent  Torrent
+	Seeders  *int32
+	Leechers *int32
+}
+
+func (q *Queries) ListTorrentsPaginated(ctx context.Context, arg ListTorrentsPaginatedParams) ([]ListTorrentsPaginatedRow, error) {
 	rows, err := q.db.Query(ctx, ListTorrentsPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Torrent
+	var items []ListTorrentsPaginatedRow
 	for rows.Next() {
-		var i Torrent
+		var i ListTorrentsPaginatedRow
 		if err := rows.Scan(
-			&i.InfoHash,
-			&i.Name,
-			&i.Size,
-			&i.Private,
-			&i.FilesCount,
-			&i.ContentType,
-			&i.ContentSource,
-			&i.ContentID,
-			&i.Languages,
-			&i.Tsv,
+			&i.Torrent.InfoHash,
+			&i.Torrent.Name,
+			&i.Torrent.Size,
+			&i.Torrent.Private,
+			&i.Torrent.FilesCount,
+			&i.Torrent.ContentType,
+			&i.Torrent.ContentSource,
+			&i.Torrent.ContentID,
+			&i.Torrent.Languages,
+			&i.Torrent.Tsv,
+			&i.Torrent.CreatedAt,
+			&i.Torrent.UpdatedAt,
 			&i.Seeders,
 			&i.Leechers,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -152,7 +179,10 @@ func (q *Queries) ListTorrentsPaginated(ctx context.Context, arg ListTorrentsPag
 }
 
 const ListTorrentsPaginatedBefore = `-- name: ListTorrentsPaginatedBefore :many
-SELECT info_hash, name, size, private, files_count, content_type, content_source, content_id, languages, tsv, seeders, leechers, created_at, updated_at FROM torrents WHERE created_at <= $1::timestamptz ORDER BY created_at LIMIT $2 OFFSET $3
+SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
+FROM torrents t
+LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
+WHERE t.created_at <= $1::timestamptz ORDER BY t.created_at LIMIT $2 OFFSET $3
 `
 
 type ListTorrentsPaginatedBeforeParams struct {
@@ -161,30 +191,36 @@ type ListTorrentsPaginatedBeforeParams struct {
 	Offset  int32
 }
 
-func (q *Queries) ListTorrentsPaginatedBefore(ctx context.Context, arg ListTorrentsPaginatedBeforeParams) ([]Torrent, error) {
+type ListTorrentsPaginatedBeforeRow struct {
+	Torrent  Torrent
+	Seeders  *int32
+	Leechers *int32
+}
+
+func (q *Queries) ListTorrentsPaginatedBefore(ctx context.Context, arg ListTorrentsPaginatedBeforeParams) ([]ListTorrentsPaginatedBeforeRow, error) {
 	rows, err := q.db.Query(ctx, ListTorrentsPaginatedBefore, arg.Column1, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Torrent
+	var items []ListTorrentsPaginatedBeforeRow
 	for rows.Next() {
-		var i Torrent
+		var i ListTorrentsPaginatedBeforeRow
 		if err := rows.Scan(
-			&i.InfoHash,
-			&i.Name,
-			&i.Size,
-			&i.Private,
-			&i.FilesCount,
-			&i.ContentType,
-			&i.ContentSource,
-			&i.ContentID,
-			&i.Languages,
-			&i.Tsv,
+			&i.Torrent.InfoHash,
+			&i.Torrent.Name,
+			&i.Torrent.Size,
+			&i.Torrent.Private,
+			&i.Torrent.FilesCount,
+			&i.Torrent.ContentType,
+			&i.Torrent.ContentSource,
+			&i.Torrent.ContentID,
+			&i.Torrent.Languages,
+			&i.Torrent.Tsv,
+			&i.Torrent.CreatedAt,
+			&i.Torrent.UpdatedAt,
 			&i.Seeders,
 			&i.Leechers,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -229,11 +265,12 @@ func (q *Queries) UpdateTorrentContent(ctx context.Context, arg UpdateTorrentCon
 }
 
 const UpdateTorrentSeeders = `-- name: UpdateTorrentSeeders :exec
-UPDATE torrents SET
-  seeders = GREATEST(torrents.seeders, $2),
-  leechers = GREATEST(torrents.leechers, $3),
+INSERT INTO torrent_seeders (info_hash, seeders, leechers, updated_at)
+VALUES ($1, $2, $3, NOW())
+ON CONFLICT (info_hash) DO UPDATE SET
+  seeders = GREATEST(torrent_seeders.seeders, EXCLUDED.seeders),
+  leechers = GREATEST(torrent_seeders.leechers, EXCLUDED.leechers),
   updated_at = NOW()
-WHERE info_hash = $1
 `
 
 type UpdateTorrentSeedersParams struct {

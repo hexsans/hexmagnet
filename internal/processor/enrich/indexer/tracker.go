@@ -67,6 +67,7 @@ func (t *ReindexTracker) Start(
 	embedder *embedding.Client,
 	queries *db.Queries,
 	dims int,
+	maxSearchFiles int,
 	logger *zap.SugaredLogger,
 ) error {
 	t.mu.Lock()
@@ -84,7 +85,7 @@ func (t *ReindexTracker) Start(
 	}
 
 	t.progress = &ReindexProgress{}
-	go runReindex(ctx, queries, es, embedder, t.progress, logger)
+	go runReindex(ctx, queries, es, embedder, maxSearchFiles, t.progress, logger)
 
 	waitForReindexStart(t.progress)
 
@@ -107,6 +108,7 @@ func runReindex(
 	queries *db.Queries,
 	es *elasticsearch.Client,
 	embedder *embedding.Client,
+	maxSearchFiles int,
 	progress *ReindexProgress,
 	logger *zap.SugaredLogger,
 ) {
@@ -179,11 +181,11 @@ func runReindex(
 		docs := make([]TorrentContentDocument, 0, len(torrents))
 
 		for _, raw := range torrents {
-			t := db.TorrentToModel(raw)
+			t := db.TorrentToModel(raw.Torrent, raw.Seeders, raw.Leechers)
 
-			files, err := queries.ListTorrentFiles(ctx, raw.InfoHash)
+			files, err := queries.ListTorrentFiles(ctx, raw.Torrent.InfoHash)
 			if err != nil {
-				logger.Warnw("failed to list torrent files", "info_hash", raw.InfoHash, "error", err)
+				logger.Warnw("failed to list torrent files", "info_hash", raw.Torrent.InfoHash, "error", err)
 				continue
 			}
 
@@ -198,7 +200,7 @@ func runReindex(
 		if len(docs) > 0 && embedder != nil {
 			texts := make([]string, len(docs))
 			for i := range docs {
-				texts[i] = BuildSearchText(docs[i])
+				texts[i] = BuildSearchText(docs[i], maxSearchFiles)
 			}
 
 			vectors, embedErr := embedder.Embed(ctx, texts)

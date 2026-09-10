@@ -34,7 +34,6 @@ type TorrentSearchParams struct {
 	InfoHashes     []string
 	ContentTypes   []string
 	Cached         bool
-	TorrentSources []string
 	FileTypes      []string
 	Languages      []string
 	ReleaseYears   []int32
@@ -79,11 +78,10 @@ type TorrentSearchOrder struct {
 }
 
 type FacetAggregationConfig struct {
-	ContentType   bool
-	TorrentSource bool
-	FileType      bool
-	Language      bool
-	ReleaseYear   bool
+	ContentType bool
+	FileType    bool
+	Language    bool
+	ReleaseYear bool
 }
 
 type AggregationItem struct {

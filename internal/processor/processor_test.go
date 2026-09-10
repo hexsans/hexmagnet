@@ -90,7 +90,7 @@ func TestNewTorrentContent_WithoutContent(t *testing.T) {
 		},
 	}
 
-	result := newTorrentContent(torrent, cl)
+	result := newTorrentContent(torrent, cl, 30)
 	assert.Equal(t, torrent.InfoHash, result.InfoHash)
 	assert.Equal(t, torrent.Name, result.Name)
 	assert.True(t, result.ContentType.Valid)
@@ -121,7 +121,7 @@ func TestNewTorrentContent_WithContent(t *testing.T) {
 	}
 	cl.AttachContent(content)
 
-	result := newTorrentContent(torrent, cl)
+	result := newTorrentContent(torrent, cl, 30)
 	assert.True(t, result.ContentSource.Valid)
 	assert.Equal(t, "tmdb", result.ContentSource.String)
 	assert.True(t, result.ContentID.Valid)

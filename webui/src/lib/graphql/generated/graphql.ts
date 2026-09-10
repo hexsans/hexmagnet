@@ -319,7 +319,6 @@ export type TorrentSearchFacetsInput = {
   language?: LanguageFacetInput | null | undefined;
   releaseYear?: ReleaseYearFacetInput | null | undefined;
   torrentFileType?: TorrentFileTypeFacetInput | null | undefined;
-  torrentSource?: TorrentSourceFacetInput | null | undefined;
 };
 
 export type TorrentSearchOrderByField =
@@ -356,12 +355,6 @@ export type TorrentSearchQueryInput = {
   page?: number | null | undefined;
   queryString?: string | null | undefined;
   totalCount?: boolean | null | undefined;
-};
-
-export type TorrentSourceFacetInput = {
-  aggregate?: boolean | null | undefined;
-  filter?: Array<string> | null | undefined;
-  logic?: FacetLogic | null | undefined;
 };
 
 export type TorznabConfigInput = {

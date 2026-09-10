@@ -214,7 +214,7 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 					err:      classifyErr,
 				})
 			} else {
-				torrentContent := newTorrentContent(torrent, cl)
+				torrentContent := newTorrentContent(torrent, cl, c.maxSearchFiles())
 
 				if params.ContentType != "" {
 					torrentContent.ContentType = model.NewNullContentType(params.ContentType)
@@ -457,7 +457,17 @@ func (c *processor) UpdateTorrentFilter(cfg classifier.TorrentFilterConfig) erro
 	return nil
 }
 
-func newTorrentContent(t model.Torrent, c classifier.ClassificationResult) model.Torrent {
+// maxSearchFiles returns the configured cap on file paths included in the
+// torrent search vector (<= 0 means no cap).
+func (c *processor) maxSearchFiles() int {
+	if c.searchRuntime == nil || c.searchRuntime.SearchConfig == nil {
+		return 0
+	}
+
+	return c.searchRuntime.SearchConfig.Get().MaxSearchFiles
+}
+
+func newTorrentContent(t model.Torrent, c classifier.ClassificationResult, maxSearchFiles int) model.Torrent {
 	var filesCount model.NullUint
 	if t.FilesCount.Valid {
 		filesCount = t.FilesCount
@@ -480,7 +490,7 @@ func newTorrentContent(t model.Torrent, c classifier.ClassificationResult) model
 		t.Content = content
 	}
 
-	t.UpdateTsv()
+	t.UpdateTsv(maxSearchFiles)
 
 	return t
 }

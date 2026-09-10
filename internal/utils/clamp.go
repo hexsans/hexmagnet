@@ -16,27 +16,33 @@ func ClampInt32[T Integer](v T) int32 {
 		if x > math.MaxInt32 {
 			return math.MaxInt32
 		}
+
 		if x < math.MinInt32 {
 			return math.MinInt32
 		}
+
 		return int32(x)
 	case int64:
 		if x > math.MaxInt32 {
 			return math.MaxInt32
 		}
+
 		if x < math.MinInt32 {
 			return math.MinInt32
 		}
+
 		return int32(x)
 	case uint:
 		if x > math.MaxInt32 {
 			return math.MaxInt32
 		}
+
 		return int32(x)
 	case uint64:
 		if x > math.MaxInt32 {
 			return math.MaxInt32
 		}
+
 		return int32(x)
 	default:
 		panic("unsupported integer type")

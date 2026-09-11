@@ -21,6 +21,47 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// rejectDimsChangeWhileBusy blocks changes to the embedding dimensions while a
+// maintenance job (reindex/reclassify) is running. Such a change would trigger
+// an automatic reindex, desyncing the running job, the ES index mapping and the
+// persisted config.
+func (r *mutationResolver) rejectDimsChangeWhileBusy(input gen.ConfigInput) error {
+	if r.JobControl == nil || !r.JobControl.Paused() {
+		return nil
+	}
+
+	storage, ok := input.Storage.ValueOK()
+	if !ok || storage == nil {
+		return nil
+	}
+
+	search, ok := storage.Search.ValueOK()
+	if !ok || search == nil {
+		return nil
+	}
+
+	es, ok := search.Elasticsearch.ValueOK()
+	if !ok || es == nil {
+		return nil
+	}
+
+	embeddingCfg, ok := es.Embedding.ValueOK()
+	if !ok || embeddingCfg == nil {
+		return nil
+	}
+
+	dims, ok := embeddingCfg.Dimensions.ValueOK()
+	if !ok || dims == nil {
+		return nil
+	}
+
+	if *dims != r.SearchCfg.Elasticsearch.Embedding.Dimensions {
+		return fmt.Errorf("cannot change embedding dimensions while %s is running", r.JobControl.Reason())
+	}
+
+	return nil
+}
+
 func readConfigFile(path string) (map[string]any, error) {
 	data := make(map[string]any)
 

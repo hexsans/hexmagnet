@@ -16,6 +16,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/gql/gqlfx"
 	"github.com/hexsans/hexmagnet/internal/health"
 	"github.com/hexsans/hexmagnet/internal/httpserver"
+	"github.com/hexsans/hexmagnet/internal/jobcontrol"
 	"github.com/hexsans/hexmagnet/internal/logging"
 	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 	"github.com/hexsans/hexmagnet/internal/processor"
@@ -144,6 +145,10 @@ func New(queueCfg queue.Config) fx.Option {
 			},
 			indexer.NewConfigNotifier,
 			indexer.NewReindexTracker,
+			jobcontrol.NewController,
+			func(c *jobcontrol.Controller) dhtcrawlerPkg.PauseGate {
+				return c
+			},
 		),
 		fx.Provide(newConfigManager),
 		fx.Provide(searchfx.New),

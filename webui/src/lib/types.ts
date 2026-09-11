@@ -27,6 +27,8 @@ export interface Torrent {
 }
 
 export interface CrawlerStatus {
+  paused: boolean;
+  pauseReason?: string | null;
   running: boolean;
   torrentsCrawled: number;
   peersConnected: number;

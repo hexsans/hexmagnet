@@ -1,0 +1,11 @@
+mutation ReclassifyTorrents {
+  torrent {
+    reclassifyTorrents {
+      total
+      processed
+      done
+      running
+      error
+    }
+  }
+}

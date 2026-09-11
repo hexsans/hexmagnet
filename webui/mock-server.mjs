@@ -197,6 +197,7 @@ function pickFiles(type, infoHash, output) {
 let torrentIdx = 0;
 const allFiles = [];
 let mockReindex = { total: 0, indexed: 0, done: true, running: false, error: null };
+let mockReclassify = { total: 0, processed: 0, done: true, running: false, error: null };
 
 const DEFAULT_CONFIG = {
   dht: {
@@ -614,6 +615,13 @@ function handleGraphQL(body) {
       });
 
     case "ReindexElasticsearch":
+      if (mockReclassify.running && !mockReclassify.done) {
+        return serializeResponse({
+          torrent: {
+            reindexToElasticsearch: { total: 0, indexed: 0, done: true, running: false, error: "another operation in progress: classifier reclassify" },
+          },
+        });
+      }
       mockReindex = { total: 100, indexed: 0, done: false, running: true, error: null };
       return serializeResponse({
         torrent: {
@@ -634,6 +642,34 @@ function handleGraphQL(body) {
         reindexStatus: { ...mockReindex },
       });
 
+    case "ReclassifyTorrents":
+      if (mockReindex.running && !mockReindex.done) {
+        return serializeResponse({
+          torrent: {
+            reclassifyTorrents: { total: 0, processed: 0, done: true, running: false, error: "another operation in progress: embedding reindex" },
+          },
+        });
+      }
+      mockReclassify = { total: 100, processed: 0, done: false, running: true, error: null };
+      return serializeResponse({
+        torrent: {
+          reclassifyTorrents: { ...mockReclassify },
+        },
+      });
+
+    case "ReclassifyStatus":
+      if (!mockReclassify.done) {
+        const progress = Math.floor(Math.random() * 12) + 4;
+        mockReclassify.processed = Math.min(mockReclassify.total, mockReclassify.processed + progress);
+        if (mockReclassify.processed >= mockReclassify.total) {
+          mockReclassify.done = true;
+          mockReclassify.processed = mockReclassify.total;
+        }
+      }
+      return serializeResponse({
+        reclassifyStatus: { ...mockReclassify },
+      });
+
     case "Config":
       return serializeResponse({ config: mockConfig });
 
@@ -641,10 +677,15 @@ function handleGraphQL(body) {
       if (vars.input) deepMerge(mockConfig, vars.input);
       return serializeResponse({ config: mockConfig });
 
-    case "DhtCrawler":
+    case "DhtCrawler": {
+      const reindexActive = mockReindex.running && !mockReindex.done;
+      const reclassifyActive = mockReclassify.running && !mockReclassify.done;
+      const paused = reindexActive || reclassifyActive;
       return serializeResponse({
         dhtCrawler: {
           active: true,
+          paused,
+          pauseReason: reindexActive ? "embedding reindex" : reclassifyActive ? "classifier reclassify" : null,
           torrentsCrawled: 54321,
           peersConnected: 1234,
           peersDiscovered: 9876,
@@ -657,6 +698,7 @@ function handleGraphQL(body) {
           ],
         },
       });
+    }
 
     default:
       return serializeResponse({});

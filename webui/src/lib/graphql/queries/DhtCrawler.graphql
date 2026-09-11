@@ -1,6 +1,8 @@
 query DhtCrawler {
   dhtCrawler {
     active
+    paused
+    pauseReason
     torrentsCrawled
     peersConnected
     peersDiscovered

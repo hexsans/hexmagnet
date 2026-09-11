@@ -9,12 +9,27 @@ import (
 	"context"
 
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 // DhtCrawler is the resolver for the dhtCrawler field.
 func (r *queryResolver) DhtCrawler(ctx context.Context) (gqlmodel.DhtCrawlerStatus, error) {
+	reason := ""
+	if r.JobControl != nil {
+		reason = r.JobControl.Reason()
+	}
+
+	paused := reason != ""
+
+	pauseReason := model.NullString{}
+	if paused {
+		pauseReason = model.NewNullString(reason)
+	}
+
 	return gqlmodel.DhtCrawlerStatus{
-		Runtime: r.DhtCrawlerRuntime,
-		DB:      r.DB,
+		Runtime:     r.DhtCrawlerRuntime,
+		DB:          r.DB,
+		Paused:      paused,
+		PauseReason: pauseReason,
 	}, nil
 }

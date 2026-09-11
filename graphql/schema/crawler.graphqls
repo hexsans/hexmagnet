@@ -7,6 +7,8 @@ type ActivityEntry {
 
 type DhtCrawlerStatus {
   active: Boolean!
+  paused: Boolean!
+  pauseReason: String
   torrentsCrawled: Uint64!
   peersConnected: Uint64!
   peersDiscovered: Uint64!

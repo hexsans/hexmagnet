@@ -26,6 +26,7 @@ type Params struct {
 	Client          utils.Lazy[client.Client]
 	Producer        queue.Producer
 	DiscoveredNodes concurrency.BatchingChannel[ktable.Node] `name:"dht_discovered_nodes"`
+	PauseGate       PauseGate                                `optional:"true"`
 	Logger          *zap.SugaredLogger
 }
 
@@ -89,6 +90,7 @@ func New(params Params) Result {
 						soughtNodeID:    &concurrency.AtomicValue[protocol.ID]{},
 						stopped:         make(chan struct{}),
 						runtime:         runtime,
+						pauseGate:       params.PauseGate,
 						logger:          params.Logger.Named("dht_crawler"),
 						nodeDispatchSem: make(chan struct{}, maxConcurrentNodeDispatches),
 					}

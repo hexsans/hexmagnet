@@ -286,6 +286,14 @@ type QueueMetricsQueryResult struct {
 	Buckets []queuemetrics.Bucket `json:"buckets"`
 }
 
+type ReclassifyProgress struct {
+	Total     int     `json:"total"`
+	Processed int     `json:"processed"`
+	Done      bool    `json:"done"`
+	Running   bool    `json:"running"`
+	Error     *string `json:"error,omitempty"`
+}
+
 type ReindexProgress struct {
 	Total   int     `json:"total"`
 	Indexed int     `json:"indexed"`

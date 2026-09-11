@@ -143,7 +143,7 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 				}
 			}()
 
-			if c.wasRecentlyClassified(torrent.InfoHash) {
+			if params.ClassifyMode != ClassifyModeRematch && c.wasRecentlyClassified(torrent.InfoHash) {
 				return
 			}
 

@@ -7,11 +7,14 @@ import (
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	"github.com/hexsans/hexmagnet/internal/dhtcrawler"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
+	"github.com/hexsans/hexmagnet/internal/model"
 )
 
 type DhtCrawlerStatus struct {
-	Runtime *dhtcrawler.Runtime
-	DB      *db.Queries
+	Runtime     *dhtcrawler.Runtime
+	DB          *db.Queries
+	Paused      bool
+	PauseReason model.NullString
 }
 
 func (s DhtCrawlerStatus) Active(_ context.Context) (bool, error) {

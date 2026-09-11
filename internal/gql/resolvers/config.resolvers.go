@@ -17,6 +17,10 @@ import (
 
 // UpdateConfig is the resolver for the updateConfig field.
 func (r *mutationResolver) UpdateConfig(ctx context.Context, input gen.ConfigInput) (gen.Config, error) {
+	if err := r.rejectDimsChangeWhileBusy(input); err != nil {
+		return gen.Config{}, err
+	}
+
 	data, err := readConfigFile(r.ConfigFilePath)
 	if err != nil {
 		return gen.Config{}, fmt.Errorf("read config: %w", err)

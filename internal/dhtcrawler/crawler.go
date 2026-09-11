@@ -24,6 +24,13 @@ type crawlerConfig struct {
 	embedTrackers       []string
 }
 
+// PauseGate reports whether a long-running maintenance job (search reindex or
+// classifier reclassify) is currently running. While it returns true the
+// crawler pauses discovering new hashes so it does not compete with the job.
+type PauseGate interface {
+	Paused() bool
+}
+
 type crawler struct {
 	kTable                   ktable.Table
 	client                   client.Client
@@ -38,6 +45,7 @@ type crawler struct {
 	soughtNodeID             *concurrency.AtomicValue[protocol.ID]
 	stopped                  chan struct{}
 	runtime                  *Runtime
+	pauseGate                PauseGate
 	config                   atomic.Pointer[crawlerConfig]
 	logger                   *zap.SugaredLogger
 	nodeDispatchSem          chan struct{}

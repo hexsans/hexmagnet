@@ -1,0 +1,9 @@
+query ReclassifyStatus {
+  reclassifyStatus {
+    total
+    processed
+    done
+    running
+    error
+  }
+}

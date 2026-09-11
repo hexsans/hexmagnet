@@ -12,6 +12,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/health"
+	"github.com/hexsans/hexmagnet/internal/jobcontrol"
 	"github.com/hexsans/hexmagnet/internal/logging"
 	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 	"github.com/hexsans/hexmagnet/internal/processor"
@@ -60,6 +61,8 @@ type Resolver struct {
 	QueueRuntime      *queue.Runtime
 	SearchRuntime     *dbsearch.Runtime
 	ReindexTracker    *indexer.ReindexTracker
+	ReclassifyTracker *processor.ReclassifyTracker
+	JobControl        *jobcontrol.Controller
 
 	// ConfigValidator runs pre-flight checks on config updates. When nil the
 	// default validator with live probes is used. Tests override it.

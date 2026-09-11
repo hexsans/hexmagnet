@@ -135,6 +135,18 @@ func (r *queryResolver) ReindexStatus(ctx context.Context) (gen.ReindexProgress,
 	return gen.ReindexProgress{Total: total, Indexed: indexed, Done: done, Running: running, Error: nilStr(errMsg)}, nil
 }
 
+// ReclassifyStatus is the resolver for the reclassifyStatus field.
+func (r *queryResolver) ReclassifyStatus(ctx context.Context) (gen.ReclassifyProgress, error) {
+	total, processed, done, running, errMsg := r.Resolver.ReclassifyTracker.Progress()
+	return gen.ReclassifyProgress{
+		Total:     total,
+		Processed: processed,
+		Done:      done,
+		Running:   running,
+		Error:     nilStr(errMsg),
+	}, nil
+}
+
 // Files is the resolver for the files field.
 func (r *torrentQueryResolver) Files(ctx context.Context, obj *gqlmodel.TorrentQuery, input gqlmodel.TorrentFilesQueryInput) (gqlmodel.TorrentFilesQueryResult, error) {
 	var s dbsearch.Search

@@ -7,6 +7,7 @@ type Query {
   queue: QueueQuery!
   retryQueue: RetryQueueQuery!
   reindexStatus: ReindexProgress!
+  reclassifyStatus: ReclassifyProgress!
 }
 
 type TorrentQuery {

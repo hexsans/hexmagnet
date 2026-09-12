@@ -141,12 +141,6 @@ func (s *ESearch) TorrentSearch(ctx context.Context, params search.TorrentSearch
 		})
 	}
 
-	if len(params.TorrentSources) > 0 {
-		filterClauses = append(filterClauses, map[string]any{
-			esKeyTerms: map[string]any{"sources": params.TorrentSources},
-		})
-	}
-
 	if len(params.Languages) > 0 {
 		filterClauses = append(filterClauses, map[string]any{
 			esKeyTerms: map[string]any{"languages": params.Languages},
@@ -529,7 +523,7 @@ func (s *ESearch) TorrentsWithMissingInfoHashes(
 
 	found := make(map[string]model.Torrent, len(rawTorrents))
 	for _, rt := range rawTorrents {
-		t := db.TorrentToModel(rt)
+		t := db.TorrentToModel(rt, nil, nil)
 
 		files, err := s.q.ListTorrentFiles(ctx, rt.InfoHash)
 		if err != nil {
@@ -649,8 +643,6 @@ func hitToRow(src json.RawMessage) (search.TorrentSearchRow, error) {
 		Seeders       *uint    `json:"seeders"`
 		Leechers      *uint    `json:"leechers"`
 		FilesCount    *uint    `json:"files_count"`
-		Tags          []string `json:"tags"`
-		Sources       []string `json:"sources"`
 		Languages     []string `json:"languages"`
 		Private       bool     `json:"private"`
 		CreatedAt     string   `json:"created_at"`
@@ -881,7 +873,7 @@ func rrfMerge(bm25Hits, knnHits []elasticsearch.SearchHit, windowSize, limit, of
 }
 
 func hasFacets(cfg search.FacetAggregationConfig) bool {
-	return cfg.ContentType || cfg.TorrentSource || cfg.FileType ||
+	return cfg.ContentType || cfg.FileType ||
 		cfg.Language || cfg.ReleaseYear
 }
 
@@ -892,12 +884,8 @@ func buildAggs(params search.TorrentSearchParams) map[string]any {
 		aggs[esKeyContentType] = buildSimpleAgg(esKeyContentType)
 	}
 
-	if params.FacetAggregate.TorrentSource {
-		aggs["torrent_source"] = buildSimpleAgg("sources")
-	}
-
 	if params.FacetAggregate.FileType {
-		aggs["file_type"] = buildSimpleAgg("files.extension")
+		aggs["file_type"] = buildSimpleAgg("file_types")
 	}
 
 	if params.FacetAggregate.Language {
@@ -927,10 +915,6 @@ func parseAggs(raw map[string]json.RawMessage, params search.TorrentSearchParams
 	enabled := map[string]bool{}
 	if params.FacetAggregate.ContentType {
 		enabled[esKeyContentType] = true
-	}
-
-	if params.FacetAggregate.TorrentSource {
-		enabled["torrent_source"] = true
 	}
 
 	if params.FacetAggregate.FileType {

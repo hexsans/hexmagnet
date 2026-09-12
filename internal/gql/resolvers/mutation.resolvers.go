@@ -63,7 +63,15 @@ func (r *torrentMutationResolver) ReindexToElasticsearch(ctx context.Context, ob
 		dims = 1024
 	}
 
-	if err := r.Resolver.ReindexTracker.Start(context.Background(), obj.ESClient, obj.Embedder, obj.DB, dims, r.Resolver.Logger); err != nil {
+	if err := r.Resolver.ReindexTracker.Start(
+		context.Background(),
+		obj.ESClient,
+		obj.Embedder,
+		obj.DB,
+		dims,
+		r.Resolver.SearchCfg.MaxSearchFiles,
+		r.Resolver.Logger,
+	); err != nil {
 		return gen.ReindexProgress{Done: true, Error: ptr(err.Error())}, nil
 	}
 

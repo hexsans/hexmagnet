@@ -19,10 +19,19 @@ func NewTable(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Table {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Table{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -454,8 +463,8 @@ func (_c *Table_Origin_Call) Run(run func()) *Table_Origin_Call {
 	return _c
 }
 
-func (_c *Table_Origin_Call) Return(v ktable.ID) *Table_Origin_Call {
-	_c.Call.Return(v)
+func (_c *Table_Origin_Call) Return(iD ktable.ID) *Table_Origin_Call {
+	_c.Call.Return(iD)
 	return _c
 }
 

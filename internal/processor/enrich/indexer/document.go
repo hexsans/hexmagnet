@@ -29,7 +29,7 @@ type TorrentContentDocument struct {
 	Seeders       *uint     `json:"seeders"`
 	Leechers      *uint     `json:"leechers"`
 	FilesCount    *uint     `json:"files_count"`
-	Files         []File    `json:"files"`
+	FileTypes     []string  `json:"file_types,omitempty"`
 	Languages     []string  `json:"languages"`
 	ReleaseYear   *uint16   `json:"release_year"`
 	Popularity    *float32  `json:"popularity"`
@@ -40,6 +40,11 @@ type TorrentContentDocument struct {
 	CreatedAt     string    `json:"created_at"`
 	UpdatedAt     string    `json:"updated_at"`
 	SearchVector  []float32 `json:"search_vector,omitempty"`
+
+	// Files is used to build the search text and file type list. It is not
+	// serialized (the mapping stores only the deduplicated FileTypes), which
+	// avoids indexing one nested Lucene document per file.
+	Files []File `json:"-"`
 }
 
 type File struct {
@@ -125,12 +130,25 @@ func NewDocument(t model.Torrent) TorrentContentDocument {
 	}
 
 	doc.Files = make([]File, 0, len(t.Files))
+
+	typeSeen := make(map[string]struct{})
+
 	for _, f := range t.Files {
 		doc.Files = append(doc.Files, File{
 			PathParts: f.PathParts,
 			Extension: f.Extension.String,
 			Size:      f.Size,
 		})
+
+		if ext := strings.ToLower(strings.TrimSpace(f.Extension.String)); ext != "" {
+			if ft := model.FileTypeFromExtension(ext); ft.Valid {
+				key := ft.FileType.String()
+				if _, ok := typeSeen[key]; !ok {
+					typeSeen[key] = struct{}{}
+					doc.FileTypes = append(doc.FileTypes, key)
+				}
+			}
+		}
 	}
 
 	return doc
@@ -141,23 +159,7 @@ func IndexMapping(dims int) string {
   "settings": {
     "number_of_shards": 1,
     "number_of_replicas": 0,
-    "index.mapping.nested_objects.limit": 100000,
-    "analysis": {
-      "analyzer": {
-        "trigram": {
-          "type": "custom",
-          "tokenizer": "standard",
-          "filter": ["lowercase", "shingle"]
-        }
-      },
-      "filter": {
-        "shingle": {
-          "type": "shingle",
-          "min_shingle_size": 2,
-          "max_shingle_size": 3
-        }
-      }
-    }
+    "index.codec": "best_compression"
   },
   "mappings": {
     "properties": {
@@ -165,18 +167,11 @@ func IndexMapping(dims int) string {
       "info_hash": { "type": "keyword" },
       "name": {
         "type": "text",
-        "copy_to": ["search_text"],
-        "fields": {
-          "trigram": { "type": "text", "analyzer": "trigram" },
-          "completion": { "type": "completion" }
-        }
+        "copy_to": ["search_text"]
       },
       "title": {
         "type": "text",
-        "copy_to": ["search_text"],
-        "fields": {
-          "trigram": { "type": "text", "analyzer": "trigram" }
-        }
+        "copy_to": ["search_text"]
       },
       "overview": {
         "type": "text",
@@ -190,16 +185,7 @@ func IndexMapping(dims int) string {
       "seeders": { "type": "integer" },
       "leechers": { "type": "integer" },
       "files_count": { "type": "integer" },
-      "files": {
-        "type": "nested",
-        "properties": {
-          "path_parts": { "type": "text" },
-          "extension": { "type": "keyword" },
-          "size": { "type": "long" }
-        }
-      },
-      "tags": { "type": "keyword" },
-      "sources": { "type": "keyword" },
+      "file_types": { "type": "keyword" },
       "languages": { "type": "keyword" },
       "release_year": { "type": "integer" },
       "popularity": { "type": "float" },
@@ -207,19 +193,14 @@ func IndexMapping(dims int) string {
       "vote_count": { "type": "integer" },
       "adult": { "type": "boolean" },
       "private": { "type": "boolean" },
-      "collections": { "type": "keyword" },
-      "attributes": {
-        "type": "nested",
-        "properties": {
-          "source": { "type": "keyword" },
-          "key": { "type": "keyword" },
-          "value": { "type": "keyword" }
-        }
-      },
       "search_vector": {
         "type": "dense_vector",
         "dims": __DIMS__,
-        "similarity": "cosine"
+        "index": true,
+        "similarity": "cosine",
+        "index_options": {
+          "type": "int8_hnsw"
+        }
       },
       "created_at": { "type": "date" },
       "updated_at": { "type": "date" }
@@ -244,7 +225,9 @@ func parseCompositeID(id string) (infoHash protocol.ID, contentType string, cont
 	return infoHash, parts[1], parts[2], parts[3], nil
 }
 
-func BuildSearchText(doc TorrentContentDocument) string {
+// BuildSearchText builds the text used to generate the semantic embedding for a
+// torrent. maxFiles bounds how many file names are included (<= 0 means no cap).
+func BuildSearchText(doc TorrentContentDocument, maxFiles int) string {
 	var parts []string
 
 	// If we have content metadata, build a rich description
@@ -299,9 +282,8 @@ func BuildSearchText(doc TorrentContentDocument) string {
 			return sorted[i].Size > sorted[j].Size
 		})
 
-		const maxFiles = 30
-
 		seen := map[string]bool{}
+		fileCount := 0
 
 		for _, f := range sorted {
 			if len(f.PathParts) == 0 {
@@ -319,7 +301,9 @@ func BuildSearchText(doc TorrentContentDocument) string {
 			seen[cleaned] = true
 
 			parts = append(parts, cleaned)
-			if len(parts) >= 5+maxFiles {
+			fileCount++
+
+			if maxFiles > 0 && fileCount >= maxFiles {
 				break
 			}
 		}

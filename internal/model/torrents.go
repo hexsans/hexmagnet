@@ -98,7 +98,13 @@ func (t Torrent) HasFileType(fts ...FileType) NullBool {
 
 // fileSearchStrings returns a list of strings extracted from file paths, for inclusion in the text search vector.
 // To reduce duplication, common prefixes and suffixes are deduplicated.
-func (t Torrent) fileSearchStrings() []string {
+// maxFiles bounds how many file entries are considered: large torrents (thousands
+// of files) would otherwise produce enormous tsvectors. A value <= 0 means no cap.
+func (t Torrent) fileSearchStrings(maxFiles int) []string {
+	if maxFiles > 0 && len(t.Files) > maxFiles {
+		t.Files = t.Files[:maxFiles]
+	}
+
 	firstPass := make([]string, 0, len(t.Files))
 
 	var prevPath string
@@ -210,7 +216,10 @@ func (t Torrent) ContentRef() Maybe[ContentRef] {
 	return Maybe[ContentRef]{}
 }
 
-func (t *Torrent) UpdateTsv() {
+// UpdateTsv rebuilds the full-text search vector for a torrent. maxSearchFiles
+// bounds the number of file paths included (in addition to name and content
+// metadata); pass a value <= 0 for no cap.
+func (t *Torrent) UpdateTsv(maxSearchFiles int) {
 	var tsv fts.Tsvector
 	if !t.ContentID.Valid {
 		tsv = fts.Tsvector{}
@@ -218,10 +227,9 @@ func (t *Torrent) UpdateTsv() {
 		tsv = t.Content.Tsv.Copy()
 	}
 
-	tsv.AddText(t.InfoHash.String(), fts.TsvectorWeightA)
 	tsv.AddText(t.Name, fts.TsvectorWeightA)
 
-	for _, str := range t.fileSearchStrings() {
+	for _, str := range t.fileSearchStrings(maxSearchFiles) {
 		tsv.AddText(str, fts.TsvectorWeightD)
 	}
 

@@ -25,12 +25,21 @@ import (
 type SearchConfig struct {
 	Backend       string               `validate:"oneof=postgresql elasticsearch" yaml:"backend"`
 	Elasticsearch elasticsearch.Config `                                          yaml:"elasticsearch"`
+	// MaxSearchFiles bounds how many file paths from a single torrent are
+	// included in the full-text search index (PG tsvector / ES embedding text).
+	// Large torrents can contain thousands of files; capping keeps index size
+	// bounded. <= 0 means no cap.
+	MaxSearchFiles int `validate:"gte=0" yaml:"max_search_files"`
 }
 
 const backendElasticsearch = "elasticsearch"
 
 func DefaultSearchConfig() SearchConfig {
-	return SearchConfig{Backend: "postgresql", Elasticsearch: elasticsearch.DefaultConfig()}
+	return SearchConfig{
+		Backend:        "postgresql",
+		Elasticsearch:  elasticsearch.DefaultConfig(),
+		MaxSearchFiles: 30,
+	}
 }
 
 type Params struct {
@@ -227,7 +236,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 		if currentEmbedder := embedder.Load(); currentEmbedder != nil {
 			texts := make([]string, len(docs))
 			for i, doc := range docs {
-				texts[i] = BuildSearchText(doc)
+				texts[i] = BuildSearchText(doc, cfg.MaxSearchFiles)
 			}
 
 			vectors, embedErr := currentEmbedder.Embed(ctx, texts)
@@ -350,6 +359,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 					embedder.Load(),
 					queries,
 					currentCfg.Elasticsearch.Embedding.Dimensions,
+					currentCfg.MaxSearchFiles,
 					logger,
 				); err != nil {
 					logger.Warnw("auto-reindex skipped", "error", err)

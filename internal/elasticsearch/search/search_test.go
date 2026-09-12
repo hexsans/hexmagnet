@@ -191,11 +191,10 @@ func TestTorrentSearch_WithFilters(t *testing.T) {
 
 	s := New(client, nil, nil, nil, false)
 	_, err = s.TorrentSearch(context.Background(), search.TorrentSearchParams{
-		InfoHashes:     []string{"abc123"},
-		ContentTypes:   []string{"movie"},
-		TorrentSources: []string{"public"},
-		Languages:      []string{"en"},
-		ReleaseYears:   []int32{2024},
+		InfoHashes:   []string{"abc123"},
+		ContentTypes: []string{"movie"},
+		Languages:    []string{"en"},
+		ReleaseYears: []int32{2024},
 	})
 	require.NoError(t, err)
 }
@@ -576,7 +575,6 @@ func TestHasFacets(t *testing.T) {
 	}{
 		{"all false", search.FacetAggregationConfig{}, false},
 		{"content type", search.FacetAggregationConfig{ContentType: true}, true},
-		{"torrent source", search.FacetAggregationConfig{TorrentSource: true}, true},
 		{"file type", search.FacetAggregationConfig{FileType: true}, true},
 		{"language", search.FacetAggregationConfig{Language: true}, true},
 		{"release year", search.FacetAggregationConfig{ReleaseYear: true}, true},
@@ -602,11 +600,6 @@ func TestBuildAggs(t *testing.T) {
 			"content type",
 			search.TorrentSearchParams{FacetAggregate: search.FacetAggregationConfig{ContentType: true}},
 			[]string{"content_type"},
-		},
-		{
-			"torrent source",
-			search.TorrentSearchParams{FacetAggregate: search.FacetAggregationConfig{TorrentSource: true}},
-			[]string{"torrent_source"},
 		},
 		{
 			"file type",
@@ -685,6 +678,33 @@ func TestParseAggs(t *testing.T) {
 
 	require.Contains(t, aggs, "language")
 	assert.Equal(t, uint(8), aggs["language"].Items["en"].Count)
+}
+
+func TestParseAggs_FileType(t *testing.T) {
+	t.Parallel()
+
+	raw := map[string]json.RawMessage{
+		"file_type": json.RawMessage(`{
+			"buckets": [
+				{"key": "video", "doc_count": 15},
+				{"key": "subtitles", "doc_count": 3}
+			]
+		}`),
+	}
+
+	aggs, err := parseAggs(raw, search.TorrentSearchParams{
+		FacetAggregate: search.FacetAggregationConfig{FileType: true},
+	})
+	require.NoError(t, err)
+
+	require.Contains(t, aggs, "file_type")
+
+	items := aggs["file_type"].Items
+	require.Contains(t, items, "video")
+	assert.Equal(t, uint(15), items["video"].Count)
+	assert.Equal(t, "video", items["video"].Label)
+	require.Contains(t, items, "subtitles")
+	assert.Equal(t, uint(3), items["subtitles"].Count)
 }
 
 func TestParseAggs_DisabledFacets(t *testing.T) {

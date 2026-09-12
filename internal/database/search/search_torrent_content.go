@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/database/fts"
+	"github.com/hexsans/hexmagnet/internal/model"
 	search "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/utils"
 )
@@ -55,29 +56,14 @@ func (s *pgSearch) TorrentSearch(ctx context.Context, params search.TorrentSearc
 		appendINClause(&where, "t.content_type", params.ContentTypes, &args, &argIdx)
 	}
 
-	if len(params.TorrentSources) > 0 {
-		placeholders := make([]string, len(params.TorrentSources))
-		for i, src := range params.TorrentSources {
-			placeholders[i] = fmt.Sprintf("$%d", argIdx)
-
-			args = append(args, src)
-			argIdx++
-		}
-
-		where = append(
-			where,
-			fmt.Sprintf(
-				`EXISTS (SELECT 1 FROM torrents_torrent_sources tts WHERE tts.info_hash = t.info_hash AND tts.source IN (%s))`,
-				strings.Join(placeholders, ", "),
-			),
-		)
-	}
-
 	if len(params.FileTypes) > 0 {
 		extClauses := make([]string, 0, len(params.FileTypes))
 
 		for _, ft := range params.FileTypes {
-			exts := fileTypeExtensions(ft)
+			exts := model.FileType(ft).Extensions()
+			if len(exts) == 0 {
+				continue
+			}
 
 			extPlaceholders := make([]string, len(exts))
 			for i, ext := range exts {
@@ -279,9 +265,9 @@ func buildTorrentContentOrderBy(params search.TorrentSearchParams, args *[]any, 
 		case search.FieldFilesCount:
 			clause = fmt.Sprintf("COALESCE(t.files_count, 0) %s", dir)
 		case search.FieldSeeders:
-			clause = fmt.Sprintf("COALESCE(t.seeders, -1) %s", dir)
+			clause = fmt.Sprintf("COALESCE(s.seeders, -1) %s", dir)
 		case search.FieldLeechers:
-			clause = fmt.Sprintf("COALESCE(t.leechers, -1) %s", dir)
+			clause = fmt.Sprintf("COALESCE(s.leechers, -1) %s", dir)
 		case search.FieldName:
 			clause = fmt.Sprintf("t.name %s", dir)
 		case search.FieldInfoHash:
@@ -319,15 +305,6 @@ func (s *pgSearch) computeTorrentContentFacets(
 		}
 
 		aggs["content_type"] = bucket
-	}
-
-	if params.FacetAggregate.TorrentSource {
-		bucket, err := s.existsFacet(ctx, `torrents_torrent_sources`, `source`, `info_hash`, `t.info_hash`, whereClause, args)
-		if err != nil {
-			return nil, fmt.Errorf("torrent source facet: %w", err)
-		}
-
-		aggs["torrent_source"] = bucket
 	}
 
 	if params.FacetAggregate.FileType {
@@ -377,27 +354,6 @@ func (s *pgSearch) simpleFacet(ctx context.Context, column string, whereClause s
 	return s.queryFacet(ctx, query, args)
 }
 
-func (s *pgSearch) existsFacet(
-	ctx context.Context,
-	table, valueCol, keyCol, joinExpr, whereClause string,
-	args []any,
-) (search.AggregationBucket, error) {
-	query := fmt.Sprintf(`SELECT tt.%s AS value, COUNT(*) AS count FROM
-		(SELECT DISTINCT %s.%s FROM %s, LATERAL (SELECT DISTINCT %s FROM %s WHERE %s.%s = %s) tt) sub
-		CROSS JOIN LATERAL (
-			SELECT COUNT(*) FROM torrents t
-			LEFT JOIN %s ON %s.%s = %s
-			WHERE %s.%s = tt.value AND %s
-		) cnt
-		ORDER BY count DESC, value ASC`,
-		table, table, valueCol,
-		table, valueCol, table, table, keyCol, joinExpr,
-		table, table, keyCol, joinExpr,
-		table, valueCol, whereClause)
-
-	return s.queryFacet(ctx, query, args)
-}
-
 func (s *pgSearch) jsonbFacet(ctx context.Context, column, whereClause string, args []any) (search.AggregationBucket, error) {
 	query := fmt.Sprintf(`SELECT lang AS value, COUNT(*) AS count FROM
 		torrents t
@@ -409,60 +365,43 @@ func (s *pgSearch) jsonbFacet(ctx context.Context, column, whereClause string, a
 }
 
 func (s *pgSearch) fileTypeFacet(ctx context.Context, whereClause string, args []any) (search.AggregationBucket, error) {
-	fileTypes := []string{"video", "audio", "image", "archive", "subtitle", "document", "metadata", "other"}
-	typeClauses := []string{}
-	typeArgs := []any{}
-	idx := len(args) + 1
+	fileTypes := model.FileTypeValues()
+	values := make([]string, 0, len(fileTypes))
+	whenClauses := make([]string, 0, len(fileTypes))
 
 	for _, ft := range fileTypes {
-		exts := fileTypeExtensions(ft)
+		exts := ft.Extensions()
 		if len(exts) == 0 {
 			continue
 		}
 
-		phs := make([]string, len(exts))
+		quoted := make([]string, len(exts))
 		for i, ext := range exts {
-			phs[i] = fmt.Sprintf("$%d", idx)
-
-			typeArgs = append(typeArgs, ext)
-			idx++
+			quoted[i] = "'" + ext + "'"
 		}
 
-		typeClauses = append(
-			typeClauses,
-			fmt.Sprintf(
-				`EXISTS (SELECT 1 FROM torrent_files tf WHERE tf.info_hash = t.info_hash AND tf.extension IN (%s))`,
-				strings.Join(phs, ", "),
-			),
-		)
+		values = append(values, fmt.Sprintf("('%s')", ft))
+		whenClauses = append(whenClauses, fmt.Sprintf("WHEN '%s' THEN ARRAY[%s]", ft, strings.Join(quoted, ", ")))
 	}
 
-	allArgs := slices.Concat(args, typeArgs)
-
-	caseClauses := make([]string, 0, len(fileTypes))
-	for i, ft := range fileTypes {
-		caseClauses = append(caseClauses, fmt.Sprintf("WHEN %s THEN '%s'", typeClauses[i], ft))
+	conditions := "TRUE"
+	if whereClause != "" {
+		conditions = "(" + strings.TrimPrefix(whereClause, "WHERE ") + ")"
 	}
 
 	query := fmt.Sprintf(`SELECT ft.value, COUNT(*) AS count FROM
 		torrents t
 		CROSS JOIN LATERAL (VALUES %s) ft(value)
-		WHERE (CASE %s END) = ft.value
-		AND EXISTS (SELECT 1 FROM torrent_files tf2 WHERE tf2.info_hash = t.info_hash)
-		AND %s
+		WHERE %s
+		AND EXISTS (SELECT 1 FROM torrent_files tf
+			WHERE tf.info_hash = t.info_hash
+			AND tf.extension = ANY (CASE ft.value %s END))
 		GROUP BY ft.value ORDER BY count DESC`,
-		strings.Join(func() []string {
-			vs := make([]string, len(fileTypes))
-			for i, ft := range fileTypes {
-				vs[i] = fmt.Sprintf("('%s')", ft)
-			}
+		strings.Join(values, ", "),
+		conditions,
+		strings.Join(whenClauses, " "))
 
-			return vs
-		}(), ", "),
-		strings.Join(caseClauses, " "),
-		whereClause)
-
-	return s.queryFacet(ctx, query, allArgs)
+	return s.queryFacet(ctx, query, args)
 }
 
 func (s *pgSearch) queryFacet(ctx context.Context, query string, args []any) (search.AggregationBucket, error) {
@@ -524,31 +463,10 @@ func defaultTorrentContentOrderBy(params search.TorrentSearchParams, args *[]any
 	return `ORDER BY t.created_at DESC, t.info_hash DESC`
 }
 
-func fileTypeExtensions(fileType string) []string {
-	switch fileType {
-	case "video":
-		return []string{"avi", "divx", "m2ts", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ts", "webm", "wmv", "vob", "iso"}
-	case "audio":
-		return []string{"aac", "ac3", "ape", "dts", "flac", "m4a", "mp3", "ogg", "opus", "wav", "wma"}
-	case "image":
-		return []string{"bmp", "gif", "jpg", "jpeg", "png", "tbn", "webp"}
-	case "archive":
-		return []string{"7z", "bz2", "gz", "lzma", "rar", "tar", "xz", "zst", "zip", "zpaq"}
-	case "subtitle":
-		return []string{"ass", "idx", "srt", "ssa", "sub", "sup", "vtt"}
-	case "document":
-		return []string{"doc", "docx", "htm", "html", "mht", "mobi", "pdf", "txt", "xls", "xlsx", "xml"}
-	case "metadata":
-		return []string{"nfo", "sfv"}
-	default:
-		return nil
-	}
-}
-
 var torrentContentSelectCols = `
 		t.info_hash, t.content_type, t.content_source, t.content_id,
 		t.languages,
-		t.tsv, t.seeders, t.leechers, t.size,
+		t.tsv, s.seeders, s.leechers, t.size,
 		t.files_count, t.created_at, t.updated_at,
 		t.name AS t_name, t.private AS t_private,
 		c.title AS c_title, c.overview AS c_overview,
@@ -582,6 +500,7 @@ func buildTorrentContentQueries(
 
 	query := fmt.Sprintf(`SELECT %s FROM torrents t
 		LEFT JOIN content c ON t.content_type = c.type AND t.content_source = c.source AND t.content_id = c.id
+		LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
 		%s
 		%s
 		LIMIT $%d OFFSET $%d`,
@@ -612,6 +531,7 @@ func buildTorrentContentQueries(
 	if params.HasNextPage {
 		hasNextQuery = fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM torrents t
 			LEFT JOIN content c ON t.content_type = c.type AND t.content_source = c.source AND t.content_id = c.id
+			LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
 			%s
 			%s OFFSET $%d)`,
 			whereClause, orderByClause, offsetArg-1)

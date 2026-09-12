@@ -25,12 +25,6 @@ input ContentTypeFacetInput {
   filter: [ContentType]
 }
 
-input TorrentSourceFacetInput {
-  aggregate: Boolean
-  logic: FacetLogic
-  filter: [String!]
-}
-
 input TorrentFileTypeFacetInput {
   aggregate: Boolean
   logic: FacetLogic
@@ -49,7 +43,6 @@ input ReleaseYearFacetInput {
 
 input TorrentSearchFacetsInput {
   contentType: ContentTypeFacetInput
-  torrentSource: TorrentSourceFacetInput
   torrentFileType: TorrentFileTypeFacetInput
   language: LanguageFacetInput
   releaseYear: ReleaseYearFacetInput
@@ -57,13 +50,6 @@ input TorrentSearchFacetsInput {
 
 type ContentTypeAgg {
   value: ContentType
-  label: String!
-  count: Int!
-  isEstimate: Boolean!
-}
-
-type TorrentSourceAgg {
-  value: String!
   label: String!
   count: Int!
   isEstimate: Boolean!
@@ -92,7 +78,6 @@ type ReleaseYearAgg {
 
 type TorrentSearchAggregations {
   contentType: [ContentTypeAgg!]
-  torrentSource: [TorrentSourceAgg!]
   torrentFileType: [TorrentFileTypeAgg!]
   language: [LanguageAgg!]
   releaseYear: [ReleaseYearAgg!]

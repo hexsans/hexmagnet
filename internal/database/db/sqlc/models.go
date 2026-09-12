@@ -48,8 +48,6 @@ type Torrent struct {
 	ContentID     *string
 	Languages     []byte
 	Tsv           string
-	Seeders       *int32
-	Leechers      *int32
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 }
@@ -73,4 +71,11 @@ type TorrentRetryQueue struct {
 	LastFailureAt pgtype.Timestamptz
 	NextRetryAt   pgtype.Timestamptz
 	DispatchedAt  pgtype.Timestamptz
+}
+
+type TorrentSeeder struct {
+	InfoHash  string
+	Seeders   *int32
+	Leechers  *int32
+	UpdatedAt pgtype.Timestamptz
 }

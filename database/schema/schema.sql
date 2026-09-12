@@ -113,3 +113,42 @@ create table torrent_retry_queue
 
 create index on torrent_retry_queue (next_retry_at);
 create index on torrent_retry_queue (stage);
+-- Remove indexes that are never used by any query and only consume disk.
+-- torrent_files_path_parts_idx: no query filters on path_parts (file search uses torrents.tsv)
+-- torrent_files_size_idx: no query orders/filters torrent_files by size
+-- torrents_content_type_idx: covered by torrents_content_type_updated_at_idx / torrents_content_type_tsv_idx
+-- torrents_content_source_idx: covered by torrents_content_source_content_id_idx
+-- content_type_idx: covered by content primary key (type, source, id)
+drop index if exists torrent_files_path_parts_idx;
+drop index if exists torrent_files_size_idx;
+drop index if exists torrents_content_type_idx;
+drop index if exists torrents_content_source_idx;
+drop index if exists content_type_idx;
+-- Move the frequently updated seeder/leecher counters off the wide `torrents`
+-- row into a dedicated table. Updating an indexed column on `torrents`
+-- (seeders/leechers/updated_at) prevents HOT updates and rewrites the row plus
+-- every index, including the large GIN index on torrents.tsv. Keeping the hot
+-- counters isolated stops that write amplification and bloat.
+create table torrent_seeders
+(
+  info_hash  text                     not null primary key references torrents on delete cascade,
+  seeders    integer,
+  leechers   integer,
+  updated_at timestamp with time zone not null default now()
+);
+
+insert into torrent_seeders (info_hash, seeders, leechers, updated_at)
+select info_hash, seeders, leechers, updated_at
+from torrents
+on conflict (info_hash) do nothing;
+
+create index on torrent_seeders (coalesce(seeders, -1));
+create index on torrent_seeders (coalesce(leechers, -1));
+
+drop index if exists torrents_seeders_idx;
+drop index if exists torrents_seeders_coalesce_idx;
+drop index if exists torrents_leechers_idx;
+drop index if exists torrents_leechers_coalesce_idx;
+
+alter table torrents drop column seeders;
+alter table torrents drop column leechers;

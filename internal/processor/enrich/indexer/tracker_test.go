@@ -125,7 +125,7 @@ func TestReindexTracker_Start_AlreadyRunning(t *testing.T) {
 	tracker.progress = &ReindexProgress{}
 	tracker.mu.Unlock()
 
-	err := tracker.Start(context.Background(), nil, nil, nil, 0, nil)
+	err := tracker.Start(context.Background(), nil, nil, nil, 0, 0, nil)
 	assert.ErrorContains(t, err, "reindex already in progress")
 }
 
@@ -205,7 +205,7 @@ func TestRunReindex_PanicRecovery(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.True(t, done)
@@ -346,7 +346,7 @@ func TestRunReindex_ContextCanceledBeforeCounting(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.Equal(t, 0, progress.total)
@@ -380,7 +380,7 @@ func TestRunReindex_ContextCanceledDuringLoop(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.Equal(t, 100, progress.total)

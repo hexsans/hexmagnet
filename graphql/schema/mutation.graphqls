@@ -6,6 +6,7 @@ type Mutation {
 type TorrentMutation {
   reprocess(input: TorrentReprocessInput!): Void
   reindexToElasticsearch: ReindexProgress!
+  reclassifyTorrents: ReclassifyProgress!
 }
 
 input TorrentReprocessInput {
@@ -17,6 +18,14 @@ input TorrentReprocessInput {
 type ReindexProgress {
   total: Int!
   indexed: Int!
+  done: Boolean!
+  running: Boolean!
+  error: String
+}
+
+type ReclassifyProgress {
+  total: Int!
+  processed: Int!
   done: Boolean!
   running: Boolean!
   error: String

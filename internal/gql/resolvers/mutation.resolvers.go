@@ -85,6 +85,27 @@ func (r *torrentMutationResolver) ReindexToElasticsearch(ctx context.Context, ob
 	}, nil
 }
 
+// ReclassifyTorrents is the resolver for the reclassifyTorrents field.
+func (r *torrentMutationResolver) ReclassifyTorrents(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error) {
+	if err := r.Resolver.ReclassifyTracker.Start(
+		context.Background(),
+		r.Resolver.Processor,
+		r.Resolver.DB,
+		r.Resolver.Logger,
+	); err != nil {
+		return gen.ReclassifyProgress{Done: true, Error: ptr(err.Error())}, nil
+	}
+
+	total, processed, done, running, errMsg := r.Resolver.ReclassifyTracker.Progress()
+	return gen.ReclassifyProgress{
+		Total:     total,
+		Processed: processed,
+		Done:      done,
+		Running:   running,
+		Error:     nilStr(errMsg),
+	}, nil
+}
+
 // Mutation returns gql.MutationResolver implementation.
 func (r *Resolver) Mutation() gql.MutationResolver { return &mutationResolver{r} }
 

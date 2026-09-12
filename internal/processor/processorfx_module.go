@@ -13,6 +13,7 @@ func NewProcessorFxModule() fx.Option {
 		fx.Provide(
 			New,
 			NewConsumer,
+			NewReclassifyTracker,
 			indexer.New,
 			indexer.NewDeleter,
 		),

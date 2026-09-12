@@ -114,6 +114,8 @@ type ComplexityRoot struct {
 
 	DhtCrawlerStatus struct {
 		Active          func(childComplexity int) int
+		PauseReason     func(childComplexity int) int
+		Paused          func(childComplexity int) int
 		PeersConnected  func(childComplexity int) int
 		PeersDiscovered func(childComplexity int) int
 		RecentActivity  func(childComplexity int) int
@@ -201,16 +203,17 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Config        func(childComplexity int) int
-		DhtCrawler    func(childComplexity int) int
-		Health        func(childComplexity int) int
-		Queue         func(childComplexity int) int
-		ReindexStatus func(childComplexity int) int
-		RetryQueue    func(childComplexity int) int
-		Torrent       func(childComplexity int) int
-		TorrentSearch func(childComplexity int) int
-		Version       func(childComplexity int) int
-		Workers       func(childComplexity int) int
+		Config           func(childComplexity int) int
+		DhtCrawler       func(childComplexity int) int
+		Health           func(childComplexity int) int
+		Queue            func(childComplexity int) int
+		ReclassifyStatus func(childComplexity int) int
+		ReindexStatus    func(childComplexity int) int
+		RetryQueue       func(childComplexity int) int
+		Torrent          func(childComplexity int) int
+		TorrentSearch    func(childComplexity int) int
+		Version          func(childComplexity int) int
+		Workers          func(childComplexity int) int
 	}
 
 	QueueConfig struct {
@@ -258,6 +261,14 @@ type ComplexityRoot struct {
 	QueueQuery struct {
 		Jobs    func(childComplexity int, input gen.QueueJobsQueryInput) int
 		Metrics func(childComplexity int, input gen.QueueMetricsQueryInput) int
+	}
+
+	ReclassifyProgress struct {
+		Done      func(childComplexity int) int
+		Error     func(childComplexity int) int
+		Processed func(childComplexity int) int
+		Running   func(childComplexity int) int
+		Total     func(childComplexity int) int
 	}
 
 	ReindexProgress struct {
@@ -393,6 +404,7 @@ type ComplexityRoot struct {
 	}
 
 	TorrentMutation struct {
+		ReclassifyTorrents     func(childComplexity int) int
 		ReindexToElasticsearch func(childComplexity int) int
 		Reprocess              func(childComplexity int, input gen.TorrentReprocessInput) int
 	}
@@ -497,6 +509,7 @@ type QueryResolver interface {
 	Queue(ctx context.Context) (gqlmodel.QueueQuery, error)
 	RetryQueue(ctx context.Context) (gqlmodel.RetryQueueQuery, error)
 	ReindexStatus(ctx context.Context) (gen.ReindexProgress, error)
+	ReclassifyStatus(ctx context.Context) (gen.ReclassifyProgress, error)
 	Config(ctx context.Context) (gen.Config, error)
 	DhtCrawler(ctx context.Context) (gqlmodel.DhtCrawlerStatus, error)
 }
@@ -509,6 +522,7 @@ type RetryQueueMutationResolver interface {
 type TorrentMutationResolver interface {
 	Reprocess(ctx context.Context, obj *gqlmodel.TorrentMutation, input gen.TorrentReprocessInput) (*string, error)
 	ReindexToElasticsearch(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReindexProgress, error)
+	ReclassifyTorrents(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error)
 }
 type TorrentQueryResolver interface {
 	Files(ctx context.Context, obj *gqlmodel.TorrentQuery, input gqlmodel.TorrentFilesQueryInput) (gqlmodel.TorrentFilesQueryResult, error)
@@ -798,6 +812,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DhtCrawlerStatus.Active(childComplexity), true
+	case "DhtCrawlerStatus.pauseReason":
+		if e.ComplexityRoot.DhtCrawlerStatus.PauseReason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DhtCrawlerStatus.PauseReason(childComplexity), true
+	case "DhtCrawlerStatus.paused":
+		if e.ComplexityRoot.DhtCrawlerStatus.Paused == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DhtCrawlerStatus.Paused(childComplexity), true
 	case "DhtCrawlerStatus.peersConnected":
 		if e.ComplexityRoot.DhtCrawlerStatus.PeersConnected == nil {
 			break
@@ -1146,6 +1172,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Queue(childComplexity), true
+	case "Query.reclassifyStatus":
+		if e.ComplexityRoot.Query.ReclassifyStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ReclassifyStatus(childComplexity), true
 	case "Query.reindexStatus":
 		if e.ComplexityRoot.Query.ReindexStatus == nil {
 			break
@@ -1338,6 +1370,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.QueueQuery.Metrics(childComplexity, args["input"].(gen.QueueMetricsQueryInput)), true
+
+	case "ReclassifyProgress.done":
+		if e.ComplexityRoot.ReclassifyProgress.Done == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Done(childComplexity), true
+	case "ReclassifyProgress.error":
+		if e.ComplexityRoot.ReclassifyProgress.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Error(childComplexity), true
+	case "ReclassifyProgress.processed":
+		if e.ComplexityRoot.ReclassifyProgress.Processed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Processed(childComplexity), true
+	case "ReclassifyProgress.running":
+		if e.ComplexityRoot.ReclassifyProgress.Running == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Running(childComplexity), true
+	case "ReclassifyProgress.total":
+		if e.ComplexityRoot.ReclassifyProgress.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Total(childComplexity), true
 
 	case "ReindexProgress.done":
 		if e.ComplexityRoot.ReindexProgress.Done == nil {
@@ -1818,6 +1881,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TorrentMetricsQueryResult.Buckets(childComplexity), true
 
+	case "TorrentMutation.reclassifyTorrents":
+		if e.ComplexityRoot.TorrentMutation.ReclassifyTorrents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorrentMutation.ReclassifyTorrents(childComplexity), true
 	case "TorrentMutation.reindexToElasticsearch":
 		if e.ComplexityRoot.TorrentMutation.ReindexToElasticsearch == nil {
 			break
@@ -2597,6 +2666,8 @@ input WebhookHeaderInput {
 
 type DhtCrawlerStatus {
   active: Boolean!
+  paused: Boolean!
+  pauseReason: String
   torrentsCrawled: Uint64!
   peersConnected: Uint64!
   peersDiscovered: Uint64!
@@ -2839,6 +2910,7 @@ type Content {
 type TorrentMutation {
   reprocess(input: TorrentReprocessInput!): Void
   reindexToElasticsearch: ReindexProgress!
+  reclassifyTorrents: ReclassifyProgress!
 }
 
 input TorrentReprocessInput {
@@ -2854,6 +2926,14 @@ type ReindexProgress {
   running: Boolean!
   error: String
 }
+
+type ReclassifyProgress {
+  total: Int!
+  processed: Int!
+  done: Boolean!
+  running: Boolean!
+  error: String
+}
 `, BuiltIn: false},
 	{Name: "../../graphql/schema/query.graphqls", Input: `type Query {
   version: String!
@@ -2864,6 +2944,7 @@ type ReindexProgress {
   queue: QueueQuery!
   retryQueue: RetryQueueQuery!
   reindexStatus: ReindexProgress!
+  reclassifyStatus: ReclassifyProgress!
 }
 
 type TorrentQuery {
@@ -3293,6 +3374,10 @@ func (ec *executionContext) childFields_DhtCrawlerStatus(ctx context.Context, fi
 	switch field.Name {
 	case "active":
 		return ec.fieldContext_DhtCrawlerStatus_active(ctx, field)
+	case "paused":
+		return ec.fieldContext_DhtCrawlerStatus_paused(ctx, field)
+	case "pauseReason":
+		return ec.fieldContext_DhtCrawlerStatus_pauseReason(ctx, field)
 	case "torrentsCrawled":
 		return ec.fieldContext_DhtCrawlerStatus_torrentsCrawled(ctx, field)
 	case "peersConnected":
@@ -3545,6 +3630,22 @@ func (ec *executionContext) childFields_QueueQuery(ctx context.Context, field gr
 		return ec.fieldContext_QueueQuery_jobs(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type QueueQuery", field.Name)
+}
+
+func (ec *executionContext) childFields_ReclassifyProgress(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "total":
+		return ec.fieldContext_ReclassifyProgress_total(ctx, field)
+	case "processed":
+		return ec.fieldContext_ReclassifyProgress_processed(ctx, field)
+	case "done":
+		return ec.fieldContext_ReclassifyProgress_done(ctx, field)
+	case "running":
+		return ec.fieldContext_ReclassifyProgress_running(ctx, field)
+	case "error":
+		return ec.fieldContext_ReclassifyProgress_error(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ReclassifyProgress", field.Name)
 }
 
 func (ec *executionContext) childFields_ReindexProgress(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3817,6 +3918,8 @@ func (ec *executionContext) childFields_TorrentMutation(ctx context.Context, fie
 		return ec.fieldContext_TorrentMutation_reprocess(ctx, field)
 	case "reindexToElasticsearch":
 		return ec.fieldContext_TorrentMutation_reindexToElasticsearch(ctx, field)
+	case "reclassifyTorrents":
+		return ec.fieldContext_TorrentMutation_reclassifyTorrents(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TorrentMutation", field.Name)
 }
@@ -5396,6 +5499,52 @@ func (ec *executionContext) fieldContext_DhtCrawlerStatus_active(_ context.Conte
 	return graphql.NewScalarFieldContext("DhtCrawlerStatus", field, true, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _DhtCrawlerStatus_paused(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.DhtCrawlerStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DhtCrawlerStatus_paused(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Paused, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DhtCrawlerStatus_paused(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DhtCrawlerStatus", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DhtCrawlerStatus_pauseReason(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.DhtCrawlerStatus) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DhtCrawlerStatus_pauseReason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PauseReason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.NullString) graphql.Marshaler {
+			return ec.marshalOString2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋmodelᚐNullString(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DhtCrawlerStatus_pauseReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DhtCrawlerStatus", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _DhtCrawlerStatus_torrentsCrawled(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.DhtCrawlerStatus) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6882,6 +7031,38 @@ func (ec *executionContext) fieldContext_Query_reindexStatus(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_reclassifyStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_reclassifyStatus(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ReclassifyStatus(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.ReclassifyProgress) graphql.Marshaler {
+			return ec.marshalNReclassifyProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReclassifyProgress(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_reclassifyStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReclassifyProgress(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_config(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7636,6 +7817,121 @@ func (ec *executionContext) fieldContext_QueueQuery_jobs(ctx context.Context, fi
 		return fc, err
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _ReclassifyProgress_total(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ReclassifyProgress_processed(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_processed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Processed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_processed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ReclassifyProgress_done(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_done(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Done, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_done(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ReclassifyProgress_running(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_running(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Running, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_running(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ReclassifyProgress_error(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_error(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _ReindexProgress_total(ctx context.Context, field graphql.CollectedField, obj *gen.ReindexProgress) (ret graphql.Marshaler) {
@@ -9566,6 +9862,38 @@ func (ec *executionContext) fieldContext_TorrentMutation_reindexToElasticsearch(
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_ReindexProgress(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TorrentMutation_reclassifyTorrents(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.TorrentMutation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorrentMutation_reclassifyTorrents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.TorrentMutation().ReclassifyTorrents(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.ReclassifyProgress) graphql.Marshaler {
+			return ec.marshalNReclassifyProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReclassifyProgress(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorrentMutation_reclassifyTorrents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TorrentMutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReclassifyProgress(ctx, field)
 		},
 	}
 	return fc, nil
@@ -14349,6 +14677,16 @@ func (ec *executionContext) _DhtCrawlerStatus(ctx context.Context, sel ast.Selec
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "paused":
+			out.Values[i] = ec._DhtCrawlerStatus_paused(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "pauseReason":
+			out.Values[i] = ec._DhtCrawlerStatus_pauseReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "torrentsCrawled":
 			field := field
 
@@ -15396,6 +15734,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "reclassifyStatus":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_reclassifyStatus(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "config":
 			field := field
 
@@ -15932,6 +16292,64 @@ func (ec *executionContext) _QueueQuery(ctx context.Context, sel ast.SelectionSe
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var reclassifyProgressImplementors = []string{"ReclassifyProgress"}
+
+func (ec *executionContext) _ReclassifyProgress(ctx context.Context, sel ast.SelectionSet, obj *gen.ReclassifyProgress) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reclassifyProgressImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReclassifyProgress")
+		case "total":
+			out.Values[i] = ec._ReclassifyProgress_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "processed":
+			out.Values[i] = ec._ReclassifyProgress_processed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "done":
+			out.Values[i] = ec._ReclassifyProgress_done(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "running":
+			out.Values[i] = ec._ReclassifyProgress_running(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._ReclassifyProgress_error(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17114,6 +17532,44 @@ func (ec *executionContext) _TorrentMutation(ctx context.Context, sel ast.Select
 					}
 				}()
 				res = ec._TorrentMutation_reindexToElasticsearch(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "reclassifyTorrents":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._TorrentMutation_reclassifyTorrents(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -18681,6 +19137,10 @@ func (ec *executionContext) marshalNQueueMetricsQueryResult2githubᚗcomᚋhexsa
 
 func (ec *executionContext) marshalNQueueQuery2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚐQueueQuery(ctx context.Context, sel ast.SelectionSet, v gqlmodel.QueueQuery) graphql.Marshaler {
 	return ec._QueueQuery(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReclassifyProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReclassifyProgress(ctx context.Context, sel ast.SelectionSet, v gen.ReclassifyProgress) graphql.Marshaler {
+	return ec._ReclassifyProgress(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNReindexProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReindexProgress(ctx context.Context, sel ast.SelectionSet, v gen.ReindexProgress) graphql.Marshaler {

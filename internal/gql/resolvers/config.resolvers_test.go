@@ -13,6 +13,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
+	"github.com/hexsans/hexmagnet/internal/jobcontrol"
 	"github.com/hexsans/hexmagnet/internal/processor/enrich/indexer"
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
@@ -756,6 +757,40 @@ func Test_UpdateConfigMutation_partialUpdate(t *testing.T) {
 
 	dht := data["dht"].(map[string]any)
 	assert.Equal(t, 3334, dht["port"], "unchanged section preserved")
+}
+
+func Test_UpdateConfigMutation_dimsGuard(t *testing.T) {
+	t.Parallel()
+
+	resolver := fixedResolver()
+	resolver.SearchCfg.Elasticsearch.Embedding.Dimensions = 1024
+	resolver.JobControl = jobcontrol.NewController()
+	m := &mutationResolver{resolver}
+
+	buildInput := func(dims int) gen.ConfigInput {
+		return gen.ConfigInput{
+			Storage: graphql.OmittableOf[*gen.StorageConfigInput](&gen.StorageConfigInput{
+				Search: graphql.OmittableOf[*gen.SearchConfigInput](&gen.SearchConfigInput{
+					Elasticsearch: graphql.OmittableOf[*gen.ElasticsearchConfigInput](&gen.ElasticsearchConfigInput{
+						Embedding: graphql.OmittableOf[*gen.EmbeddingConfigInput](&gen.EmbeddingConfigInput{
+							Dimensions: graphql.OmittableOf[*int](&dims),
+						}),
+					}),
+				}),
+			}),
+		}
+	}
+
+	require.NoError(t, m.rejectDimsChangeWhileBusy(buildInput(2048)), "idle job must allow dims change")
+
+	require.True(t, resolver.JobControl.TryAcquire(jobcontrol.JobReindex))
+	defer resolver.JobControl.Release(jobcontrol.JobReindex)
+
+	err := m.rejectDimsChangeWhileBusy(buildInput(2048))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot change embedding dimensions")
+
+	require.NoError(t, m.rejectDimsChangeWhileBusy(buildInput(1024)), "unchanged dims must be allowed")
 }
 
 func Test_UpdateConfigMutation_createsMissingSections(t *testing.T) {

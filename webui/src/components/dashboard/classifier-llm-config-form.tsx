@@ -1,4 +1,4 @@
-import { useState, } from "react";
+import { useState, useRef, useEffect, } from "react";
 import { useQuery, useMutation, } from "urql";
 import { useTranslation, } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, } from "@/components/ui/card";
@@ -6,11 +6,12 @@ import { Input, } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, } from "@/components/ui/select";
 import { Checkbox, } from "@/components/ui/checkbox";
 import { Skeleton, } from "@/components/ui/skeleton";
-import { LoaderCircle, } from "lucide-react";
+import { LoaderCircle, RefreshCw, } from "lucide-react";
 import { Button, } from "@/components/ui/button";
 import { toast, } from "sonner";
-import { ConfigDocument, UpdateConfigDocument, } from "@/lib/graphql/generated/graphql";
+import { ConfigDocument, UpdateConfigDocument, ReclassifyTorrentsDocument, } from "@/lib/graphql/generated/graphql";
 import type { ConfigQuery, ClassifierConfigInput, } from "@/lib/graphql/generated/graphql";
+import { useMaintenanceStatus, } from "@/lib/use-maintenance-status";
 
 type ClassifierSection = ConfigQuery["config"]["classifier"];
 
@@ -24,6 +25,52 @@ export function ClassifierLLMConfigForm() {
 
   const original = data?.config?.classifier ?? null;
   const active = form ?? original;
+
+  const [, reclassifyMutation,] = useMutation(ReclassifyTorrentsDocument,);
+  const { reclassify, reindexRunning, refresh: refreshMaintenance, } = useMaintenanceStatus();
+
+  const reclassifyRunning = Boolean(reclassify?.running && !reclassify?.done,);
+  const reclassifyTotal = reclassify?.total ?? 0;
+  const reclassifyProcessed = reclassify?.processed ?? 0;
+  const reclassifyBusy = reclassifyRunning || reindexRunning;
+  const reclassifyErrorRef = useRef<string | null>(null,);
+  const reclassifySawRunningRef = useRef(false,);
+  const reclassifyCompletedRef = useRef(false,);
+
+  function startReclassify() {
+    reclassifyMutation({},).then((result,) => {
+      const p = result.data?.torrent?.reclassifyTorrents;
+      if (!p) return;
+      if (p.error) { toast.error(p.error,); return; }
+      if (p.done && p.processed > 0) { toast.success(t("dashboard.reclassifyDone", { count: p.processed, },),); }
+      refreshMaintenance();
+    },);
+  }
+
+  useEffect(() => {
+    if (!reclassify) return;
+
+    if (reclassify.error) {
+      if (reclassify.error !== reclassifyErrorRef.current) {
+        reclassifyErrorRef.current = reclassify.error;
+        toast.error(reclassify.error,);
+      }
+      return;
+    }
+
+    reclassifyErrorRef.current = null;
+
+    if (reclassify.running && !reclassify.done) {
+      reclassifySawRunningRef.current = true;
+      reclassifyCompletedRef.current = false;
+      return;
+    }
+
+    if (reclassifySawRunningRef.current && reclassify.done && reclassify.processed > 0 && !reclassifyCompletedRef.current) {
+      reclassifyCompletedRef.current = true;
+      toast.success(t("dashboard.reclassifyDone", { count: reclassify.processed, },),);
+    }
+  }, [reclassify, t,],);
 
   if (fetching || !active) {
     return (
@@ -417,7 +464,32 @@ export function ClassifierLLMConfigForm() {
           </div>
         </fieldset>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-1.5 font-mono text-xs bg-cyan/10 text-cyan border border-cyan/40 hover:bg-cyan/20 disabled:opacity-50"
+              onClick={startReclassify}
+              disabled={reclassifyBusy}
+            >
+              {reclassifyRunning ? (
+                <>
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                  {t("dashboard.reclassifying", { processed: reclassifyProcessed, total: reclassifyTotal, },)}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-3.5" />
+                  {t("dashboard.reclassifyAll",)}
+                </>
+              )}
+            </Button>
+            {reindexRunning && (
+              <span className="font-mono text-[10px] text-amber">{t("dashboard.reindexInProgressHint",)}</span>
+            )}
+          </div>
+
           <Button
             variant="default"
             size="sm"

@@ -19,6 +19,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/gql/httpserver"
 	"github.com/hexsans/hexmagnet/internal/gql/resolvers"
 	"github.com/hexsans/hexmagnet/internal/health"
+	"github.com/hexsans/hexmagnet/internal/jobcontrol"
 	"github.com/hexsans/hexmagnet/internal/logging"
 	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 	"github.com/hexsans/hexmagnet/internal/processor"
@@ -117,6 +118,8 @@ func New() fx.Option {
 							QueueRuntime:         p.QueueRuntime,
 							SearchRuntime:        p.SearchRuntime,
 							ReindexTracker:       p.ReindexTracker,
+							ReclassifyTracker:    p.ReclassifyTracker,
+							JobControl:           p.JobControl,
 						}
 						r.SetES(p.ESClient)
 						r.SetEM(p.Embedder)
@@ -373,6 +376,8 @@ type Params struct {
 	QueueRuntime      *queue.Runtime
 	SearchRuntime     *dbsearch.Runtime
 	ReindexTracker    *indexer.ReindexTracker
+	ReclassifyTracker *processor.ReclassifyTracker
+	JobControl        *jobcontrol.Controller
 
 	ESClient *elasticsearch.Client
 	Embedder *embedding.Client

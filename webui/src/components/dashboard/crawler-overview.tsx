@@ -37,6 +37,12 @@ export function CrawlerOverview() {
 
   const fetching = crawlerFetching;
   const status = crawler;
+  const pauseReason =
+    status?.pauseReason === "embedding reindex"
+      ? t("dashboard.pauseReasonEmbeddingReindex",)
+      : status?.pauseReason === "classifier reclassify"
+        ? t("dashboard.pauseReasonReclassify",)
+        : status?.pauseReason ?? "";
 
   const uptimeSeconds = Math.max(1, Number(status?.uptime ?? 1,),);
   const perMin = (val: number,) => Math.round(val / (uptimeSeconds / 60),);
@@ -95,6 +101,11 @@ export function CrawlerOverview() {
               </>
             )}
           </div>
+          {status.paused && (
+            <Badge variant="outline" className="border-amber/40 bg-amber/10 text-amber font-mono text-xs">
+              {t("dashboard.crawlerPaused", { reason: pauseReason, },)}
+            </Badge>
+          )}
         </div>
         <div className="hidden sm:flex gap-2">
           {healthFetching && !health

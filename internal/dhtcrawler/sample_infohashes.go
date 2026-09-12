@@ -37,6 +37,11 @@ func (c *crawler) runSampleInfoHashes(ctx context.Context) {
 			return
 		}
 
+		if c.pauseGate != nil && c.pauseGate.Paused() {
+			c.logger.Debugw("crawler paused during maintenance job, skipping sample_infohashes", "node", n.Addr())
+			return
+		}
+
 		res, err := c.client.SampleInfoHashes(ctx, n.Addr(), c.soughtNodeID.Get())
 		if err != nil {
 			c.logger.Debugw("sample_infohashes failed", "node", n.Addr(), "error", err)

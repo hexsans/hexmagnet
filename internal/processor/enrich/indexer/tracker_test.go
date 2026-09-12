@@ -120,7 +120,7 @@ func TestReindexProgress_SnapshotThreadSafe(t *testing.T) {
 func TestReindexTracker_Start_AlreadyRunning(t *testing.T) {
 	t.Parallel()
 
-	tracker := NewReindexTracker()
+	tracker := NewReindexTracker(nil)
 	tracker.mu.Lock()
 	tracker.progress = &ReindexProgress{}
 	tracker.mu.Unlock()
@@ -132,7 +132,7 @@ func TestReindexTracker_Start_AlreadyRunning(t *testing.T) {
 func TestReindexTracker_Progress_Nil(t *testing.T) {
 	t.Parallel()
 
-	tracker := NewReindexTracker()
+	tracker := NewReindexTracker(nil)
 	total, indexed, done, running, errMsg := tracker.Progress()
 	assert.Equal(t, 0, total)
 	assert.Equal(t, 0, indexed)
@@ -144,7 +144,7 @@ func TestReindexTracker_Progress_Nil(t *testing.T) {
 func TestReindexTracker_Progress_WithProgress(t *testing.T) {
 	t.Parallel()
 
-	tracker := NewReindexTracker()
+	tracker := NewReindexTracker(nil)
 	progress := &ReindexProgress{}
 	progress.setRunning()
 	progress.mu.Lock()
@@ -162,6 +162,44 @@ func TestReindexTracker_Progress_WithProgress(t *testing.T) {
 	assert.False(t, done)
 	assert.True(t, running)
 	assert.Empty(t, errMsg)
+}
+
+func TestReindexTracker_Running_Nil(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewReindexTracker(nil)
+	assert.False(t, tracker.Running())
+}
+
+func TestReindexTracker_Running_Active(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewReindexTracker(nil)
+	progress := &ReindexProgress{}
+	progress.setRunning()
+
+	tracker.mu.Lock()
+	tracker.progress = progress
+	tracker.mu.Unlock()
+
+	assert.True(t, tracker.Running())
+}
+
+func TestReindexTracker_Running_Done(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewReindexTracker(nil)
+	progress := &ReindexProgress{}
+	progress.setRunning()
+	progress.mu.Lock()
+	progress.done = true
+	progress.mu.Unlock()
+
+	tracker.mu.Lock()
+	tracker.progress = progress
+	tracker.mu.Unlock()
+
+	assert.False(t, tracker.Running())
 }
 
 func TestReindexProgress_RunningReflectsActiveState(t *testing.T) {
@@ -205,7 +243,7 @@ func TestRunReindex_PanicRecovery(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, 0, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, func() {}, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.True(t, done)
@@ -346,7 +384,7 @@ func TestRunReindex_ContextCanceledBeforeCounting(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, 0, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, func() {}, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.Equal(t, 0, progress.total)
@@ -380,7 +418,7 @@ func TestRunReindex_ContextCanceledDuringLoop(t *testing.T) {
 	q := &db.Queries{Queries: sqlcQ}
 	logger := zap.NewNop().Sugar()
 
-	runReindex(ctx, q, nil, nil, 0, progress, logger)
+	runReindex(ctx, q, nil, nil, 0, progress, func() {}, logger)
 
 	_, _, done, running, errMsg := progress.Snapshot()
 	assert.Equal(t, 100, progress.total)

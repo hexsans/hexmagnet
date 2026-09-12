@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, } from "react";
-import { useQuery, useMutation, useClient, } from "urql";
+import { useQuery, useMutation, } from "urql";
 import { useTranslation, } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, } from "@/components/ui/card";
 import { Input, } from "@/components/ui/input";
@@ -9,8 +9,9 @@ import { Checkbox, } from "@/components/ui/checkbox";
 import { LoaderCircle, } from "lucide-react";
 import { Button, } from "@/components/ui/button";
 import { toast, } from "sonner";
-import { ConfigDocument, UpdateConfigDocument, ReindexElasticsearchDocument, ReindexStatusDocument, } from "@/lib/graphql/generated/graphql";
+import { ConfigDocument, UpdateConfigDocument, ReindexElasticsearchDocument, } from "@/lib/graphql/generated/graphql";
 import type { ConfigQuery, StorageConfigInput, } from "@/lib/graphql/generated/graphql";
+import { useMaintenanceStatus, } from "@/lib/use-maintenance-status";
 
 type StorageSection = ConfigQuery["config"]["storage"];
 
@@ -27,69 +28,51 @@ export function StorageConfigForm() {
   const original = data?.config?.storage ?? null;
   const active = form ?? original;
 
-  // Reindex state
-  const [reindexing, setReindexing,] = useState(false,);
-  const [reindexTotal, setReindexTotal,] = useState(0,);
-  const [reindexIndexed, setReindexIndexed,] = useState(0,);
   const [, reindexMutation,] = useMutation(ReindexElasticsearchDocument,);
-  const client = useClient();
+  const { reindex, reclassifyRunning, refresh: refreshMaintenance, } = useMaintenanceStatus();
+
+  const reindexing = Boolean(reindex?.running && !reindex?.done,);
+  const reindexTotal = reindex?.total ?? 0;
+  const reindexIndexed = reindex?.indexed ?? 0;
+  const maintenanceBusy = reindexing || reclassifyRunning;
+  const reindexErrorRef = useRef<string | null>(null,);
+  const reindexSawRunningRef = useRef(false,);
+  const reindexCompletedRef = useRef(false,);
 
   function startReindex() {
     reindexMutation({},).then((result,) => {
       const p = result.data?.torrent?.reindexToElasticsearch;
       if (!p) return;
       if (p.error) { toast.error(p.error,); return; }
-      if (p.done) { toast.success(t("dashboard.reindexDone", { count: p.indexed, },),); return; }
-      setReindexTotal(p.total,);
-      setReindexIndexed(p.indexed,);
-      setReindexing(true,);
+      if (p.done && p.indexed > 0) { toast.success(t("dashboard.reindexDone", { count: p.indexed, },),); }
+      refreshMaintenance();
     },);
   }
 
-  // Detect if a reindex is already running on page load
   useEffect(() => {
-    client.query(ReindexStatusDocument, {}, { requestPolicy: "network-only", },).toPromise().then((result,) => {
-      const p = result.data?.reindexStatus;
-      if (!p || !p.running) return;
-      if (p.done) return;
-      setReindexTotal(p.total,);
-      setReindexIndexed(p.indexed,);
-      setReindexing(true,);
-    },);
-  }, [client,],);
+    if (!reindex) return;
 
-  // Poll reindex progress while active, stop when done
-  useEffect(() => {
-    if (!reindexing) return;
+    if (reindex.error) {
+      if (reindex.error !== reindexErrorRef.current) {
+        reindexErrorRef.current = reindex.error;
+        toast.error(reindex.error,);
+      }
+      return;
+    }
 
-    let cancelled = false;
+    reindexErrorRef.current = null;
 
-    const poll = () => {
-      client.query(ReindexStatusDocument, {}, { requestPolicy: "network-only", },).toPromise().then((result,) => {
-        if (cancelled) return;
-        const p = result.data?.reindexStatus;
-        if (!p) return;
-        setReindexTotal(p.total,);
-        setReindexIndexed(p.indexed,);
-        if (p.error) { toast.error(p.error,); clearInterval(intervalId,); setReindexing(false,); return; }
-        if (p.done) {
-          clearInterval(intervalId,);
-          if (p.indexed > 0) toast.success(t("dashboard.reindexDone", { count: p.indexed, },),);
-          setReindexing(false,);
-          return;
-        }
-        setReindexing(true,);
-      },);
-    };
+    if (reindex.running && !reindex.done) {
+      reindexSawRunningRef.current = true;
+      reindexCompletedRef.current = false;
+      return;
+    }
 
-    const intervalId = setInterval(poll, 1000,);
-    poll();
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId,);
-    };
-  }, [reindexing, t, client,],);
+    if (reindexSawRunningRef.current && reindex.done && reindex.indexed > 0 && !reindexCompletedRef.current) {
+      reindexCompletedRef.current = true;
+      toast.success(t("dashboard.reindexDone", { count: reindex.indexed, },),);
+    }
+  }, [reindex, t,],);
 
   if (fetching || !active) {
     return (
@@ -554,11 +537,13 @@ export function StorageConfigForm() {
                       id="embeddingDimensions"
                       type="number"
                       min={1}
+                      disabled={maintenanceBusy}
                       value={active.search.elasticsearch.embedding?.dimensions ?? 1024}
                       onChange={(e,) => updateElasticsearchEmbedding({ dimensions: parseInt(e.target.value, 10,) || 0, },)}
-                      className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.embeddingDimensions ? "border-red" : ""}`}
+                      className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 disabled:opacity-50 ${errors.embeddingDimensions ? "border-red" : ""}`}
                     />
                     <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embeddingDimensionsHint",)}</span>
+                    {maintenanceBusy && <span className="font-mono text-[10px] text-amber mt-0.5 block">{t("dashboard.dimsLockedHint",)}</span>}
                     {errors.embeddingDimensions && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.embeddingDimensions}</span>}
                   </div>
 
@@ -568,7 +553,7 @@ export function StorageConfigForm() {
                       size="sm"
                       className="gap-1.5 font-mono text-xs bg-green/20 text-green border border-green/40 hover:bg-green/30 disabled:opacity-50"
                       onClick={startReindex}
-                      disabled={reindexing}
+                      disabled={maintenanceBusy}
                     >
                       {reindexing ? (
                         <>

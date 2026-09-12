@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,6 +31,8 @@ type mockClient struct {
 	pingErr             error
 	findNodeErr         error
 	sampleInfoHashesErr error
+	sampleSamples       []protocol.ID
+	sampleInfoHashesN   atomic.Int32
 }
 
 var _ client.Client = (*mockClient)(nil)
@@ -50,7 +54,9 @@ func (*mockClient) GetPeersScrape(_ context.Context, _ netip.AddrPort, _ protoco
 }
 
 func (m *mockClient) SampleInfoHashes(_ context.Context, _ netip.AddrPort, _ protocol.ID) (client.SampleInfoHashesResult, error) {
-	return client.SampleInfoHashesResult{}, m.sampleInfoHashesErr
+	m.sampleInfoHashesN.Add(1)
+
+	return client.SampleInfoHashesResult{Samples: m.sampleSamples}, m.sampleInfoHashesErr
 }
 
 type mockProducer struct{}
@@ -59,6 +65,34 @@ var _ queue.Producer = (*mockProducer)(nil)
 
 func (*mockProducer) Produce(_ string, _ string, _ any) {}
 func (*mockProducer) Close() error                      { return nil }
+
+type recordingProducer struct {
+	mu    sync.Mutex
+	count int
+}
+
+var _ queue.Producer = (*recordingProducer)(nil)
+
+func (p *recordingProducer) Produce(_ string, _ string, _ any) {
+	p.mu.Lock()
+	p.count++
+	p.mu.Unlock()
+}
+
+func (*recordingProducer) Close() error { return nil }
+
+func (p *recordingProducer) Count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.count
+}
+
+type mockPauseGate struct {
+	paused bool
+}
+
+func (g mockPauseGate) Paused() bool { return g.paused }
 
 func newMinimalCrawler(t *testing.T) *crawler {
 	t.Helper()
@@ -647,5 +681,100 @@ func TestCrawler_RunSampleInfoHashes_Cancellation(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("runSampleInfoHashes did not return with cancelled context")
+	}
+}
+
+func newSamplingCrawler(t *testing.T, gate PauseGate, producer queue.Producer, cl client.Client) *crawler {
+	t.Helper()
+
+	kt := ktable_mocks.NewTable(t)
+	kt.On("BatchCommand", mock.Anything).Return().Maybe()
+
+	c := &crawler{
+		kTable:                   kt,
+		client:                   cl,
+		nodesForSampleInfoHashes: concurrency.NewBufferedConcurrentChannel[ktable.Node](10, 1),
+		kafkaProducer:            producer,
+		ignoreHashes: &ignoreHashes{
+			bloom: bloomv3.NewWithEstimates(1000, 0.01),
+		},
+		soughtNodeID: &concurrency.AtomicValue[protocol.ID]{},
+		pauseGate:    gate,
+		runtime: &Runtime{
+			SeenConnectedPeers:  newSeenPeersBloom(),
+			SeenDiscoveredPeers: newSeenPeersBloom(),
+			PeersDiscovered:     &concurrency.AtomicValue[uint64]{},
+		},
+		logger: zap.NewNop().Sugar(),
+	}
+	c.config.Store(&crawlerConfig{hashDiscoverLimiter: rate.NewLimiter(rate.Inf, 1)})
+
+	return c
+}
+
+func TestCrawler_RunSampleInfoHashes_PausedDuringReindex(t *testing.T) {
+	t.Parallel()
+
+	cl := &mockClient{sampleSamples: []protocol.ID{testutil.MustParseID("cccccccccccccccccccccccccccccccccccccccc")}}
+	producer := &recordingProducer{}
+	c := newSamplingCrawler(t, mockPauseGate{paused: true}, producer, cl)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+
+	go func() {
+		c.runSampleInfoHashes(ctx)
+		close(done)
+	}()
+
+	c.nodesForSampleInfoHashes.In() <- ktable.NewNode(
+		testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		netip.MustParseAddrPort("1.2.3.4:6881"),
+	)
+
+	assert.Never(t, func() bool { return cl.sampleInfoHashesN.Load() > 0 }, 200*time.Millisecond, 20*time.Millisecond)
+	assert.Zero(t, producer.Count())
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("runSampleInfoHashes did not return after cancellation")
+	}
+}
+
+func TestCrawler_RunSampleInfoHashes_NotPaused(t *testing.T) {
+	t.Parallel()
+
+	cl := &mockClient{sampleSamples: []protocol.ID{testutil.MustParseID("cccccccccccccccccccccccccccccccccccccccc")}}
+	producer := &recordingProducer{}
+	c := newSamplingCrawler(t, mockPauseGate{paused: false}, producer, cl)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan struct{})
+
+	go func() {
+		c.runSampleInfoHashes(ctx)
+		close(done)
+	}()
+
+	c.nodesForSampleInfoHashes.In() <- ktable.NewNode(
+		testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		netip.MustParseAddrPort("1.2.3.4:6881"),
+	)
+
+	assert.Eventually(t, func() bool { return producer.Count() > 0 }, time.Second, 10*time.Millisecond)
+	assert.GreaterOrEqual(t, cl.sampleInfoHashesN.Load(), int32(1))
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("runSampleInfoHashes did not return after cancellation")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
+	"github.com/hexsans/hexmagnet/internal/jobcontrol"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
@@ -55,10 +56,11 @@ func (p *ReindexProgress) setRunning() {
 type ReindexTracker struct {
 	mu       sync.Mutex
 	progress *ReindexProgress
+	ctrl     *jobcontrol.Controller
 }
 
-func NewReindexTracker() *ReindexTracker {
-	return &ReindexTracker{}
+func NewReindexTracker(ctrl *jobcontrol.Controller) *ReindexTracker {
+	return &ReindexTracker{ctrl: ctrl}
 }
 
 func (t *ReindexTracker) Start(
@@ -80,12 +82,24 @@ func (t *ReindexTracker) Start(
 		}
 	}
 
+	if t.ctrl != nil && !t.ctrl.TryAcquire(jobcontrol.JobReindex) {
+		return fmt.Errorf("another operation in progress: %s", t.ctrl.Reason())
+	}
+
+	release := func() {
+		if t.ctrl != nil {
+			t.ctrl.Release(jobcontrol.JobReindex)
+		}
+	}
+
 	if err := RecreateIndex(ctx, es, dims, logger); err != nil {
+		release()
+
 		return fmt.Errorf("failed to recreate index: %w", err)
 	}
 
 	t.progress = &ReindexProgress{}
-	go runReindex(ctx, queries, es, embedder, maxSearchFiles, t.progress, logger)
+	go runReindex(ctx, queries, es, embedder, maxSearchFiles, t.progress, release, logger)
 
 	waitForReindexStart(t.progress)
 
@@ -103,6 +117,22 @@ func (t *ReindexTracker) Progress() (total, indexed int, done bool, running bool
 	return t.progress.Snapshot()
 }
 
+// Running reports whether a reindex is currently in progress. It is used by
+// other components (e.g. the DHT crawler) to pause work that would otherwise
+// compete with the reindex.
+func (t *ReindexTracker) Running() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.progress == nil {
+		return false
+	}
+
+	_, _, done, running, _ := t.progress.Snapshot()
+
+	return running && !done
+}
+
 func runReindex(
 	ctx context.Context,
 	queries *db.Queries,
@@ -110,8 +140,11 @@ func runReindex(
 	embedder *embedding.Client,
 	maxSearchFiles int,
 	progress *ReindexProgress,
+	release func(),
 	logger *zap.SugaredLogger,
 ) {
+	defer release()
+
 	defer func() {
 		if r := recover(); r != nil {
 			progress.mu.Lock()

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -12,27 +14,39 @@ import (
 	"github.com/hexsans/hexmagnet/internal/servercfg"
 )
 
-const defaultBaseName = "hexmagnet"
+const (
+	defaultBaseName = "hexmagnet"
+	timeFormat      = "2006-01-02"
+	bytesPerMB      = 1024 * 1024
+)
 
 func newFileRotator(
 	config servercfg.FileRotatorConfig,
 ) *fileRotator {
+	var maxSizeBytes int64
+	if config.MaxSizeMB > 0 {
+		maxSizeBytes = int64(config.MaxSizeMB) * bytesPerMB
+	}
+
 	return &fileRotator{
-		path:       config.Path,
-		baseName:   defaultBaseName,
-		maxBackups: config.MaxBackups,
+		path:         config.Path,
+		baseName:     defaultBaseName,
+		maxBackups:   config.MaxBackups,
+		maxSizeBytes: maxSizeBytes,
 	}
 }
 
 type fileRotator struct {
-	lock        sync.Mutex
-	path        string
-	pathCreated bool
-	baseName    string
-	maxBackups  int
-	fileDate    string
-	file        *fileRotatorFile
-	closed      bool
+	lock         sync.Mutex
+	path         string
+	pathCreated  bool
+	baseName     string
+	maxBackups   int
+	maxSizeBytes int64
+	fileDate     string
+	filePath     string
+	file         *fileRotatorFile
+	closed       bool
 }
 
 func (r *fileRotator) Write(output []byte) (int, error) {
@@ -52,7 +66,7 @@ func (r *fileRotator) Write(output []byte) (int, error) {
 		r.pathCreated = true
 	}
 
-	if err := r.checkRotate(); err != nil {
+	if err := r.checkRotate(len(output)); err != nil {
 		return 0, err
 	}
 
@@ -82,20 +96,28 @@ func (r *fileRotator) Close() error {
 	return r.file.Close()
 }
 
-func (r *fileRotator) checkRotate() error {
-	if !r.shouldRotate() {
+func (r *fileRotator) checkRotate(nextLen int) error {
+	if !r.shouldRotate(nextLen) {
 		return nil
 	}
 
 	return r.rotate()
 }
 
-func (r *fileRotator) shouldRotate() bool {
+func (r *fileRotator) shouldRotate(nextLen int) bool {
 	if r.file == nil {
 		return true
 	}
 
-	return time.Now().Format(timeFormat) != r.fileDate
+	if time.Now().Format(timeFormat) != r.fileDate {
+		return true
+	}
+
+	// Rotate before the pending write so file sizes stay close to the
+	// configured cap. Oversized single entries still get their own file.
+	return r.maxSizeBytes > 0 &&
+		r.file.size > 0 &&
+		r.file.size+int64(nextLen) > r.maxSizeBytes
 }
 
 func (r *fileRotator) rotate() error {
@@ -109,68 +131,206 @@ func (r *fileRotator) rotate() error {
 	}
 
 	now := time.Now()
+	sameDay := r.fileDate == now.Format(timeFormat)
 
-	fp, err := newFileRotatorFile(r.newFilePath(now))
+	filePath, err := r.newFilePath(now, sameDay && r.maxSizeBytes > 0)
+	if err != nil {
+		return err
+	}
+
+	fp, err := newFileRotatorFile(filePath)
 	if err != nil {
 		return err
 	}
 
 	r.file = fp
+	r.filePath = filePath
 	r.fileDate = now.Format(timeFormat)
 
 	return r.pruneBackups(now)
 }
 
-const timeFormat = "2006-01-02"
+// newFilePath returns the active log file path. The first file of a day uses
+// the date-only name; same-day rotations caused by the size cap append a
+// sequence number so files stay sortable and unique.
+func (r *fileRotator) newFilePath(now time.Time, sequenced bool) (string, error) {
+	date := now.Format(timeFormat)
 
-func (r *fileRotator) newFilePath(now time.Time) string {
-	return path.Join(r.path, fmt.Sprintf("%s.%s.log", r.baseName, now.Format(timeFormat)))
+	if !sequenced {
+		return r.resolveActiveFilePath(date)
+	}
+
+	seq, err := r.nextSequence(date)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(r.path, fmt.Sprintf("%s.%s.%d.log", r.baseName, date, seq)), nil
 }
 
-func (r *fileRotator) pruneBackups(now time.Time) error {
-	files, err := os.ReadDir(r.path)
+// resolveActiveFilePath returns the file to append to when the rotator opens
+// for the first time or the day changes: the newest existing file for the
+// date if it is still within the size cap, otherwise the next sequence.
+// Without this, every restart would start from the date-only file and rotate
+// away from it, leaving a trail of near-empty files.
+func (r *fileRotator) resolveActiveFilePath(date string) (string, error) {
+	entries, err := os.ReadDir(r.path)
+	if err != nil {
+		return "", err
+	}
+
+	newest := ""
+	newestSeq := 0
+	newestSize := int64(0)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		fileDate, seq, ok := parseBackupName(r.baseName, entry.Name())
+		if !ok || fileDate != date {
+			continue
+		}
+
+		if newest != "" && seq <= newestSeq {
+			continue
+		}
+
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			continue
+		}
+
+		newest = entry.Name()
+		newestSeq = seq
+		newestSize = info.Size()
+	}
+
+	if newest == "" {
+		return path.Join(r.path, fmt.Sprintf("%s.%s.log", r.baseName, date)), nil
+	}
+
+	if r.maxSizeBytes > 0 && newestSize >= r.maxSizeBytes {
+		return path.Join(r.path, fmt.Sprintf("%s.%s.%d.log", r.baseName, date, newestSeq+1)), nil
+	}
+
+	return path.Join(r.path, newest), nil
+}
+
+func (r *fileRotator) nextSequence(date string) (int, error) {
+	entries, err := os.ReadDir(r.path)
+	if err != nil {
+		return 0, err
+	}
+
+	maxSeq := 0
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		fileDate, seq, ok := parseBackupName(r.baseName, entry.Name())
+		if !ok || fileDate != date {
+			continue
+		}
+
+		if seq > maxSeq {
+			maxSeq = seq
+		}
+	}
+
+	return maxSeq + 1, nil
+}
+
+// pruneBackups keeps the newest maxBackups rotated files and never removes
+// the file currently being written. A maxBackups of 0 disables pruning.
+func (r *fileRotator) pruneBackups(_ time.Time) error {
+	if r.maxBackups <= 0 {
+		return nil
+	}
+
+	entries, err := os.ReadDir(r.path)
 	if err != nil {
 		return err
 	}
 
-	var backupFiles []string
+	activeName := path.Base(r.filePath)
 
-	strNow := now.Format(timeFormat)
+	var backups []backupFile
 
-	for _, file := range files {
-		if file.IsDir() {
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
 
-		name := file.Name()
-		if !strings.HasPrefix(name, r.baseName+".") || !strings.HasSuffix(name, ".log") {
+		name := entry.Name()
+		if name == activeName {
 			continue
 		}
 
-		strDate := name[len(r.baseName)+1 : len(name)-4]
-
-		_, parseErr := time.Parse(timeFormat, strDate)
-		if parseErr != nil {
+		date, seq, ok := parseBackupName(r.baseName, name)
+		if !ok {
 			continue
 		}
 
-		if strDate >= strNow {
-			continue
-		}
-
-		backupFiles = append(backupFiles, name)
+		backups = append(backups, backupFile{name: name, date: date, seq: seq})
 	}
 
-	if len(backupFiles) <= r.maxBackups {
+	if len(backups) <= r.maxBackups {
 		return nil
 	}
 
-	for _, name := range backupFiles[:len(backupFiles)-r.maxBackups] {
+	sort.Slice(backups, func(i, j int) bool {
+		if backups[i].date != backups[j].date {
+			return backups[i].date < backups[j].date
+		}
+
+		return backups[i].seq < backups[j].seq
+	})
+
+	for _, backup := range backups[:len(backups)-r.maxBackups] {
 		// make a best effort to remove the file
-		_ = os.Remove(path.Join(r.path, name))
+		_ = os.Remove(path.Join(r.path, backup.name))
 	}
 
 	return nil
+}
+
+type backupFile struct {
+	name string
+	date string
+	seq  int
+}
+
+// parseBackupName accepts both hexmagnet.YYYY-MM-DD.log and
+// hexmagnet.YYYY-MM-DD.N.log rotated file names.
+func parseBackupName(baseName, name string) (string, int, bool) {
+	if !strings.HasPrefix(name, baseName+".") || !strings.HasSuffix(name, ".log") {
+		return "", 0, false
+	}
+
+	rest := name[len(baseName)+1 : len(name)-len(".log")]
+
+	date := rest
+	seq := 0
+
+	if idx := strings.LastIndex(rest, "."); idx >= 0 {
+		parsed, err := strconv.Atoi(rest[idx+1:])
+		if err != nil || parsed <= 0 {
+			return "", 0, false
+		}
+
+		date = rest[:idx]
+		seq = parsed
+	}
+
+	if _, err := time.Parse(timeFormat, date); err != nil {
+		return "", 0, false
+	}
+
+	return date, seq, true
 }
 
 func newFileRotatorFile(path string) (*fileRotatorFile, error) {
@@ -179,19 +339,31 @@ func newFileRotatorFile(path string) (*fileRotatorFile, error) {
 		return nil, err
 	}
 
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+
+		return nil, err
+	}
+
 	return &fileRotatorFile{
 		writer: bufio.NewWriterSize(f, 1000),
 		file:   f,
+		size:   info.Size(),
 	}, nil
 }
 
 type fileRotatorFile struct {
 	writer *bufio.Writer
 	file   *os.File
+	size   int64
 }
 
 func (f *fileRotatorFile) Write(p []byte) (int, error) {
-	return f.writer.Write(p)
+	n, err := f.writer.Write(p)
+	f.size += int64(n)
+
+	return n, err
 }
 
 func (f *fileRotatorFile) Flush() error {

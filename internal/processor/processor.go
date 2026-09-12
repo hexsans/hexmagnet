@@ -60,6 +60,8 @@ func compileFilterState(cfg classifier.TorrentFilterConfig) (*filterState, error
 	return fs, nil
 }
 
+const classifyFailureSampleSize = 3
+
 type processor struct {
 	defaultWorkflow    string
 	searchRuntime      *dbsearch.Runtime
@@ -96,14 +98,6 @@ func (c *processor) wasRecentlyClassified(ih protocol.ID) bool {
 
 func (c *processor) markRecentlyClassified(ih protocol.ID) {
 	c.recentlyClassified.Store(ih, time.Now())
-}
-
-type MissingHashesError struct {
-	InfoHashes []protocol.ID
-}
-
-func (e MissingHashesError) Error() string {
-	return fmt.Sprintf("missing %d info hashes", len(e.InfoHashes))
 }
 
 func (c *processor) Process(ctx context.Context, params MessageParams) error {
@@ -204,11 +198,7 @@ func (c *processor) Process(ctx context.Context, params MessageParams) error {
 			mtx.Lock()
 			if classifyErr != nil {
 				c.sf.Forget(key)
-				c.logger.Warnw("classification failed for torrent",
-					"info_hash", torrent.InfoHash.String(),
-					"workflow", workflowName,
-					"error", classifyErr,
-				)
+
 				classifyFailures = append(classifyFailures, classifyFailure{
 					infoHash: torrent.InfoHash,
 					err:      classifyErr,
@@ -312,46 +302,19 @@ func (c *processor) handleClassified(
 	classifyFailures []classifyFailure,
 	params MessageParams,
 ) error {
-	retryEnabled := c.retryQueue != nil && c.retryQueue.Enabled()
+	c.logClassifySummary(tcs, missingHashes, classifyFailures)
+
+	// Torrent rows that no longer exist cannot be classified. Re-producing
+	// messages for them would loop forever, so they are dropped here.
+	if len(missingHashes) > 0 {
+		c.logger.Debugw("dropping missing torrents from processed message",
+			"count", len(missingHashes),
+			"info_hash", missingHashes[0].String(),
+		)
+	}
 
 	if len(classifyFailures) > 0 {
-		if retryEnabled {
-			c.enqueueClassifyRetries(ctx, classifyFailures, params)
-		} else {
-			// Legacy behaviour: immediately re-produce every failed hash.
-			for _, f := range classifyFailures {
-				missingHashes = append(missingHashes, f.infoHash)
-			}
-		}
-	}
-
-	if len(missingHashes) > 0 {
-		key := missingHashes[0].String()
-
-		c.kafkaProducer.Produce(kafka.TopicProcessTorrent, key, MessageParams{
-			InfoHashes:   missingHashes,
-			ClassifyMode: params.ClassifyMode,
-			ContentType:  params.ContentType,
-		})
-	}
-
-	if retryEnabled {
-		// Classification failures are tracked in the retry queue; only
-		// genuinely missing torrents are surfaced as an error.
-		if len(tcs) == 0 && len(missingHashes) > 0 {
-			return MissingHashesError{InfoHashes: missingHashes}
-		}
-	} else if len(tcs) == 0 {
-		failureErrs := make([]error, 0, len(classifyFailures)+1)
-		if len(missingHashes) > 0 {
-			failureErrs = append(failureErrs, MissingHashesError{InfoHashes: missingHashes})
-		}
-
-		for _, f := range classifyFailures {
-			failureErrs = append(failureErrs, f.err)
-		}
-
-		return errors.Join(failureErrs...)
+		c.enqueueClassifyRetries(ctx, classifyFailures, params)
 	}
 
 	if len(tcs) == 0 {
@@ -364,7 +327,7 @@ func (c *processor) handleClassified(
 		return err
 	}
 
-	if retryEnabled {
+	if c.retryQueue != nil {
 		classified := make([]string, 0, len(tcs))
 		for _, t := range tcs {
 			classified = append(classified, t.InfoHash.String())
@@ -388,6 +351,35 @@ func (c *processor) handleClassified(
 	return nil
 }
 
+// logClassifySummary emits one debug line per processed message instead of
+// one line per torrent, keeping the batch outcome visible without flooding
+// the log when many torrents fail at once.
+func (c *processor) logClassifySummary(
+	tcs []model.Torrent,
+	missingHashes []protocol.ID,
+	classifyFailures []classifyFailure,
+) {
+	if len(missingHashes) == 0 && len(classifyFailures) == 0 {
+		return
+	}
+
+	samples := make([]string, 0, classifyFailureSampleSize)
+	for _, f := range classifyFailures {
+		if len(samples) >= classifyFailureSampleSize {
+			break
+		}
+
+		samples = append(samples, f.infoHash.String()+": "+f.err.Error())
+	}
+
+	c.logger.Debugw("classification batch completed with failures",
+		"classified", len(tcs),
+		"failed", len(classifyFailures),
+		"missing", len(missingHashes),
+		"samples", samples,
+	)
+}
+
 // enqueueClassifyRetries records classification failures in the retry queue
 // as a single batched upsert, keyed per info hash with the error that caused
 // the failure.
@@ -396,6 +388,10 @@ func (c *processor) enqueueClassifyRetries(
 	failures []classifyFailure,
 	params MessageParams,
 ) {
+	if c.retryQueue == nil {
+		return
+	}
+
 	items := make([]retryqueue.RetryItem, 0, len(failures))
 	for _, f := range failures {
 		items = append(items, retryqueue.RetryItem{
@@ -410,7 +406,10 @@ func (c *processor) enqueueClassifyRetries(
 	}
 
 	if err := c.retryQueue.EnqueueBatch(ctx, items, errors.Join(classifyFailureErrs(failures)...)); err != nil {
-		c.logger.Errorw("failed to enqueue classify retry entries", "error", err)
+		c.logger.Errorw("failed to enqueue classify retry entries",
+			"count", len(failures),
+			"error", err,
+		)
 	}
 }
 

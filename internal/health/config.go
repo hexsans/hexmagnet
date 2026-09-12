@@ -88,11 +88,19 @@ func WithPeriodicCheck(refreshPeriod time.Duration, initialDelay time.Duration, 
 
 // WithInfo sets values that will be available in every health check result. For example, you can use this option
 // if you want to set information about your system that will be returned in every health check result, such as
-// version number, Git SHA, build date, etc. These values will be available in CheckerResult.Info. If you use the
-// default HTTP handler of this library (see NewHandler) or convert the CheckerResult to JSON on your own,
+// version number, Git SHA, build date, etc. These values will be available in CheckerResult.Info. If you use
+// the default HTTP handler of this library (see NewHandler) or convert the CheckerResult to JSON on your own,
 // these values will be available in the "info" field.
 func WithInfo(values map[string]any) CheckerOption {
 	return func(cfg *checkerConfig) {
 		cfg.info = values
+	}
+}
+
+// WithStatusChangeListener registers a listener that is called whenever the
+// aggregated availability status changes (e.g. from "up" to "down").
+func WithStatusChangeListener(fn func(context.Context, CheckerState)) CheckerOption {
+	return func(cfg *checkerConfig) {
+		cfg.statusChangeListener = fn
 	}
 }

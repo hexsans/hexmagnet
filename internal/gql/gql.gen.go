@@ -326,6 +326,7 @@ type ComplexityRoot struct {
 	ServerFileRotatorConfig struct {
 		Format     func(childComplexity int) int
 		MaxBackups func(childComplexity int) int
+		MaxSizeMb  func(childComplexity int) int
 		Path       func(childComplexity int) int
 	}
 
@@ -1601,6 +1602,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServerFileRotatorConfig.MaxBackups(childComplexity), true
+	case "ServerFileRotatorConfig.maxSizeMB":
+		if e.ComplexityRoot.ServerFileRotatorConfig.MaxSizeMb == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServerFileRotatorConfig.MaxSizeMb(childComplexity), true
 	case "ServerFileRotatorConfig.path":
 		if e.ComplexityRoot.ServerFileRotatorConfig.Path == nil {
 			break
@@ -2394,6 +2401,7 @@ type ServerLogConfig {
 type ServerFileRotatorConfig {
   path: String!
   maxBackups: Uint64!
+  maxSizeMB: Uint64!
   format: String!
 }
 
@@ -2550,6 +2558,7 @@ input ServerLogConfigInput {
 input ServerFileRotatorConfigInput {
   path: String
   maxBackups: Uint64
+  maxSizeMB: Uint64
   format: String
 }
 
@@ -3767,6 +3776,8 @@ func (ec *executionContext) childFields_ServerFileRotatorConfig(ctx context.Cont
 		return ec.fieldContext_ServerFileRotatorConfig_path(ctx, field)
 	case "maxBackups":
 		return ec.fieldContext_ServerFileRotatorConfig_maxBackups(ctx, field)
+	case "maxSizeMB":
+		return ec.fieldContext_ServerFileRotatorConfig_maxSizeMB(ctx, field)
 	case "format":
 		return ec.fieldContext_ServerFileRotatorConfig_format(ctx, field)
 	}
@@ -8704,6 +8715,29 @@ func (ec *executionContext) fieldContext_ServerFileRotatorConfig_maxBackups(_ co
 	return graphql.NewScalarFieldContext("ServerFileRotatorConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
 }
 
+func (ec *executionContext) _ServerFileRotatorConfig_maxSizeMB(ctx context.Context, field graphql.CollectedField, obj *gen.ServerFileRotatorConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServerFileRotatorConfig_maxSizeMB(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxSizeMb, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v uint64) graphql.Marshaler {
+			return ec.marshalNUint642uint64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServerFileRotatorConfig_maxSizeMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServerFileRotatorConfig", field, false, false, errors.New("field of type Uint64 does not have child fields"))
+}
+
 func (ec *executionContext) _ServerFileRotatorConfig_format(ctx context.Context, field graphql.CollectedField, obj *gen.ServerFileRotatorConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13321,7 +13355,7 @@ func (ec *executionContext) unmarshalInputServerFileRotatorConfigInput(ctx conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"path", "maxBackups", "format"}
+	fieldsInOrder := [...]string{"path", "maxBackups", "maxSizeMB", "format"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13342,6 +13376,13 @@ func (ec *executionContext) unmarshalInputServerFileRotatorConfigInput(ctx conte
 				return it, err
 			}
 			it.MaxBackups = graphql.OmittableOf(data)
+		case "maxSizeMB":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxSizeMB"))
+			data, err := ec.unmarshalOUint642ᚖuint64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxSizeMb = graphql.OmittableOf(data)
 		case "format":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("format"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -16934,6 +16975,11 @@ func (ec *executionContext) _ServerFileRotatorConfig(ctx context.Context, sel as
 			}
 		case "maxBackups":
 			out.Values[i] = ec._ServerFileRotatorConfig_maxBackups(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxSizeMB":
+			out.Values[i] = ec._ServerFileRotatorConfig_maxSizeMB(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -73,7 +73,7 @@ func New(p Params) Handler {
 func (h *handler) HandleTriage(ctx context.Context, msg dht.DiscoveredHash) (Result, error) {
 	id, err := protocol.ParseID(msg.InfoHash)
 	if err != nil {
-		h.logger.Warnw("failed to parse info hash in triage", "info_hash", msg.InfoHash, "node", msg.Node, "error", err)
+		h.logger.Debugw("failed to parse info hash in triage", "info_hash", msg.InfoHash, "node", msg.Node, "error", err)
 		return Result{Action: ActionDiscard}, err
 	}
 

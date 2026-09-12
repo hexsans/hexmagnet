@@ -37,10 +37,10 @@ func TestRequesterLogger_Success_LogsDebug(t *testing.T) {
 	assert.Equal(t, "/test/path", ctxMap["path"])
 	assert.Equal(t, map[string]string{"key": "val"}, ctxMap["queryParams"])
 	assert.Contains(t, ctxMap, "status")
-	assert.Contains(t, ctxMap, "trace")
+	assert.NotContains(t, ctxMap, "trace")
 }
 
-func TestRequesterLogger_Error_LogsError(t *testing.T) {
+func TestRequesterLogger_Error_LogsWarn(t *testing.T) {
 	t.Parallel()
 
 	core, logs := observer.New(zap.DebugLevel)
@@ -59,7 +59,7 @@ func TestRequesterLogger_Error_LogsError(t *testing.T) {
 	_, err := r.Request(context.Background(), "/test/path", nil, nil)
 	require.ErrorIs(t, err, expectedErr)
 	assert.Equal(t, 1, logs.Len())
-	assert.Equal(t, zap.ErrorLevel, logs.All()[0].Level)
+	assert.Equal(t, zap.WarnLevel, logs.All()[0].Level)
 	assert.Contains(t, logs.All()[0].Message, "request failed")
 
 	ctxMap := logs.All()[0].ContextMap()
@@ -67,7 +67,7 @@ func TestRequesterLogger_Error_LogsError(t *testing.T) {
 	assert.Contains(t, ctxMap, "error")
 }
 
-func TestRequesterLogger_NilResponse_LogsError(t *testing.T) {
+func TestRequesterLogger_NilResponse_LogsWarn(t *testing.T) {
 	t.Parallel()
 
 	core, logs := observer.New(zap.DebugLevel)
@@ -86,10 +86,10 @@ func TestRequesterLogger_NilResponse_LogsError(t *testing.T) {
 	_, err := r.Request(context.Background(), "/path", nil, nil)
 	require.Error(t, err)
 	assert.Equal(t, 1, logs.Len())
-	assert.Equal(t, zap.ErrorLevel, logs.All()[0].Level)
+	assert.Equal(t, zap.WarnLevel, logs.All()[0].Level)
 }
 
-func TestRequesterLogger_ErrorStatus_LogsError(t *testing.T) {
+func TestRequesterLogger_ErrorStatus_LogsWarn(t *testing.T) {
 	t.Parallel()
 
 	core, logs := observer.New(zap.DebugLevel)
@@ -107,7 +107,7 @@ func TestRequesterLogger_ErrorStatus_LogsError(t *testing.T) {
 	_, err := r.Request(context.Background(), "/path", nil, nil)
 	require.Error(t, err)
 	assert.Equal(t, 1, logs.Len())
-	assert.Equal(t, zap.ErrorLevel, logs.All()[0].Level)
+	assert.Equal(t, zap.WarnLevel, logs.All()[0].Level)
 }
 
 func TestRequesterLogger_EmptyQueryParams(t *testing.T) {

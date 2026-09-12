@@ -144,7 +144,7 @@ func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 				if errors.Is(err, context.Canceled) {
 					h.logger.Warnw("consumer shutting down, message skipped", "topic", msg.Topic)
 				} else {
-					h.logger.Errorw("error handling message", "topic", msg.Topic, "error", err)
+					h.logger.Debugw("error handling message", "topic", msg.Topic, "error", err)
 				}
 			}
 

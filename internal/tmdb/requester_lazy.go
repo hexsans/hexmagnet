@@ -110,8 +110,7 @@ func newRequester(ctx context.Context, config Config, logger *zap.SugaredLogger)
 							SetRetryWaitTime(2 * time.Second).
 							SetRetryMaxWaitTime(20 * time.Second).
 							SetTimeout(10 * time.Second).
-							EnableTrace().
-							SetLogger(logger),
+							SetLogger(restyLogger{logger: logger}),
 					},
 					limiter: rate.NewLimiter(rate.Limit(config.RateLimit), config.RateLimit),
 				},

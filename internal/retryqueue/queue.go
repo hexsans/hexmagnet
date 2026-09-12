@@ -104,10 +104,6 @@ func (q *Queue) UpdateConfig(cfg Config) {
 	q.cfg.Set(cfg)
 }
 
-func (q *Queue) Enabled() bool {
-	return q.cfg.Get().Enabled
-}
-
 func (q *Queue) store() (Store, error) {
 	if q.storeOverride != nil {
 		return q.storeOverride, nil
@@ -180,10 +176,14 @@ func (q *Queue) EnqueueBatch(ctx context.Context, items []RetryItem, cause error
 	backoffHashes := make([]string, 0, len(rows))
 	backoffStages := make([]string, 0, len(rows))
 	backoffDelays := make([]int32, 0, len(rows))
+	queuedByStage := make(map[string]int)
+	evicted := 0
 
 	for _, row := range rows {
 		if cfg.MaxRetries >= 0 && row.FailCount > int32(cfg.MaxRetries) {
 			q.evict(ctx, st, row.InfoHash, row.FailCount, cause)
+
+			evicted++
 
 			continue
 		}
@@ -191,11 +191,14 @@ func (q *Queue) EnqueueBatch(ctx context.Context, items []RetryItem, cause error
 		backoffHashes = append(backoffHashes, row.InfoHash)
 		backoffStages = append(backoffStages, row.Stage)
 		backoffDelays = append(backoffDelays, int32(cfg.backoffDelay(row.FailCount).Seconds()))
+		queuedByStage[row.Stage]++
+	}
 
-		q.logger.Warnw("torrent queued for retry",
-			"stage", row.Stage,
-			"info_hash", row.InfoHash,
-			"fail_count", row.FailCount,
+	if len(backoffHashes) > 0 || evicted > 0 {
+		q.logger.Warnw("retry queue updated",
+			"queued", len(backoffHashes),
+			"evicted", evicted,
+			"stages", queuedByStage,
 			"error", lastErr,
 		)
 	}
@@ -225,7 +228,7 @@ func (q *Queue) EnqueueBatch(ctx context.Context, items []RetryItem, cause error
 // backend can clean up. It is deliberately not blocked: it may re-enter the
 // pipeline if it is discovered again.
 func (q *Queue) evict(ctx context.Context, st Store, infoHash string, failCount int32, cause error) {
-	q.logger.Warnw("retry budget exceeded, deleting torrent",
+	q.logger.Debugw("retry budget exceeded, deleting torrent",
 		"info_hash", infoHash,
 		"fail_count", failCount,
 		"error", cause,
@@ -275,9 +278,6 @@ func (q *Queue) Remove(ctx context.Context, infoHashes ...string) {
 // attempt before being re-dispatched.
 func (q *Queue) dispatchDue(ctx context.Context) {
 	cfg := q.cfg.Get()
-	if !cfg.Enabled {
-		return
-	}
 
 	st, err := q.store()
 	if err != nil {
@@ -308,6 +308,8 @@ func (q *Queue) dispatchDue(ctx context.Context) {
 	}
 
 	now := time.Now()
+	dispatched := 0
+	evicted := 0
 
 	for _, row := range rows {
 		topic := kafka.TopicProcessTorrent
@@ -328,6 +330,8 @@ func (q *Queue) dispatchDue(ctx context.Context) {
 		if cfg.MaxRetries >= 0 && failCount > int32(cfg.MaxRetries) {
 			q.evict(ctx, st, row.InfoHash, failCount, cause)
 
+			evicted++
+
 			continue
 		}
 
@@ -347,12 +351,22 @@ func (q *Queue) dispatchDue(ctx context.Context) {
 				"error", err,
 			)
 		} else {
-			q.logger.Infow("dispatched retry entry",
+			dispatched++
+
+			q.logger.Debugw("dispatched retry entry",
 				"stage", row.Stage,
 				"info_hash", row.InfoHash,
 				"fail_count", failCount,
 			)
 		}
+	}
+
+	if dispatched > 0 || evicted > 0 {
+		q.logger.Infow("retry scan dispatched due entries",
+			"dispatched", dispatched,
+			"evicted", evicted,
+			"due", len(rows),
+		)
 	}
 }
 

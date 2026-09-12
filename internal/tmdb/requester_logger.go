@@ -22,14 +22,14 @@ func (r requesterLogger) Request(
 	kvs := []any{"path", path, "queryParams", queryParams}
 
 	if res != nil {
-		kvs = append(kvs, "status", res.Status(), "trace", res.Request.TraceInfo())
+		kvs = append(kvs, "status", res.Status())
 	}
 
 	if err == nil {
 		r.logger.Debugw("request succeeded", kvs...)
 	} else {
 		kvs = append(kvs, "error", err)
-		r.logger.Errorw("request failed", kvs...)
+		r.logger.Warnw("request failed", kvs...)
 	}
 
 	return res, err

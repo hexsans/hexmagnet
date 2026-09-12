@@ -27,6 +27,7 @@ type LogConfig struct {
 type FileRotatorConfig struct {
 	Path       string `yaml:"path"`
 	MaxBackups int    `validate:"gte=0" yaml:"max_backups"`
+	MaxSizeMB  int    `validate:"gte=0" yaml:"max_size_mb"`
 	Format     string `validate:"oneof=text json" yaml:"format"`
 }
 
@@ -40,6 +41,7 @@ func NewDefaultConfig() Config {
 			FileRotator: FileRotatorConfig{
 				Path:       filepath.Join(".", "logs"),
 				MaxBackups: 5,
+				MaxSizeMB:  100,
 				Format:     "text",
 			},
 		},

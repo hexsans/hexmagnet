@@ -301,7 +301,7 @@ func (s *ESearch) TorrentSearch(ctx context.Context, params search.TorrentSearch
 		knnResult, knnErr := s.client.Search(ctx, indexName, knnBody)
 		if knnErr != nil {
 			if s.logger != nil {
-				s.logger.Warnw("kNN search failed, degrading to BM25-only",
+				s.logger.Debugw("kNN search failed, degrading to BM25-only",
 					"query", params.QueryString, "error", knnErr)
 			}
 		}
@@ -331,7 +331,7 @@ func (s *ESearch) TorrentSearch(ctx context.Context, params search.TorrentSearch
 			if len(knnResult.Hits.Hits) == 0 {
 				knnErr = fmt.Errorf("kNN top score %f below threshold 0.3", topScore)
 				if s.logger != nil {
-					s.logger.Infow("kNN score too low, degrading to BM25-only",
+					s.logger.Debugw("kNN score too low, degrading to BM25-only",
 						"query", params.QueryString, "topScore", topScore)
 				}
 			}

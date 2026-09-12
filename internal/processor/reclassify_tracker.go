@@ -141,6 +141,8 @@ func runReclassify(
 
 	offset := int32(0)
 
+	lastProgressLog := time.Now()
+
 	for {
 		if ctx.Err() != nil {
 			progress.mu.Lock()
@@ -188,7 +190,11 @@ func runReclassify(
 		currentTotal := progress.total
 		progress.mu.Unlock()
 
-		logger.Infow("reclassify progress", "processed", currentProcessed, "total", currentTotal)
+		if currentProcessed >= currentTotal || time.Since(lastProgressLog) >= 30*time.Second {
+			lastProgressLog = time.Now()
+
+			logger.Infow("reclassify progress", "processed", currentProcessed, "total", currentTotal)
+		}
 
 		offset += batchSize
 

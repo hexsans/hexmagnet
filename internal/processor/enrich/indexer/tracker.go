@@ -181,6 +181,9 @@ func runReindex(
 	limiter := rate.NewLimiter(rate.Limit(50), 50)
 
 	offset := int32(0)
+	skippedFiles := 0
+
+	lastProgressLog := time.Now()
 
 	for {
 		if ctx.Err() != nil {
@@ -218,7 +221,10 @@ func runReindex(
 
 			files, err := queries.ListTorrentFiles(ctx, raw.Torrent.InfoHash)
 			if err != nil {
-				logger.Warnw("failed to list torrent files", "info_hash", raw.Torrent.InfoHash, "error", err)
+				skippedFiles++
+
+				logger.Debugw("failed to list torrent files", "info_hash", raw.Torrent.InfoHash, "error", err)
+
 				continue
 			}
 
@@ -273,13 +279,21 @@ func runReindex(
 		currentTotal := progress.total
 		progress.mu.Unlock()
 
-		logger.Infow("reindex progress", "indexed", currentIndexed, "total", currentTotal)
+		if currentIndexed >= currentTotal || time.Since(lastProgressLog) >= 30*time.Second {
+			lastProgressLog = time.Now()
+
+			logger.Infow("reindex progress", "indexed", currentIndexed, "total", currentTotal)
+		}
 
 		offset += batchSize
 
 		if len(torrents) < batchSize {
 			break
 		}
+	}
+
+	if skippedFiles > 0 {
+		logger.Warnw("reindex skipped torrents", "skipped", skippedFiles)
 	}
 
 	progress.mu.Lock()

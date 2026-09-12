@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -168,6 +169,51 @@ func TestConsumer_HandlerError(t *testing.T) {
 	mq.Produce("t", "k", "v")
 	time.Sleep(50 * time.Millisecond)
 	require.NoError(t, c.Stop(ctx))
+}
+
+func TestConsumer_PermanentErrorAdvancesOffset(t *testing.T) {
+	t.Parallel()
+
+	mq := New(zap.NewNop().Sugar())
+
+	handled := make(chan struct{}, 3)
+	c := mq.NewConsumer("t", "g", func(_ context.Context, key string, _ []byte) error {
+		handled <- struct{}{}
+
+		switch key {
+		case "permanent":
+			return permanent.Mark(assert.AnError)
+		case "transient":
+			return assert.AnError
+		default:
+			return nil
+		}
+	}, zap.NewNop().Sugar())
+
+	ctx := context.Background()
+	require.NoError(t, c.Start(ctx))
+
+	mq.Produce("t", "ok", "v")
+	mq.Produce("t", "permanent", "v")
+	mq.Produce("t", "transient", "v")
+
+	for range 3 {
+		select {
+		case <-handled:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout waiting for handler")
+		}
+	}
+
+	require.NoError(t, c.Stop(ctx))
+
+	mq.mu.RLock()
+	offset := mq.offsets["g"]["t"]
+	mq.mu.RUnlock()
+
+	// The successful and permanent messages advance the offset; the transient
+	// failure must not, so the offset stays at the permanent message's seq.
+	assert.Equal(t, uint64(1), offset)
 }
 
 func TestListConsumerGroups_Empty(t *testing.T) {

@@ -189,7 +189,7 @@ Logs are your best friend for anything not covered here.
 
 **Console** — set `server.log.console_level` to `debug` for maximum detail (temporarily, then set it back).
 
-**Log files** — enable with `server.log.file_output_level: info`, stored in `server.log.file_rotator.path` (`./logs` by default). Format `json` is easiest to search with tools.
+**Log files** — enable with `server.log.file_output_level: info`, stored in `server.log.file_rotator.path` (`./logs` by default). Format `json` is easiest to search with tools. Files rotate daily and once they reach `server.log.file_rotator.max_size_mb` (default `100`); the newest `server.log.file_rotator.max_backups` files are kept, so disk use is bounded by roughly `max_size_mb × (max_backups + 1)`.
 
 **Docker** — see logs with:
 

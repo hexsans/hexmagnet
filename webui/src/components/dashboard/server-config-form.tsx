@@ -65,6 +65,7 @@ export function ServerConfigForm() {
         fileRotator: {
           path: patch.log?.fileRotator?.path ?? base.log.fileRotator.path,
           maxBackups: patch.log?.fileRotator?.maxBackups ?? base.log.fileRotator.maxBackups,
+          maxSizeMB: patch.log?.fileRotator?.maxSizeMB ?? base.log.fileRotator.maxSizeMB,
           format: patch.log?.fileRotator?.format ?? base.log.fileRotator.format,
         },
       },
@@ -97,6 +98,9 @@ export function ServerConfigForm() {
       if (form.log.fileRotator.path !== original.log.fileRotator.path) rotatorPatch.path = form.log.fileRotator.path;
       if (form.log.fileRotator.maxBackups !== original.log.fileRotator.maxBackups) {
         rotatorPatch.maxBackups = form.log.fileRotator.maxBackups;
+      }
+      if (form.log.fileRotator.maxSizeMB !== original.log.fileRotator.maxSizeMB) {
+        rotatorPatch.maxSizeMB = form.log.fileRotator.maxSizeMB;
       }
       if (form.log.fileRotator.format !== original.log.fileRotator.format) rotatorPatch.format = form.log.fileRotator.format;
       if (Object.keys(rotatorPatch,).length > 0) logPatch.fileRotator = rotatorPatch;
@@ -262,6 +266,19 @@ export function ServerConfigForm() {
                     className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.maxLogFileCountHint",)}</span>
+                </div>
+
+                <div>
+                  <label htmlFor="maxLogFileSize" className="font-mono text-xs text-foreground uppercase block mb-1.5">{t("dashboard.maxLogFileSize",)}</label>
+                  <Input
+                    id="maxLogFileSize"
+                    type="number"
+                    min={0}
+                    value={active.log.fileRotator.maxSizeMB}
+                    onChange={(e,) => update({ log: { fileRotator: { maxSizeMB: parseInt(e.target.value, 10,) || 0, }, }, },)}
+                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                  />
+                  <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.maxLogFileSizeHint",)}</span>
                 </div>
 
                 <div>

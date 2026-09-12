@@ -47,7 +47,13 @@ func NewConsumerWorker(
 
 						if err := consumer.Start(ctx); err != nil {
 							logger.Errorw("failed to start consumer", "error", err)
-							continue
+
+							select {
+							case <-time.After(time.Second):
+								continue
+							case <-ctx.Done():
+								return
+							}
 						}
 
 						select {

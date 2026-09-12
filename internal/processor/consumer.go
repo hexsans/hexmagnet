@@ -8,6 +8,7 @@ import (
 
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
@@ -71,7 +72,7 @@ func runManagedConsumer(
 		msg := &MessageParams{}
 		if err := json.Unmarshal(value, msg); err != nil {
 			logger.Errorw("failed to unmarshal message", "error", err)
-			return err
+			return permanent.Mark(err)
 		}
 
 		return pr.Process(ctx, *msg)
@@ -97,7 +98,13 @@ func runManagedConsumer(
 
 		if err := consumer.Start(ctx); err != nil {
 			logger.Errorw("failed to start consumer", "error", err)
-			continue
+
+			select {
+			case <-time.After(time.Second):
+				continue
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		select {

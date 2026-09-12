@@ -90,7 +90,7 @@ func runDeleter(
 		}
 
 		if err := es.Delete(ctx, IndexName, infoHash); err != nil {
-			logger.Warnw("failed to delete document from ES",
+			logger.Debugw("failed to delete document from ES",
 				"info_hash", infoHash,
 				"index", IndexName,
 				"error", err,
@@ -125,7 +125,13 @@ func runDeleter(
 
 		if err := consumer.Start(ctx); err != nil {
 			logger.Errorw("failed to start consumer", "error", err)
-			continue
+
+			select {
+			case <-time.After(time.Second):
+				continue
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		logger.Infow("consumer started", "topic", kafka.TopicDeleteTorrent)

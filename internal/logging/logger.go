@@ -32,7 +32,7 @@ func New(params Params) Result {
 	logCfg := params.Config.Log
 
 	opts := []zap.Option{
-		zap.AddStacktrace(zapcore.ErrorLevel),
+		zap.AddStacktrace(zapcore.DPanicLevel),
 		zap.AddCaller(),
 	}
 

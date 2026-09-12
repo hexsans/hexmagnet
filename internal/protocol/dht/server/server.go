@@ -167,7 +167,7 @@ func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
 				Msg:  "server error",
 			}
 
-			s.logger.Errorw("server error", "msg", msg, "retErr", retErr)
+			s.logger.Errorw("server error", "remote", msg.From, "query", msg.Msg.Q, "retErr", retErr)
 		}
 	} else {
 		res.R = &ret

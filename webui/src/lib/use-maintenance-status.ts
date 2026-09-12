@@ -7,6 +7,8 @@ export interface ReindexStatus {
   indexed: number;
   done: boolean;
   running: boolean;
+  resumable: boolean;
+  configChanged: boolean;
   error: string | null;
 }
 
@@ -15,6 +17,8 @@ export interface ReclassifyStatus {
   processed: number;
   done: boolean;
   running: boolean;
+  resumable: boolean;
+  configChanged: boolean;
   error: string | null;
 }
 

@@ -1,6 +1,6 @@
-mutation ReindexElasticsearch {
+mutation DiscardReindexProgress {
   torrent {
-    reindexToElasticsearch {
+    discardReindexProgress {
       total
       indexed
       done

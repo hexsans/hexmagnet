@@ -4,6 +4,8 @@ query ReindexStatus {
     indexed
     done
     running
+    resumable
+    configChanged
     error
   }
 }

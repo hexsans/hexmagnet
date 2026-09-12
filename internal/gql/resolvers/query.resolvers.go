@@ -131,20 +131,12 @@ func (r *queryResolver) RetryQueue(ctx context.Context) (gqlmodel.RetryQueueQuer
 
 // ReindexStatus is the resolver for the reindexStatus field.
 func (r *queryResolver) ReindexStatus(ctx context.Context) (gen.ReindexProgress, error) {
-	total, indexed, done, running, errMsg := r.Resolver.ReindexTracker.Progress()
-	return gen.ReindexProgress{Total: total, Indexed: indexed, Done: done, Running: running, Error: nilStr(errMsg)}, nil
+	return reindexProgressGQL(r.Resolver.ReindexTracker.Progress()), nil
 }
 
 // ReclassifyStatus is the resolver for the reclassifyStatus field.
 func (r *queryResolver) ReclassifyStatus(ctx context.Context) (gen.ReclassifyProgress, error) {
-	total, processed, done, running, errMsg := r.Resolver.ReclassifyTracker.Progress()
-	return gen.ReclassifyProgress{
-		Total:     total,
-		Processed: processed,
-		Done:      done,
-		Running:   running,
-		Error:     nilStr(errMsg),
-	}, nil
+	return reclassifyProgressGQL(r.Resolver.ReclassifyTracker.Progress()), nil
 }
 
 // Files is the resolver for the files field.

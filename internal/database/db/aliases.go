@@ -17,6 +17,8 @@ type (
 	ListTorrentFilesPaginatedParams   = sqlc.ListTorrentFilesPaginatedParams
 	ListTorrentsPaginatedParams       = sqlc.ListTorrentsPaginatedParams
 	ListTorrentsPaginatedBeforeParams = sqlc.ListTorrentsPaginatedBeforeParams
+	ListTorrentsPageAfterParams       = sqlc.ListTorrentsPageAfterParams
+	ListTorrentsPageAfterRow          = sqlc.ListTorrentsPageAfterRow
 	ListTorrentRetryQueueParams       = sqlc.ListTorrentRetryQueueParams
 	MarkTorrentRetryDispatchedParams  = sqlc.MarkTorrentRetryDispatchedParams
 	TorrentFileExistsParams           = sqlc.TorrentFileExistsParams

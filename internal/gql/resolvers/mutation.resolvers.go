@@ -12,6 +12,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel"
 	"github.com/hexsans/hexmagnet/internal/gql/gqlmodel/gen"
 	"github.com/hexsans/hexmagnet/internal/processor"
+	"github.com/hexsans/hexmagnet/internal/processor/enrich/indexer"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
 )
 
@@ -58,7 +59,12 @@ func (r *torrentMutationResolver) ReindexToElasticsearch(ctx context.Context, ob
 		return gen.ReindexProgress{Done: true, Error: ptr("embedding not configured")}, nil
 	}
 
-	dims := r.Resolver.SearchCfg.Elasticsearch.Embedding.Dimensions
+	searchCfg := r.Resolver.SearchCfg
+	if r.Resolver.ConfigManager != nil {
+		searchCfg = r.Resolver.ConfigManager.Get().Search
+	}
+
+	dims := searchCfg.Elasticsearch.Embedding.Dimensions
 	if dims <= 0 {
 		dims = 1024
 	}
@@ -69,41 +75,57 @@ func (r *torrentMutationResolver) ReindexToElasticsearch(ctx context.Context, ob
 		obj.Embedder,
 		obj.DB,
 		dims,
-		r.Resolver.SearchCfg.MaxSearchFiles,
+		searchCfg.MaxSearchFiles,
+		indexer.Fingerprint(searchCfg),
+		false,
 		r.Resolver.Logger,
 	); err != nil {
 		return gen.ReindexProgress{Done: true, Error: ptr(err.Error())}, nil
 	}
 
-	total, indexed, done, running, errMsg := r.Resolver.ReindexTracker.Progress()
-	return gen.ReindexProgress{
-		Total:   total,
-		Indexed: indexed,
-		Done:    done,
-		Running: running,
-		Error:   nilStr(errMsg),
-	}, nil
+	status := r.Resolver.ReindexTracker.Progress()
+
+	return reindexProgressGQL(status), nil
 }
 
 // ReclassifyTorrents is the resolver for the reclassifyTorrents field.
 func (r *torrentMutationResolver) ReclassifyTorrents(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error) {
+	classifierCfg := r.Resolver.ClassifierCfg
+	if r.Resolver.ConfigManager != nil {
+		classifierCfg = r.Resolver.ConfigManager.Get().Classifier
+	}
+
 	if err := r.Resolver.ReclassifyTracker.Start(
 		context.Background(),
 		r.Resolver.Processor,
 		r.Resolver.DB,
+		processor.Fingerprint(classifierCfg),
 		r.Resolver.Logger,
 	); err != nil {
 		return gen.ReclassifyProgress{Done: true, Error: ptr(err.Error())}, nil
 	}
 
-	total, processed, done, running, errMsg := r.Resolver.ReclassifyTracker.Progress()
-	return gen.ReclassifyProgress{
-		Total:     total,
-		Processed: processed,
-		Done:      done,
-		Running:   running,
-		Error:     nilStr(errMsg),
-	}, nil
+	status := r.Resolver.ReclassifyTracker.Progress()
+
+	return reclassifyProgressGQL(status), nil
+}
+
+// DiscardReindexProgress is the resolver for the discardReindexProgress field.
+func (r *torrentMutationResolver) DiscardReindexProgress(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReindexProgress, error) {
+	if err := r.Resolver.ReindexTracker.Discard(ctx); err != nil {
+		return gen.ReindexProgress{Done: true, Error: ptr(err.Error())}, nil
+	}
+
+	return reindexProgressGQL(r.Resolver.ReindexTracker.Progress()), nil
+}
+
+// DiscardReclassifyProgress is the resolver for the discardReclassifyProgress field.
+func (r *torrentMutationResolver) DiscardReclassifyProgress(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error) {
+	if err := r.Resolver.ReclassifyTracker.Discard(ctx); err != nil {
+		return gen.ReclassifyProgress{Done: true, Error: ptr(err.Error())}, nil
+	}
+
+	return reclassifyProgressGQL(r.Resolver.ReclassifyTracker.Progress()), nil
 }
 
 // Mutation returns gql.MutationResolver implementation.

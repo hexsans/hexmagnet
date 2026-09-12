@@ -125,6 +125,69 @@ func (q *Queries) ListTorrentsByInfoHashes(ctx context.Context, dollar_1 []strin
 	return items, nil
 }
 
+const ListTorrentsPageAfter = `-- name: ListTorrentsPageAfter :many
+SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
+FROM torrents t
+LEFT JOIN torrent_seeders s ON s.info_hash = t.info_hash
+WHERE t.created_at <= $1::timestamptz
+  AND (t.created_at, t.info_hash) > ($2::timestamptz, $3::text)
+ORDER BY t.created_at, t.info_hash
+LIMIT $4
+`
+
+type ListTorrentsPageAfterParams struct {
+	BarrierTime     pgtype.Timestamptz
+	CursorCreatedAt pgtype.Timestamptz
+	CursorInfoHash  string
+	BatchSize       int32
+}
+
+type ListTorrentsPageAfterRow struct {
+	Torrent  Torrent
+	Seeders  *int32
+	Leechers *int32
+}
+
+func (q *Queries) ListTorrentsPageAfter(ctx context.Context, arg ListTorrentsPageAfterParams) ([]ListTorrentsPageAfterRow, error) {
+	rows, err := q.db.Query(ctx, ListTorrentsPageAfter,
+		arg.BarrierTime,
+		arg.CursorCreatedAt,
+		arg.CursorInfoHash,
+		arg.BatchSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTorrentsPageAfterRow
+	for rows.Next() {
+		var i ListTorrentsPageAfterRow
+		if err := rows.Scan(
+			&i.Torrent.InfoHash,
+			&i.Torrent.Name,
+			&i.Torrent.Size,
+			&i.Torrent.Private,
+			&i.Torrent.FilesCount,
+			&i.Torrent.ContentType,
+			&i.Torrent.ContentSource,
+			&i.Torrent.ContentID,
+			&i.Torrent.Languages,
+			&i.Torrent.Tsv,
+			&i.Torrent.CreatedAt,
+			&i.Torrent.UpdatedAt,
+			&i.Seeders,
+			&i.Leechers,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const ListTorrentsPaginated = `-- name: ListTorrentsPaginated :many
 SELECT t.info_hash, t.name, t.size, t.private, t.files_count, t.content_type, t.content_source, t.content_id, t.languages, t.tsv, t.created_at, t.updated_at, s.seeders, s.leechers
 FROM torrents t

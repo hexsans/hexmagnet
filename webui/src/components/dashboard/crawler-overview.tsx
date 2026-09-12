@@ -90,22 +90,24 @@ export function CrawlerOverview() {
               <Skeleton className="h-4 w-36" />
             ) : (
               <>
-                <p className="font-mono text-sm font-bold text-foreground">
-                  <span
-                    className={health?.status === "up" ? "text-green" : health?.status === "down" ? "text-red" : "text-muted-foreground"}
-                  >
-                    {t("dashboard.systemStatus", { status: health?.status?.toUpperCase() ?? "UNKNOWN", },)}
-                  </span>
-                </p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="font-mono text-sm font-bold text-foreground">
+                    <span
+                      className={health?.status === "up" ? "text-green" : health?.status === "down" ? "text-red" : "text-muted-foreground"}
+                    >
+                      {t("dashboard.systemStatus", { status: health?.status?.toUpperCase() ?? "UNKNOWN", },)}
+                    </span>
+                  </p>
+                  {status.paused && (
+                    <Badge variant="outline" className="h-4 border-amber/40 bg-amber/10 px-1.5 py-0 font-mono text-[10px] leading-none text-amber">
+                      {t("dashboard.crawlerPaused", { reason: pauseReason, },)}
+                    </Badge>
+                  )}
+                </div>
                 {version && <p className="font-mono text-xs text-muted-foreground">{t("common.versionLabel", { version, },)}</p>}
               </>
             )}
           </div>
-          {status.paused && (
-            <Badge variant="outline" className="border-amber/40 bg-amber/10 text-amber font-mono text-xs">
-              {t("dashboard.crawlerPaused", { reason: pauseReason, },)}
-            </Badge>
-          )}
         </div>
         <div className="hidden sm:flex gap-2">
           {healthFetching && !health

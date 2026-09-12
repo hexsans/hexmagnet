@@ -289,19 +289,23 @@ type QueueMetricsQueryResult struct {
 }
 
 type ReclassifyProgress struct {
-	Total     int     `json:"total"`
-	Processed int     `json:"processed"`
-	Done      bool    `json:"done"`
-	Running   bool    `json:"running"`
-	Error     *string `json:"error,omitempty"`
+	Total         int     `json:"total"`
+	Processed     int     `json:"processed"`
+	Done          bool    `json:"done"`
+	Running       bool    `json:"running"`
+	Resumable     bool    `json:"resumable"`
+	ConfigChanged bool    `json:"configChanged"`
+	Error         *string `json:"error,omitempty"`
 }
 
 type ReindexProgress struct {
-	Total   int     `json:"total"`
-	Indexed int     `json:"indexed"`
-	Done    bool    `json:"done"`
-	Running bool    `json:"running"`
-	Error   *string `json:"error,omitempty"`
+	Total         int     `json:"total"`
+	Indexed       int     `json:"indexed"`
+	Done          bool    `json:"done"`
+	Running       bool    `json:"running"`
+	Resumable     bool    `json:"resumable"`
+	ConfigChanged bool    `json:"configChanged"`
+	Error         *string `json:"error,omitempty"`
 }
 
 type ReleaseYearAgg struct {

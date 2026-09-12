@@ -551,7 +551,7 @@ export function StorageConfigForm() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="gap-1.5 font-mono text-xs bg-green/20 text-green border border-green/40 hover:bg-green/30 disabled:opacity-50"
+                      className="gap-1.5 font-mono text-xs bg-cyan/10 text-cyan border border-cyan/40 hover:bg-cyan/20 disabled:opacity-50"
                       onClick={startReindex}
                       disabled={maintenanceBusy}
                     >

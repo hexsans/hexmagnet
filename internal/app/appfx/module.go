@@ -41,6 +41,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
@@ -146,10 +147,33 @@ func New(queueCfg queue.Config) fx.Option {
 			indexer.NewConfigNotifier,
 			indexer.NewReindexTracker,
 			jobcontrol.NewController,
+			jobcontrol.NewStateStore,
 			func(c *jobcontrol.Controller) dhtcrawlerPkg.PauseGate {
 				return c
 			},
 		),
+		fx.Invoke(func(
+			lc fx.Lifecycle,
+			reindexTracker *indexer.ReindexTracker,
+			reclassifyTracker *processor.ReclassifyTracker,
+			searchCfg indexer.SearchConfig,
+			classifierCfg classifier.Config,
+			logger *zap.SugaredLogger,
+		) {
+			lc.Append(fx.Hook{
+				OnStart: func(ctx context.Context) error {
+					if err := reindexTracker.Load(ctx, indexer.Fingerprint(searchCfg), logger); err != nil {
+						logger.Warnw("failed to restore reindex progress", "error", err)
+					}
+
+					if err := reclassifyTracker.Load(ctx, processor.Fingerprint(classifierCfg), logger); err != nil {
+						logger.Warnw("failed to restore reclassify progress", "error", err)
+					}
+
+					return nil
+				},
+			})
+		}),
 		fx.Provide(newConfigManager),
 		fx.Provide(searchfx.New),
 		fx.Provide(func(r *search.Runtime) *concurrency.AtomicValue[indexer.SearchConfig] {

@@ -196,8 +196,20 @@ function pickFiles(type, infoHash, output) {
 
 let torrentIdx = 0;
 const allFiles = [];
-let mockReindex = { total: 0, indexed: 0, done: true, running: false, error: null };
-let mockReclassify = { total: 0, processed: 0, done: true, running: false, error: null };
+let mockReindex = { total: 0, indexed: 0, done: true, running: false, resumable: false, configChanged: false, error: null };
+let mockReclassify = { total: 0, processed: 0, done: true, running: false, resumable: false, configChanged: false, error: null };
+
+if (process.env.MOCK_RESUME === "1") {
+  mockReindex = {
+    total: 100,
+    indexed: 40,
+    done: false,
+    running: false,
+    resumable: true,
+    configChanged: process.env.MOCK_CONFIG_CHANGED === "1",
+    error: null,
+  };
+}
 
 const DEFAULT_CONFIG = {
   dht: {
@@ -619,19 +631,28 @@ function handleGraphQL(body) {
       if (mockReclassify.running && !mockReclassify.done) {
         return serializeResponse({
           torrent: {
-            reindexToElasticsearch: { total: 0, indexed: 0, done: true, running: false, error: "another operation in progress: classifier reclassify" },
+            reindexToElasticsearch: { total: 0, indexed: 0, done: true, running: false, resumable: false, configChanged: false, error: "another operation in progress: classifier reclassify" },
           },
         });
       }
-      mockReindex = { total: 100, indexed: 0, done: false, running: true, error: null };
+      mockReindex = { ...mockReindex, done: false, running: true, resumable: false, error: null };
+      if (mockReindex.total === 0) mockReindex.total = 100;
       return serializeResponse({
         torrent: {
           reindexToElasticsearch: { ...mockReindex },
         },
       });
 
+    case "DiscardReindexProgress":
+      mockReindex = { total: 0, indexed: 0, done: true, running: false, resumable: false, configChanged: false, error: null };
+      return serializeResponse({
+        torrent: {
+          discardReindexProgress: { ...mockReindex },
+        },
+      });
+
     case "ReindexStatus":
-      if (!mockReindex.done) {
+      if (mockReindex.running && !mockReindex.done) {
         const progress = Math.floor(Math.random() * 15) + 5;
         mockReindex.indexed = Math.min(mockReindex.total, mockReindex.indexed + progress);
         if (mockReindex.indexed >= mockReindex.total) {
@@ -647,19 +668,28 @@ function handleGraphQL(body) {
       if (mockReindex.running && !mockReindex.done) {
         return serializeResponse({
           torrent: {
-            reclassifyTorrents: { total: 0, processed: 0, done: true, running: false, error: "another operation in progress: embedding reindex" },
+            reclassifyTorrents: { total: 0, processed: 0, done: true, running: false, resumable: false, configChanged: false, error: "another operation in progress: embedding reindex" },
           },
         });
       }
-      mockReclassify = { total: 100, processed: 0, done: false, running: true, error: null };
+      mockReclassify = { ...mockReclassify, done: false, running: true, resumable: false, error: null };
+      if (mockReclassify.total === 0) mockReclassify.total = 100;
       return serializeResponse({
         torrent: {
           reclassifyTorrents: { ...mockReclassify },
         },
       });
 
+    case "DiscardReclassifyProgress":
+      mockReclassify = { total: 0, processed: 0, done: true, running: false, resumable: false, configChanged: false, error: null };
+      return serializeResponse({
+        torrent: {
+          discardReclassifyProgress: { ...mockReclassify },
+        },
+      });
+
     case "ReclassifyStatus":
-      if (!mockReclassify.done) {
+      if (mockReclassify.running && !mockReclassify.done) {
         const progress = Math.floor(Math.random() * 12) + 4;
         mockReclassify.processed = Math.min(mockReclassify.total, mockReclassify.processed + progress);
         if (mockReclassify.processed >= mockReclassify.total) {

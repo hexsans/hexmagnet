@@ -4,6 +4,8 @@ query ReclassifyStatus {
     processed
     done
     running
+    resumable
+    configChanged
     error
   }
 }

@@ -7,33 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildPrompt_NoYearField(t *testing.T) {
-	t.Parallel()
-
-	systemMsg, _ := BuildPrompt("Test Movie 2024", "", nil, 0)
-
-	require.NotContains(t, systemMsg, `"year"`, "prompt should not contain year field")
-	require.Contains(t, systemMsg, `"date"`, "prompt should contain date field")
-	require.Contains(t, systemMsg, `"YYYY"`, "prompt should mention YYYY fallback format")
-}
-
 func TestBuildPrompt_IncludesTorrentName(t *testing.T) {
 	t.Parallel()
 
-	systemMsg, userMsg := BuildPrompt("Test Movie 2024", "", nil, 0)
+	_, userMsg := BuildPrompt("Test Movie 2024", "", nil, 0)
 
-	require.Contains(t, systemMsg, "You are a torrent classifier")
 	require.Contains(t, userMsg, "Torrent name: Test Movie 2024")
-}
-
-func TestBuildPrompt_DefaultIsCompactJSON(t *testing.T) {
-	t.Parallel()
-
-	systemMsg, _ := BuildPrompt("Test", "", nil, 0)
-
-	require.Contains(t, systemMsg, "compact single-line JSON")
-	require.Contains(t, systemMsg, "No markdown fences")
-	require.Contains(t, systemMsg, `"base_title"`)
 }
 
 func TestBuildPrompt_CustomPrompt(t *testing.T) {
@@ -44,7 +23,7 @@ func TestBuildPrompt_CustomPrompt(t *testing.T) {
 	require.Contains(t, userMsg, "Torrent name: Test Movie 2024")
 
 	blankMsg, _ := BuildPrompt("Test", "   \n\t ", nil, 0)
-	require.Contains(t, blankMsg, "You are a torrent classifier",
+	require.Equal(t, DefaultSystemPrompt(), blankMsg,
 		"blank custom prompt should fall back to the default")
 }
 

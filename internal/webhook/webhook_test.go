@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/testutil"
+	"github.com/hexsans/hexmagnet/internal/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -338,6 +339,37 @@ func TestPublisherSendsHeaders(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 
 	assert.Equal(t, "Bearer token123", *gotHeader.Load())
+}
+
+func TestPublisherSendsUserAgent(t *testing.T) {
+	t.Parallel()
+
+	var gotUA atomic.Pointer[string]
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v := r.Header.Get("User-Agent")
+		gotUA.Store(&v)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := NewDefaultConfig()
+	cfg.Enabled = true
+	cfg.Urls = []string{srv.URL}
+
+	pub := NewPublisher(cfg, testutil.NewTestLogger())
+
+	require.NoError(t, pub.Start(context.Background()))
+
+	defer func() { _ = pub.Stop(context.Background()) }()
+
+	pub.Publish(context.Background(), Event{Event: EventClassified})
+
+	require.Eventually(t, func() bool {
+		return gotUA.Load() != nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	assert.Equal(t, version.UserAgent(), *gotUA.Load())
 }
 
 func TestPublisherSnapshotDispatch(t *testing.T) {

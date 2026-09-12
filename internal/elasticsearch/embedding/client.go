@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/hexsans/hexmagnet/internal/version"
 )
 
 type Embedder interface {
@@ -67,6 +69,7 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float32, error)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", version.UserAgent())
 
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)

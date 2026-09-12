@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/hexsans/hexmagnet/internal/version"
 	"go.uber.org/zap"
 )
 
@@ -30,7 +31,8 @@ func NewClient(cfg LLMConfig, logger *zap.SugaredLogger) *Client {
 			SetBaseURL(endpoint).
 			SetTimeout(time.Duration(cfg.Timeout)*time.Second).
 			SetAuthToken(cfg.APIKey).
-			SetHeader("Content-Type", "application/json"),
+			SetHeader("Content-Type", "application/json").
+			SetHeader("User-Agent", version.UserAgent()),
 	}
 }
 

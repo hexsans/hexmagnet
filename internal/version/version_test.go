@@ -27,6 +27,13 @@ func TestGitTagSet(t *testing.T) {
 	assert.Equal(t, "v1.0.0", GitTag)
 }
 
+func TestUserAgent(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "HexMagnet", formatUserAgent(""))
+	assert.Equal(t, "HexMagnet/v1.2.3", formatUserAgent("v1.2.3"))
+}
+
 func TestNewHealthCheck(t *testing.T) {
 	t.Parallel()
 

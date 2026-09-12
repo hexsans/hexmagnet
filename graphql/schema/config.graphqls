@@ -65,6 +65,7 @@ type LLMConfig {
   temperature: Float!
   reasoningEffort: String!
   maxFiles: Int!
+  prompt: String!
   enabled: Boolean!
 }
 
@@ -220,6 +221,7 @@ input LLMConfigInput {
   temperature: Float
   reasoningEffort: String
   maxFiles: Int
+  prompt: String
   enabled: Boolean
 }
 

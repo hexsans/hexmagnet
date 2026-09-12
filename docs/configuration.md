@@ -137,6 +137,7 @@ Uses an OpenAI-compatible API to classify torrents that the rules engine can't f
 | `classifier.llm.temperature` | `0` | Sampling temperature. `0` = provider default. |
 | `classifier.llm.reasoning_effort` | `""` | `low`, `medium` or `high` (for reasoning models). Empty = provider default. |
 | `classifier.llm.max_files` | `30` | Max number of torrent files sent to the LLM for analysis. |
+| `classifier.llm.prompt` | `""` | Custom system prompt for the LLM classifier. Empty or blank = built-in default prompt (API responses return the built-in default so the UI can show and edit it). Keep the JSON fields (`type`, `base_title`, `date`, `languages`) unchanged. |
 
 ### `storage.postgres` — main database
 

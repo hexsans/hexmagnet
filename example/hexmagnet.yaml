@@ -56,6 +56,7 @@ classifier:
     temperature: 0.1
     reasoning_effort: "" # one of: low, medium, high (empty = default)
     max_files: 30        # max torrent files sent to the LLM for analysis
+    prompt: ""           # custom system prompt (empty = built-in default)
   tmdb:                    # --- TMDB (The Movie Database) integration ---
     enabled: false
     access_token: ""       # get yours at https://www.themoviedb.org/settings/api

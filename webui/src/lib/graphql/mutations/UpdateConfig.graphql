@@ -40,6 +40,7 @@ mutation UpdateConfig($input: ConfigInput!) {
         temperature
         reasoningEffort
         maxFiles
+        prompt
         enabled
       }
       torrentFilter {

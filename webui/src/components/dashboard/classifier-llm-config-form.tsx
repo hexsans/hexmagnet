@@ -114,6 +114,7 @@ export function ClassifierLLMConfigForm() {
       if (form.llm.temperature !== original.llm.temperature) llmPatch.temperature = form.llm.temperature;
       if (form.llm.reasoningEffort !== original.llm.reasoningEffort) llmPatch.reasoningEffort = form.llm.reasoningEffort;
       if (form.llm.maxFiles !== original.llm.maxFiles) llmPatch.maxFiles = form.llm.maxFiles;
+      if (form.llm.prompt !== original.llm.prompt) llmPatch.prompt = form.llm.prompt;
       if (form.llm.enabled !== original.llm.enabled) llmPatch.enabled = form.llm.enabled;
 
       const tfPatch: Record<string, unknown> = {};
@@ -245,6 +246,30 @@ export function ClassifierLLMConfigForm() {
                     className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmModelHint",)}</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="llmPrompt" className="font-mono text-xs text-foreground uppercase">
+                      {t("dashboard.llmPrompt",)}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => updateLLM({ prompt: "", },)}
+                      className="font-mono text-[10px] text-muted-foreground/60 uppercase hover:text-foreground"
+                    >
+                      {t("dashboard.llmPromptReset",)}
+                    </button>
+                  </div>
+                  <textarea
+                    id="llmPrompt"
+                    value={active.llm.prompt}
+                    onChange={(e,) => updateLLM({ prompt: e.target.value, },)}
+                    className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[120px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
+                    placeholder={t("dashboard.llmPromptPlaceholder",)}
+                    rows={8}
+                  />
+                  <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmPromptHint",)}</span>
                 </div>
 
                 <div>

@@ -165,6 +165,7 @@ type ComplexityRoot struct {
 		MaxFiles        func(childComplexity int) int
 		MaxRetries      func(childComplexity int) int
 		Model           func(childComplexity int) int
+		Prompt          func(childComplexity int) int
 		ReasoningEffort func(childComplexity int) int
 		Temperature     func(childComplexity int) int
 		Timeout         func(childComplexity int) int
@@ -999,6 +1000,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.LLMConfig.Model(childComplexity), true
+	case "LLMConfig.prompt":
+		if e.ComplexityRoot.LLMConfig.Prompt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LLMConfig.Prompt(childComplexity), true
 	case "LLMConfig.reasoningEffort":
 		if e.ComplexityRoot.LLMConfig.ReasoningEffort == nil {
 			break
@@ -2406,6 +2413,7 @@ type LLMConfig {
   temperature: Float!
   reasoningEffort: String!
   maxFiles: Int!
+  prompt: String!
   enabled: Boolean!
 }
 
@@ -2561,6 +2569,7 @@ input LLMConfigInput {
   temperature: Float
   reasoningEffort: String
   maxFiles: Int
+  prompt: String
   enabled: Boolean
 }
 
@@ -3480,6 +3489,8 @@ func (ec *executionContext) childFields_LLMConfig(ctx context.Context, field gra
 		return ec.fieldContext_LLMConfig_reasoningEffort(ctx, field)
 	case "maxFiles":
 		return ec.fieldContext_LLMConfig_maxFiles(ctx, field)
+	case "prompt":
+		return ec.fieldContext_LLMConfig_prompt(ctx, field)
 	case "enabled":
 		return ec.fieldContext_LLMConfig_enabled(ctx, field)
 	}
@@ -6260,6 +6271,29 @@ func (ec *executionContext) _LLMConfig_maxFiles(ctx context.Context, field graph
 }
 func (ec *executionContext) fieldContext_LLMConfig_maxFiles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("LLMConfig", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _LLMConfig_prompt(ctx context.Context, field graphql.CollectedField, obj *gen.LLMConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LLMConfig_prompt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Prompt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LLMConfig_prompt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LLMConfig", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _LLMConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *gen.LLMConfig) (ret graphql.Marshaler) {
@@ -12668,7 +12702,7 @@ func (ec *executionContext) unmarshalInputLLMConfigInput(ctx context.Context, ob
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"endpoint", "apiKey", "model", "timeout", "maxRetries", "temperature", "reasoningEffort", "maxFiles", "enabled"}
+	fieldsInOrder := [...]string{"endpoint", "apiKey", "model", "timeout", "maxRetries", "temperature", "reasoningEffort", "maxFiles", "prompt", "enabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12731,6 +12765,13 @@ func (ec *executionContext) unmarshalInputLLMConfigInput(ctx context.Context, ob
 				return it, err
 			}
 			it.MaxFiles = graphql.OmittableOf(data)
+		case "prompt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("prompt"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Prompt = graphql.OmittableOf(data)
 		case "enabled":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -15263,6 +15304,11 @@ func (ec *executionContext) _LLMConfig(ctx context.Context, sel ast.SelectionSet
 			}
 		case "maxFiles":
 			out.Values[i] = ec._LLMConfig_maxFiles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "prompt":
+			out.Values[i] = ec._LLMConfig_prompt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

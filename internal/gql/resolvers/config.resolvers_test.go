@@ -123,6 +123,7 @@ func Test_configToClassifier_secretsMasked(t *testing.T) {
 			Temperature:     0.7,
 			ReasoningEffort: "high",
 			MaxFiles:        10,
+			Prompt:          "Custom prompt",
 			Enabled:         true,
 		},
 		TorrentFilter: classifier.TorrentFilterConfig{
@@ -149,6 +150,7 @@ func Test_configToClassifier_secretsMasked(t *testing.T) {
 	assert.InEpsilon(t, 0.7, got.Llm.Temperature, 1e-6)
 	assert.Equal(t, "high", got.Llm.ReasoningEffort)
 	assert.Equal(t, 10, got.Llm.MaxFiles)
+	assert.Equal(t, "Custom prompt", got.Llm.Prompt)
 	assert.True(t, got.Llm.Enabled)
 
 	assert.Equal(t, "discard", got.TorrentFilter.Mode)
@@ -158,6 +160,19 @@ func Test_configToClassifier_secretsMasked(t *testing.T) {
 	assert.True(t, got.Tmdb.Enabled)
 	assert.Equal(t, "****************cdef", got.Tmdb.AccessToken)
 	assert.Equal(t, uint64(30), got.Tmdb.RateLimit)
+}
+
+func Test_configToClassifier_defaultPrompt(t *testing.T) {
+	t.Parallel()
+
+	got := configToClassifier(classifier.Config{})
+	assert.Equal(t, classifier.DefaultSystemPrompt(), got.Llm.Prompt)
+
+	blank := configToClassifier(classifier.Config{LLM: classifier.LLMConfig{Prompt: "   \n"}})
+	assert.Equal(t, classifier.DefaultSystemPrompt(), blank.Llm.Prompt)
+
+	custom := configToClassifier(classifier.Config{LLM: classifier.LLMConfig{Prompt: "Custom"}})
+	assert.Equal(t, "Custom", custom.Llm.Prompt)
 }
 
 func Test_configToDHTRequester(t *testing.T) {
@@ -472,6 +487,7 @@ func Test_applyClassifierInput(t *testing.T) {
 		input := gen.ClassifierConfigInput{
 			Llm: graphql.OmittableOf[*gen.LLMConfigInput](&gen.LLMConfigInput{
 				Endpoint: graphql.OmittableOf[*string](testutil.StrPtr("https://llm.local")),
+				Prompt:   graphql.OmittableOf[*string](testutil.StrPtr("Custom prompt")),
 				Enabled:  graphql.OmittableOf[*bool](boolPtr(true)),
 			}),
 		}
@@ -482,6 +498,7 @@ func Test_applyClassifierInput(t *testing.T) {
 		cls := data["classifier"].(map[string]any)
 		llmSection := cls["llm"].(map[string]any)
 		assert.Equal(t, "https://llm.local", llmSection["endpoint"])
+		assert.Equal(t, "Custom prompt", llmSection["prompt"])
 		assert.Equal(t, true, llmSection["enabled"])
 	})
 

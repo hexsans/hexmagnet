@@ -364,3 +364,78 @@ func TestClassify_ReasoningEffortLow_NoExtraParams(t *testing.T) {
 	require.NotContains(t, body, "chat_template_kwargs")
 	require.NotContains(t, body, "thinking")
 }
+
+func TestClassify_UsesCustomPrompt(t *testing.T) {
+	t.Parallel()
+
+	var (
+		reqBodyBytes []byte
+		gotHeader    string
+	)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqBodyBytes, _ = io.ReadAll(r.Body)
+		gotHeader = r.Header.Get("X-Bf-Passthrough-Extra-Params")
+
+		expected := LLMResult{Type: testMovieType, BaseTitle: "Test"}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(chatResponseBody(t, llmResultJSON(t, expected))))
+	}))
+	defer server.Close()
+
+	c := &Client{
+		config: LLMConfig{
+			Model:           testModel,
+			MaxRetries:      0,
+			Timeout:         10,
+			ReasoningEffort: reasoningEffortNone,
+			Prompt:          "Custom classifier instructions",
+		},
+		http:   resty.New().SetBaseURL(server.URL),
+		logger: zap.NewNop().Sugar(),
+	}
+
+	_, err := c.Classify(context.Background(), "Test Movie 2024", []TorrentFile{}, "testhash")
+	require.NoError(t, err)
+	require.Equal(t, "true", gotHeader)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(reqBodyBytes, &body))
+
+	messages, ok := body["messages"].([]any)
+	require.True(t, ok, "messages should be present")
+	require.Len(t, messages, 2)
+
+	systemMsg, ok := messages[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "Custom classifier instructions", systemMsg["content"])
+}
+
+func TestClassify_CodeFencedJSON(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		expected := LLMResult{Type: testMovieType, BaseTitle: "Test"}
+		content := "```json\n" + llmResultJSON(t, expected) + "\n```"
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(chatResponseBody(t, content)))
+	}))
+	defer server.Close()
+
+	c := &Client{
+		config: LLMConfig{
+			Model:      testModel,
+			MaxRetries: 0,
+			Timeout:    10,
+		},
+		http:   resty.New().SetBaseURL(server.URL),
+		logger: zap.NewNop().Sugar(),
+	}
+
+	result, err := c.Classify(context.Background(), "Test Movie 2024", []TorrentFile{}, "testhash")
+	require.NoError(t, err)
+	require.Equal(t, testMovieType, result.Type)
+	require.Equal(t, "Test", result.BaseTitle)
+}

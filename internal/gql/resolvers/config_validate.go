@@ -166,6 +166,13 @@ func (v *ConfigValidator) checkClassifier(ctx context.Context, input gen.Classif
 			)
 		}
 
+		if p, ok := llm.Prompt.ValueOK(); ok && p != nil && len([]rune(*p)) > llmPromptMaxRunes {
+			errs = append(
+				errs,
+				fmt.Errorf("classifier: llm prompt must be at most %d characters, got %d", llmPromptMaxRunes, len([]rune(*p))),
+			)
+		}
+
 		if cfg.LLM.Enabled && cfg.LLM.Endpoint != "" {
 			if err := v.HTTPEndpoint(ctx, cfg.LLM.Endpoint); err != nil {
 				errs = append(errs, fmt.Errorf("classifier: llm: %w", err))
@@ -315,3 +322,5 @@ var (
 	logFileLevels    = []string{"debug", "info", "warn", "error", "off"}
 	postgresSSLModes = []string{"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
 )
+
+const llmPromptMaxRunes = 20000

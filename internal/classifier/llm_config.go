@@ -9,6 +9,7 @@ type LLMConfig struct {
 	Temperature     float64 `json:"temperature"      yaml:"temperature"`
 	ReasoningEffort string  `json:"reasoning_effort" yaml:"reasoning_effort"`
 	MaxFiles        int     `json:"max_files"        yaml:"max_files"`
+	Prompt          string  `json:"prompt"           yaml:"prompt"`
 	Enabled         bool    `json:"enabled"          yaml:"enabled"`
 }
 
@@ -52,6 +53,10 @@ func (c LLMConfig) Merge(other LLMConfig) LLMConfig {
 
 	if other.MaxFiles != 0 {
 		merged.MaxFiles = other.MaxFiles
+	}
+
+	if other.Prompt != "" {
+		merged.Prompt = other.Prompt
 	}
 
 	if other.Enabled {

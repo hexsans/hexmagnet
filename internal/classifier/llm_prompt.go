@@ -6,23 +6,29 @@ import (
 	"strings"
 )
 
-func BuildPrompt(name string, files []TorrentFile, reasoningEffort string, maxFiles int) (systemMsg, userMsg string) {
-	systemMsg = `You are a torrent classifier. Output ONLY valid JSON with these fields:
+//nolint:revive // the prompt is intentionally kept as a single readable raw string
+const defaultSystemPrompt = `You are a torrent classifier. Output one compact single-line JSON object and nothing else:
 - "type": "movie"|"tv_show"|"music"|"ebook"|"comic"|"audiobook"|"game"|"software"|"adult"|"other"|"unknown"
-- "base_title": clean core content name only (no year, tags, group, episode, resolution, codec, URLs, metadata). ` +
-		`JAV content uses the JAV ID (e.g. "XXX-000"). Music uses "Artist - Album".
-- "date": "2006-01-02" ISO format, or just "YYYY" if month/day unclear; omit if unclear
-- "languages": ISO 639-1 codes array; omit if unclear
+- "base_title": core name only (no year, tags, group, episode, resolution, codec, URL); music as "Artist - Album"; JAV as its ID (e.g. "ABC-123")
+- "date": content release/first-air date as "YYYY-MM-DD" or "YYYY"; omit if unclear
+- "languages": content audio/text languages as ISO 639-1 codes (not subtitle-only); omit if unclear
 
-Classify using file extensions (.mp4/.mkv = video, .mp3/.flac = audio, .epub/.mobi = ebook, ` +
-		`.cbz/.cbr = comic, .iso/.nsp/.xci = game) and name patterns (S##E## = tv_show, ` +
-		`year in parentheses = movie, JAV ID XXX-000 = adult). Omit any field that is not applicable. ` +
-		`Return ONLY valid JSON, no other text.`
+Use signals in this order: (1) torrent name and file names, (2) file extensions. Name patterns: S##E##/1x02/Season = tv_show, "(year)" = movie, "Artist - Album" = music, JAV ID = adult. Extension hints: .mkv/.mp4/.avi/.ts video, .mp3/.flac/.m4a music, .m4b/.aax audiobook, .epub/.mobi/.azw3/.pdf ebook, .cbz/.cbr comic, .iso/.nsp/.xci/.rom game, .exe/.msi/.dmg/.apk software. When they conflict, follow the names; extensions only confirm. If unsure use "unknown" and omit fields. No markdown fences.`
 
-	if reasoningEffort == reasoningEffortNone {
-		systemMsg += "\n\nDIRECT INSTRUCTION: Do not use any internal reasoning, chain-of-thought, thinking tags " +
-			`(like <think>, <reasoning>), or any thought process. Output the JSON object immediately as the first ` +
-			`and only token of your response. Your response must begin with { and contain nothing else.`
+// DefaultSystemPrompt returns the built-in system prompt used when no custom
+// prompt is configured.
+func DefaultSystemPrompt() string {
+	return defaultSystemPrompt
+}
+
+func BuildPrompt(
+	name, customPrompt string,
+	files []TorrentFile,
+	maxFiles int,
+) (systemMsg, userMsg string) {
+	systemMsg = defaultSystemPrompt
+	if customPrompt = strings.TrimSpace(customPrompt); customPrompt != "" {
+		systemMsg = customPrompt
 	}
 
 	var b strings.Builder
@@ -46,8 +52,24 @@ Classify using file extensions (.mp4/.mkv = video, .mp3/.flac = audio, .epub/.mo
 	_, _ = b.WriteString("Files:\n")
 
 	for _, f := range sorted {
-		_, _ = fmt.Fprintf(&b, "  - %s\n", f.Path)
+		_, _ = fmt.Fprintf(&b, "  - %s (%s)\n", f.Path, humanReadableSize(f.Size))
 	}
 
 	return systemMsg, b.String()
+}
+
+func humanReadableSize(size uint64) string {
+	const unit = 1000
+
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := uint64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "kMGTPE"[exp])
 }

@@ -111,6 +111,7 @@ func configToServer(c servercfg.Config) gen.ServerConfig {
 			FileRotator: gen.ServerFileRotatorConfig{
 				Path:       c.Log.FileRotator.Path,
 				MaxBackups: uint64(c.Log.FileRotator.MaxBackups),
+				MaxSizeMb:  uint64(c.Log.FileRotator.MaxSizeMB),
 				Format:     c.Log.FileRotator.Format,
 			},
 		},
@@ -351,6 +352,10 @@ func applyServerInput(data map[string]any, input gen.ServerConfigInput) error {
 
 			if vvv, ok := vv.MaxBackups.ValueOK(); ok && vvv != nil {
 				rotatorSection["max_backups"] = *vvv
+			}
+
+			if vvv, ok := vv.MaxSizeMb.ValueOK(); ok && vvv != nil {
+				rotatorSection["max_size_mb"] = *vvv
 			}
 
 			if vvv, ok := vv.Format.ValueOK(); ok && vvv != nil {

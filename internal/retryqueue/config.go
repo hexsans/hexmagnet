@@ -5,10 +5,9 @@ import (
 	"time"
 )
 
-// Config controls the torrent retry queue behaviour.
+// Config controls the torrent retry queue behaviour. The retry queue is
+// always enabled; there is no configuration to turn it off.
 type Config struct {
-	Enabled bool `yaml:"enabled"`
-
 	// MaxRetries is the maximum number of retry attempts per torrent before
 	// it gets deleted. A negative value means "always retry".
 	MaxRetries int `yaml:"max_retries"`
@@ -36,7 +35,6 @@ type Config struct {
 
 func NewDefaultConfig() Config {
 	return Config{
-		Enabled:       true,
 		MaxRetries:    3,
 		Interval:      5 * time.Minute,
 		BackoffFactor: 2.0,

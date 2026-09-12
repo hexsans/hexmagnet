@@ -46,6 +46,7 @@ type ServerLogConfig {
 type ServerFileRotatorConfig {
   path: String!
   maxBackups: Uint64!
+  maxSizeMB: Uint64!
   format: String!
 }
 
@@ -202,6 +203,7 @@ input ServerLogConfigInput {
 input ServerFileRotatorConfigInput {
   path: String
   maxBackups: Uint64
+  maxSizeMB: Uint64
   format: String
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/dht"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -42,7 +43,7 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 			func(ctx context.Context, _ string, value []byte) error {
 				var msg dht.GetPeersMessage
 				if err := json.Unmarshal(value, &msg); err != nil {
-					return err
+					return permanent.Mark(err)
 				}
 
 				if err := semGetPeers.Acquire(ctx, 1); err != nil {
@@ -54,7 +55,6 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 
 					mi, err := p.Handler.HandleGetPeers(ctx, msg)
 					if err != nil {
-						p.Logger.Debugw("metainfo get_peers failed", "info_hash", msg.InfoHash, "error", err)
 						return
 					}
 

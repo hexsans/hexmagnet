@@ -89,6 +89,7 @@ func Test_configToServer(t *testing.T) {
 			FileRotator: servercfg.FileRotatorConfig{
 				Path:       "/var/log/app",
 				MaxBackups: 7,
+				MaxSizeMB:  250,
 				Format:     "json",
 			},
 		},
@@ -104,6 +105,7 @@ func Test_configToServer(t *testing.T) {
 	assert.Equal(t, "info", got.Log.FileOutputLevel)
 	assert.Equal(t, "/var/log/app", got.Log.FileRotator.Path)
 	assert.Equal(t, uint64(7), got.Log.FileRotator.MaxBackups)
+	assert.Equal(t, uint64(250), got.Log.FileRotator.MaxSizeMb)
 	assert.Equal(t, "json", got.Log.FileRotator.Format)
 	assert.Equal(t, []string{"tracker1", "tracker2"}, got.EmbedTrackers)
 	assert.Equal(t, "/app/torrents", got.TorrentFilePath)
@@ -413,6 +415,7 @@ func Test_applyServerInput(t *testing.T) {
 				ConsoleLevel: graphql.OmittableOf[*string](testutil.StrPtr("warn")),
 				FileRotator: graphql.OmittableOf[*gen.ServerFileRotatorConfigInput](&gen.ServerFileRotatorConfigInput{
 					MaxBackups: graphql.OmittableOf[*uint64](uint64Ptr(14)),
+					MaxSizeMb:  graphql.OmittableOf[*uint64](uint64Ptr(64)),
 				}),
 			}),
 		}
@@ -425,6 +428,7 @@ func Test_applyServerInput(t *testing.T) {
 		assert.Equal(t, "warn", log["console_level"])
 		rotator := log["file_rotator"].(map[string]any)
 		assert.Equal(t, uint64(14), rotator["max_backups"])
+		assert.Equal(t, uint64(64), rotator["max_size_mb"])
 	})
 
 	t.Run("sets embed trackers", func(t *testing.T) {

@@ -292,16 +292,6 @@ func TestRecentlyClassified_WrongType(t *testing.T) {
 	assert.False(t, p.wasRecentlyClassified(ih))
 }
 
-func TestMissingHashesError(t *testing.T) {
-	t.Parallel()
-
-	hashes := []protocol.ID{
-		testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-	}
-	err := MissingHashesError{InfoHashes: hashes}
-	assert.Equal(t, "missing 1 info hashes", err.Error())
-}
-
 func TestUpdateTorrentFilter(t *testing.T) {
 	t.Parallel()
 
@@ -342,6 +332,32 @@ type mockProducer struct{}
 
 func (mockProducer) Produce(_ string, _ string, _ any) {}
 func (mockProducer) Close() error                      { return nil }
+
+type recordingProducer struct {
+	topics []string
+}
+
+func (p *recordingProducer) Produce(topic, _ string, _ any) {
+	p.topics = append(p.topics, topic)
+}
+
+func (*recordingProducer) Close() error { return nil }
+
+func TestHandleClassified_DropsMissingHashes(t *testing.T) {
+	t.Parallel()
+
+	prod := &recordingProducer{}
+	p := &processor{
+		kafkaProducer: prod,
+		logger:        zap.NewNop().Sugar(),
+	}
+
+	missing := []protocol.ID{testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")}
+
+	err := p.handleClassified(context.Background(), nil, missing, nil, MessageParams{})
+	require.NoError(t, err)
+	assert.Empty(t, prod.topics, "missing torrents must not be re-produced")
+}
 
 func TestNew_ReturnsResult(t *testing.T) {
 	t.Parallel()

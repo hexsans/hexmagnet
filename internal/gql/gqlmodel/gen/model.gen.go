@@ -364,12 +364,14 @@ type ServerConfigInput struct {
 type ServerFileRotatorConfig struct {
 	Path       string `json:"path"`
 	MaxBackups uint64 `json:"maxBackups"`
+	MaxSizeMb  uint64 `json:"maxSizeMB"`
 	Format     string `json:"format"`
 }
 
 type ServerFileRotatorConfigInput struct {
 	Path       graphql.Omittable[*string] `json:"path,omitempty"`
 	MaxBackups graphql.Omittable[*uint64] `json:"maxBackups,omitempty"`
+	MaxSizeMb  graphql.Omittable[*uint64] `json:"maxSizeMB,omitempty"`
 	Format     graphql.Omittable[*string] `json:"format,omitempty"`
 }
 

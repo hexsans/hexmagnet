@@ -83,7 +83,7 @@ See `example/hexmagnet.yaml` for a fully commented reference of every option.
 | **server** | `ip` + `port` | `""` `3333` | Listen address (`""` = all interfaces) |
 | **server** | `log.console_level` | `"info"` | Log level (debug, info, warn, error) |
 | **server** | `log.file_output_level` | `"off"` | Write logs to file (debug, info, warn, error, off) |
-| **server** | `log.file_rotator` | `./logs`, 5, text | Log file path, backups, format (text/json) |
+| **server** | `log.file_rotator` | `./logs`, 5, 100, text | Log file path, backups, max size (MB), format (text/json) |
 | **server** | `embed_trackers` | `[]` | Tracker announce URLs to embed in .torrent downloads |
 | **server** | `torrent_file_path` | `./data/torrents` | Directory where torrent files are stored |
 | **dht** | `port` | `3334` | UDP listen port for the DHT node |

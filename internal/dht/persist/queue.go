@@ -9,6 +9,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/protocol"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -40,12 +41,11 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 				var msg dht.MetaInfoMessage
 				if err := json.Unmarshal(value, &msg); err != nil {
 					p.Logger.Warnw("failed to unmarshal persist message", "key", key, "error", err)
-					return err
+					return permanent.Mark(err)
 				}
 
 				result, err := p.Handler.HandlePersist(ctx, msg)
 				if err != nil {
-					p.Logger.Warnw("persist handler failed", "info_hash", msg.InfoHash, "error", err)
 					return err
 				}
 

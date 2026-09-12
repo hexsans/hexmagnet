@@ -249,7 +249,6 @@ func newTestQueue(_ *testing.T, store *fakeStore, producer *fakeProducer, cfg Co
 
 func testConfig() Config {
 	return Config{
-		Enabled:       true,
 		MaxRetries:    3,
 		Interval:      time.Minute,
 		BackoffFactor: 2,
@@ -402,7 +401,7 @@ func TestRemove(t *testing.T) {
 
 	store := newFakeStore()
 	producer := &fakeProducer{}
-	q := newTestQueue(t, store, producer, Config{Enabled: true})
+	q := newTestQueue(t, store, producer, testConfig())
 
 	store.rows[retryKey{infoHash: "hash-a", stage: string(StageClassify)}] = db.TorrentRetryQueue{
 		InfoHash: "hash-a", Stage: string(StageClassify), FailCount: 1,
@@ -506,37 +505,16 @@ func TestDispatchDue_LeaseExpiryCountsAsFailure(t *testing.T) {
 	assert.Contains(t, store.evicted, "hash-a")
 }
 
-func TestDispatchDue_Disabled(t *testing.T) {
-	t.Parallel()
-
-	store := newFakeStore()
-	producer := &fakeProducer{}
-	q := newTestQueue(t, store, producer, Config{Enabled: false})
-
-	store.rows[retryKey{infoHash: "hash-a", stage: string(StageClassify)}] = db.TorrentRetryQueue{
-		InfoHash:    "hash-a",
-		Stage:       string(StageClassify),
-		FailCount:   1,
-		NextRetryAt: pgtype.Timestamptz{Time: time.Now().Add(-time.Minute), Valid: true},
-	}
-
-	q.dispatchDue(context.Background())
-
-	assert.Empty(t, producer.messages)
-}
-
 func TestUpdateConfig(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeStore()
 	producer := &fakeProducer{}
-	q := newTestQueue(t, store, producer, Config{Enabled: false})
+	q := newTestQueue(t, store, producer, testConfig())
 
-	assert.False(t, q.Enabled())
+	q.UpdateConfig(Config{MaxRetries: 1})
 
-	q.UpdateConfig(Config{Enabled: true, MaxRetries: 1})
-
-	assert.True(t, q.Enabled())
+	assert.Equal(t, 1, q.cfg.Get().MaxRetries)
 }
 
 func TestRetryNow(t *testing.T) {
@@ -544,7 +522,7 @@ func TestRetryNow(t *testing.T) {
 
 	store := newFakeStore()
 	producer := &fakeProducer{}
-	q := newTestQueue(t, store, producer, Config{Enabled: true})
+	q := newTestQueue(t, store, producer, testConfig())
 
 	store.rows[retryKey{infoHash: "hash-a", stage: string(StageClassify)}] = db.TorrentRetryQueue{
 		InfoHash: "hash-a", Stage: string(StageClassify), FailCount: 1,

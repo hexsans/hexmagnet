@@ -87,6 +87,7 @@ Unknown keys in YAML are silently ignored, so an old config file stays compatibl
 | `server.log.file_output_level` | `off` | Also write logs to a file: `debug`, `info`, `warn`, `error`, or `off` to disable file logging. |
 | `server.log.file_rotator.path` | `./logs` | Folder where log files are written. Required when file logging is enabled — the folder must exist and be writable, or saves will be rejected. |
 | `server.log.file_rotator.max_backups` | `5` | How many rotated log files to keep. `0` = unlimited. |
+| `server.log.file_rotator.max_size_mb` | `100` | Rotate the active log file once it reaches this size in megabytes. `0` = no size limit (files still rotate daily). Total disk use is roughly `max_size_mb × (max_backups + 1)`. |
 | `server.log.file_rotator.format` | `text` | Log file format: `text` or `json`. |
 | `server.embed_trackers` | `[]` | Extra tracker announce URLs to embed into downloaded `.torrent` files (list of URLs). Helps your download client find peers. |
 | `server.torrent_file_path` | `./data/torrents` | Folder where `.torrent` files are stored on disk. Must be writable. |
@@ -272,6 +273,7 @@ server:
     file_rotator:
       path: ./logs
       max_backups: 10
+      max_size_mb: 100
       format: json
 
 dht:

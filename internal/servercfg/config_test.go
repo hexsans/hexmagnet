@@ -19,6 +19,7 @@ func TestNewDefaultConfig(t *testing.T) {
 	assert.Equal(t, "info", cfg.Log.ConsoleLevel)
 	assert.Equal(t, "off", cfg.Log.FileOutputLevel)
 	assert.Equal(t, 5, cfg.Log.FileRotator.MaxBackups)
+	assert.Equal(t, 100, cfg.Log.FileRotator.MaxSizeMB)
 	assert.Equal(t, "text", cfg.Log.FileRotator.Format)
 	assert.NotEmpty(t, cfg.Log.FileRotator.Path)
 	assert.Empty(t, cfg.EmbedTrackers)

@@ -43,7 +43,7 @@ func (c *Client) Classify(ctx context.Context, name string, files []TorrentFile,
 		result, err := c.tryClassify(ctx, systemMsg, userMsg)
 		if err == nil {
 			if i > 0 {
-				c.logger.Infow("llm classify succeeded on retry",
+				c.logger.Debugw("llm classify succeeded on retry",
 					"attempt", i+1,
 					"max_attempts", c.config.MaxRetries+1,
 					"info_hash", infoHash,
@@ -54,7 +54,7 @@ func (c *Client) Classify(ctx context.Context, name string, files []TorrentFile,
 		}
 
 		lastErr = err
-		c.logger.Warnw("llm classify attempt failed",
+		c.logger.Debugw("llm classify attempt failed",
 			"attempt", i+1,
 			"max_attempts", c.config.MaxRetries+1,
 			"info_hash", infoHash,
@@ -63,6 +63,16 @@ func (c *Client) Classify(ctx context.Context, name string, files []TorrentFile,
 	}
 
 	return nil, fmt.Errorf("llm classify failed after %d retries: %w", c.config.MaxRetries+1, lastErr)
+}
+
+const maxErrorBodyLen = 512
+
+func truncateBody(body []byte) string {
+	if len(body) <= maxErrorBodyLen {
+		return string(body)
+	}
+
+	return string(body[:maxErrorBodyLen]) + "...(truncated)"
 }
 
 func (c *Client) tryClassify(ctx context.Context, systemMsg, userMsg string) (*LLMResult, error) {
@@ -102,7 +112,7 @@ func (c *Client) tryClassify(ctx context.Context, systemMsg, userMsg string) (*L
 	}
 
 	if !resp.IsSuccess() {
-		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode(), string(resp.Body()))
+		return nil, fmt.Errorf("api returned status %d: %s", resp.StatusCode(), truncateBody(resp.Body()))
 	}
 
 	var chatResp chatResponse

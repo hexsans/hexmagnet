@@ -50,7 +50,6 @@ func WriteSnapshotToYAML(path string, snap *Snapshot) error {
 			"queue_size":        snap.Webhooks.QueueSize,
 		},
 		"retry_queue": map[string]any{
-			yamlKeyEnabled:   snap.RetryQueue.Enabled,
 			"max_retries":    snap.RetryQueue.MaxRetries,
 			"interval":       snap.RetryQueue.Interval.String(),
 			"backoff_factor": snap.RetryQueue.BackoffFactor,

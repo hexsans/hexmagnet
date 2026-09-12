@@ -224,6 +224,7 @@ func TestNewFileRotator(t *testing.T) {
 	cfg := servercfg.FileRotatorConfig{
 		Path:       "/tmp/logs",
 		MaxBackups: 7,
+		MaxSizeMB:  10,
 		Format:     "json",
 	}
 
@@ -232,26 +233,127 @@ func TestNewFileRotator(t *testing.T) {
 	assert.Equal(t, "/tmp/logs", fr.path)
 	assert.Equal(t, defaultBaseName, fr.baseName)
 	assert.Equal(t, 7, fr.maxBackups)
+	assert.Equal(t, int64(10*bytesPerMB), fr.maxSizeBytes)
 	assert.False(t, fr.pathCreated)
 	assert.Nil(t, fr.file)
 	assert.False(t, fr.closed)
 }
 
+func TestNewFileRotator_UnlimitedSize(t *testing.T) {
+	t.Parallel()
+
+	fr := newFileRotator(servercfg.FileRotatorConfig{Path: "/tmp/logs"})
+	assert.Equal(t, int64(0), fr.maxSizeBytes)
+}
+
 func TestNewFilePath(t *testing.T) {
 	t.Parallel()
 
-	fr := &fileRotator{path: "/var/log", baseName: "hexmagnet"}
+	logDir := t.TempDir()
+	fr := &fileRotator{path: logDir, baseName: "hexmagnet"}
 	now := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
 
-	filePath := fr.newFilePath(now)
-	assert.Equal(t, "/var/log/hexmagnet.2024-06-15.log", filePath)
+	filePath, err := fr.newFilePath(now, false)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(logDir, "hexmagnet.2024-06-15.log"), filePath)
+}
+
+func TestNewFilePath_ResumesNewestSameDateFile(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	now := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+
+	for _, name := range []string{"hexmagnet.2024-06-15.log", "hexmagnet.2024-06-15.1.log"} {
+		f, createErr := os.Create(filepath.Join(logDir, name))
+		require.NoError(t, createErr)
+
+		_, writeErr := f.WriteString("x")
+		require.NoError(t, writeErr)
+
+		_ = f.Close()
+	}
+
+	fr := &fileRotator{path: logDir, baseName: "hexmagnet", maxSizeBytes: 1024}
+
+	filePath, err := fr.newFilePath(now, false)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(logDir, "hexmagnet.2024-06-15.1.log"), filePath)
+}
+
+func TestNewFilePath_OverCapCreatesNextSequence(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	now := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+
+	for _, name := range []string{"hexmagnet.2024-06-15.log", "hexmagnet.2024-06-15.1.log"} {
+		f, createErr := os.Create(filepath.Join(logDir, name))
+		require.NoError(t, createErr)
+
+		_, writeErr := f.WriteString("0123456789")
+		require.NoError(t, writeErr)
+
+		_ = f.Close()
+	}
+
+	fr := &fileRotator{path: logDir, baseName: "hexmagnet", maxSizeBytes: 4}
+
+	filePath, err := fr.newFilePath(now, false)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(logDir, "hexmagnet.2024-06-15.2.log"), filePath)
+}
+
+func TestFileRotator_RestartAppendsToActiveFile(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	date := time.Now().Format(timeFormat)
+
+	first := newFileRotator(servercfg.FileRotatorConfig{Path: logDir})
+	_, err := first.Write([]byte("first run\n"))
+	require.NoError(t, err)
+	require.NoError(t, first.Close())
+
+	second := newFileRotator(servercfg.FileRotatorConfig{Path: logDir})
+	_, err = second.Write([]byte("second run\n"))
+	require.NoError(t, err)
+	require.NoError(t, second.Close())
+
+	content, err := os.ReadFile(filepath.Join(logDir, defaultBaseName+"."+date+".log"))
+	require.NoError(t, err)
+	assert.Equal(t, "first run\nsecond run\n", string(content))
+
+	entries, err := os.ReadDir(logDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "restart must not create another file")
+}
+
+func TestNewFilePath_Sequenced(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	now := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+
+	for _, name := range []string{"hexmagnet.2024-06-15.log", "hexmagnet.2024-06-15.1.log"} {
+		f, createErr := os.Create(filepath.Join(logDir, name))
+		require.NoError(t, createErr)
+
+		_ = f.Close()
+	}
+
+	fr := &fileRotator{path: logDir, baseName: "hexmagnet"}
+
+	filePath, err := fr.newFilePath(now, true)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(logDir, "hexmagnet.2024-06-15.2.log"), filePath)
 }
 
 func TestFileRotator_ShouldRotate_NilFile(t *testing.T) {
 	t.Parallel()
 
 	fr := &fileRotator{}
-	assert.True(t, fr.shouldRotate())
+	assert.True(t, fr.shouldRotate(0))
 }
 
 func TestFileRotator_ShouldRotate_SameDate(t *testing.T) {
@@ -261,7 +363,7 @@ func TestFileRotator_ShouldRotate_SameDate(t *testing.T) {
 		file:     &fileRotatorFile{},
 		fileDate: time.Now().Format(timeFormat),
 	}
-	assert.False(t, fr.shouldRotate())
+	assert.False(t, fr.shouldRotate(0))
 }
 
 func TestFileRotator_ShouldRotate_DifferentDate(t *testing.T) {
@@ -271,7 +373,32 @@ func TestFileRotator_ShouldRotate_DifferentDate(t *testing.T) {
 		file:     &fileRotatorFile{},
 		fileDate: "2020-01-01",
 	}
-	assert.True(t, fr.shouldRotate())
+	assert.True(t, fr.shouldRotate(0))
+}
+
+func TestFileRotator_ShouldRotate_SizeLimit(t *testing.T) {
+	t.Parallel()
+
+	fr := &fileRotator{
+		file:         &fileRotatorFile{size: 900},
+		fileDate:     time.Now().Format(timeFormat),
+		maxSizeBytes: 1000,
+	}
+
+	assert.False(t, fr.shouldRotate(50))
+	assert.True(t, fr.shouldRotate(200))
+}
+
+func TestFileRotator_ShouldRotate_EmptyFileIgnoresSize(t *testing.T) {
+	t.Parallel()
+
+	fr := &fileRotator{
+		file:         &fileRotatorFile{},
+		fileDate:     time.Now().Format(timeFormat),
+		maxSizeBytes: 10,
+	}
+
+	assert.False(t, fr.shouldRotate(1000))
 }
 
 func TestFileRotator_WriteClosed(t *testing.T) {
@@ -488,6 +615,135 @@ func TestFileRotator_WriteIntegration(t *testing.T) {
 
 	closeErr := fr.Close()
 	require.NoError(t, closeErr)
+}
+
+func TestFileRotator_WriteSizeRotation(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	fr := newFileRotator(servercfg.FileRotatorConfig{
+		Path:       logDir,
+		MaxBackups: 5,
+	})
+	fr.maxSizeBytes = 6
+
+	n, err := fr.Write([]byte("123456"))
+	require.NoError(t, err)
+	assert.Equal(t, 6, n)
+
+	n, err = fr.Write([]byte("abcdef"))
+	require.NoError(t, err)
+	assert.Equal(t, 6, n)
+
+	closeErr := fr.Close()
+	require.NoError(t, closeErr)
+
+	date := time.Now().Format(timeFormat)
+
+	base, err := os.ReadFile(filepath.Join(logDir, defaultBaseName+"."+date+".log"))
+	require.NoError(t, err)
+	assert.Equal(t, "123456", string(base))
+
+	seq, err := os.ReadFile(filepath.Join(logDir, defaultBaseName+"."+date+".1.log"))
+	require.NoError(t, err)
+	assert.Equal(t, "abcdef", string(seq))
+}
+
+func TestFileRotator_PruneKeepsActiveFile(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	date := "2024-06-10"
+
+	files := []string{
+		defaultBaseName + "." + date + ".log",
+		defaultBaseName + "." + date + ".1.log",
+		defaultBaseName + "." + date + ".2.log",
+	}
+
+	for _, name := range files {
+		f, createErr := os.Create(filepath.Join(logDir, name))
+		require.NoError(t, createErr)
+
+		_ = f.Close()
+	}
+
+	fr := &fileRotator{
+		path:       logDir,
+		baseName:   defaultBaseName,
+		maxBackups: 1,
+		filePath:   filepath.Join(logDir, files[2]),
+	}
+
+	err := fr.pruneBackups(time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+
+	entries, readErr := os.ReadDir(logDir)
+	require.NoError(t, readErr)
+
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+
+	assert.Len(t, names, 2)
+	assert.Contains(t, names, files[2], "active file must never be removed")
+	assert.Contains(t, names, files[1], "newest backup must be kept")
+}
+
+func TestFileRotator_PruneUnlimited(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+
+	for i := range 3 {
+		name := defaultBaseName + "." + time.Date(2024, 6, 10+i, 0, 0, 0, 0, time.UTC).Format(timeFormat) + ".log"
+
+		f, createErr := os.Create(filepath.Join(logDir, name))
+		require.NoError(t, createErr)
+
+		_ = f.Close()
+	}
+
+	fr := &fileRotator{path: logDir, baseName: defaultBaseName, maxBackups: 0}
+
+	err := fr.pruneBackups(time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+
+	entries, readErr := os.ReadDir(logDir)
+	require.NoError(t, readErr)
+	assert.Len(t, entries, 3)
+}
+
+func TestParseBackupName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		wantDate string
+		wantSeq  int
+		wantOK   bool
+	}{
+		{"hexmagnet.2024-06-15.log", "2024-06-15", 0, true},
+		{"hexmagnet.2024-06-15.1.log", "2024-06-15", 1, true},
+		{"hexmagnet.2024-06-15.42.log", "2024-06-15", 42, true},
+		{"hexmagnet.2024-06-15.0.log", "", 0, false},
+		{"hexmagnet.2024-06-15.x.log", "", 0, false},
+		{"hexmagnet.not-a-date.log", "", 0, false},
+		{"other.2024-06-15.log", "", 0, false},
+		{"hexmagnet.2024-06-15.txt", "", 0, false},
+		{"hexmagnet.2024-06-15.log.log", "", 0, false},
+	}
+
+	for _, tt := range tests {
+		date, seq, ok := parseBackupName(defaultBaseName, tt.name)
+		assert.Equal(t, tt.wantOK, ok, "name: %s", tt.name)
+
+		if tt.wantOK {
+			assert.Equal(t, tt.wantDate, date, "name: %s", tt.name)
+			assert.Equal(t, tt.wantSeq, seq, "name: %s", tt.name)
+		}
+	}
 }
 
 func TestManager_UpdateLogConfig(t *testing.T) {

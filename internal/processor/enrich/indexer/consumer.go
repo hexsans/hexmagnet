@@ -15,6 +15,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/worker"
@@ -202,7 +203,7 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 		var ids []string
 		if err := json.Unmarshal(value, &ids); err != nil {
 			logger.Errorw("failed to unmarshal enriched IDs", "error", err)
-			return err
+			return permanent.Mark(err)
 		}
 
 		if len(ids) == 0 {
@@ -211,22 +212,34 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 
 		docs := make([]TorrentContentDocument, 0, len(ids))
 		parsed := make([]parsedEnrichID, 0, len(ids))
+		parseFailures := 0
+		fetchFailures := 0
 
 		for _, id := range ids {
 			infoHash, _, _, _, parseErr := parseCompositeID(id)
 			if parseErr != nil {
-				logger.Errorw("failed to parse composite ID", "id", id, "error", parseErr)
+				parseFailures++
+
 				continue
 			}
 
 			t, fetchErr := loadTorrent(ctx, queries, infoHash)
 			if fetchErr != nil {
-				logger.Errorw("failed to fetch torrent", "info_hash", infoHash, "error", fetchErr)
+				fetchFailures++
+
 				continue
 			}
 
 			parsed = append(parsed, parsedEnrichID{compositeID: id, infoHash: infoHash.String()})
 			docs = append(docs, NewDocument(*t))
+		}
+
+		if parseFailures > 0 || fetchFailures > 0 {
+			logger.Debugw("skipped enriched IDs",
+				"parse_failures", parseFailures,
+				"fetch_failures", fetchFailures,
+				"total", len(ids),
+			)
 		}
 
 		if len(docs) == 0 {
@@ -241,7 +254,10 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 
 			vectors, embedErr := currentEmbedder.Embed(ctx, texts)
 			if embedErr != nil {
-				logger.Warnw("failed to generate embeddings, continuing without vectors", "error", embedErr)
+				logger.Debugw("failed to generate embeddings, continuing without vectors",
+					"count", len(docs),
+					"error", embedErr,
+				)
 
 				enqueueEnrichRetries(ctx, retryQueue, parsed, embedErr)
 
@@ -263,7 +279,10 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 		}
 
 		if indexErr := es.BulkIndex(ctx, bytes.NewReader(body)); indexErr != nil {
-			logger.Warnw("failed to bulk index documents, skipping batch", "error", indexErr)
+			logger.Debugw("failed to bulk index documents, skipping batch",
+				"count", len(docs),
+				"error", indexErr,
+			)
 
 			enqueueEnrichRetries(ctx, retryQueue, parsed, indexErr)
 
@@ -297,7 +316,13 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 
 		if err := consumer.Start(ctx); err != nil {
 			logger.Errorw("failed to start consumer", "error", err)
-			continue
+
+			select {
+			case <-time.After(time.Second):
+				continue
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		logger.Infow("consumer started", "topic", kafka.TopicEnriched)
@@ -408,7 +433,7 @@ func enqueueEnrichRetries(
 	parsed []parsedEnrichID,
 	cause error,
 ) {
-	if retryQueue == nil || !retryQueue.Enabled() {
+	if retryQueue == nil {
 		return
 	}
 

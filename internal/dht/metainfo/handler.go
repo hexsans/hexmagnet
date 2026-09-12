@@ -100,7 +100,7 @@ func (h *handler) HandleGetPeers(ctx context.Context, msg dht.GetPeersMessage) (
 
 	mi, err := h.fetchMetaInfo(ctx, blockingManager, id, peers)
 	if err != nil {
-		h.logger.Infow("all peers failed to return metainfo, skipping info_hash", "info_hash", msg.InfoHash)
+		h.logger.Debugw("all peers failed to return metainfo, skipping info_hash", "info_hash", msg.InfoHash)
 		return nil, err
 	}
 
@@ -186,7 +186,6 @@ func (h *handler) fetchMetaInfo(
 	for i := range maxPeers {
 		res, reqErr := h.metainfoRequester.Request(ctx, hash, peers[i])
 		if reqErr != nil {
-			h.logger.Debugw("failed to request metainfo from peer", "info_hash", hash.String(), "addr", peers[i].String(), "error", reqErr)
 			addErr(reqErr)
 
 			continue
@@ -201,6 +200,15 @@ func (h *handler) fetchMetaInfo(
 		}
 
 		return res, nil
+	}
+
+	if len(errs) > 0 {
+		h.logger.Debugw("metainfo requests failed for all peers",
+			"info_hash", hash.String(),
+			"peers", maxPeers,
+			"failures", len(errs),
+			"first_error", errs[0],
+		)
 	}
 
 	return metainforequester.Response{}, errors.Join(errs...)
@@ -307,12 +315,12 @@ func (h *handler) persistTorrentFile(ctx context.Context, id protocol.ID, rawInf
 
 	data, err := torrentstore.EncodeTorrentFile(rawInfoBytes, createdAt)
 	if err != nil {
-		h.logger.Warnw("failed to encode torrent file", "info_hash", id.String(), "error", err)
+		h.logger.Debugw("failed to encode torrent file", "info_hash", id.String(), "error", err)
 		return
 	}
 
 	if err := h.store.Put(ctx, id, data); err != nil {
-		h.logger.Warnw("failed to write torrent file", "info_hash", id.String(), "error", err)
+		h.logger.Debugw("failed to write torrent file", "info_hash", id.String(), "error", err)
 	}
 }
 

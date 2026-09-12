@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"go.uber.org/zap"
 )
 
@@ -137,13 +138,28 @@ func (c *Consumer) replay(ctx context.Context) {
 
 func (c *Consumer) process(ctx context.Context, msg *Message) {
 	if err := c.handler(ctx, msg.Key, []byte(msg.Value)); err != nil {
-		c.logger.Warnw("message handler failed",
+		if permanent.Is(err) {
+			c.logger.Debugw("skipping permanently failed message",
+				"topic", c.topic, "group", c.groupID, "seq", msg.Seq, "error", err)
+
+			c.advanceOffset(msg)
+
+			return
+		}
+
+		c.logger.Debugw("message handler failed",
 			"topic", c.topic, "group", c.groupID, "seq", msg.Seq, "error", err)
 
 		return
 	}
 
+	c.advanceOffset(msg)
+}
+
+func (c *Consumer) advanceOffset(msg *Message) {
 	c.queue.mu.Lock()
+	defer c.queue.mu.Unlock()
+
 	if c.queue.offsets[c.groupID] == nil {
 		c.queue.offsets[c.groupID] = make(map[string]uint64)
 	}
@@ -151,7 +167,6 @@ func (c *Consumer) process(ctx context.Context, msg *Message) {
 	if msg.Seq > c.queue.offsets[c.groupID][c.topic] {
 		c.queue.offsets[c.groupID][c.topic] = msg.Seq
 	}
-	c.queue.mu.Unlock()
 }
 
 func (c *Consumer) Stop(_ context.Context) error {

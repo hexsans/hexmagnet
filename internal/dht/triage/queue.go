@@ -7,6 +7,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/dht"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -38,12 +39,11 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 				var msg dht.DiscoveredHash
 				if err := json.Unmarshal(value, &msg); err != nil {
 					p.Logger.Warnw("failed to unmarshal triage message", "key", key, "error", err)
-					return err
+					return permanent.Mark(err)
 				}
 
 				result, err := p.Handler.HandleTriage(ctx, msg)
 				if err != nil {
-					p.Logger.Warnw("triage handler failed", "info_hash", msg.InfoHash, "node", msg.Node, "error", err)
 					return err
 				}
 

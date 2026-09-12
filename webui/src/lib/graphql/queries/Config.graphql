@@ -26,6 +26,7 @@ query Config {
         fileRotator {
           path
           maxBackups
+          maxSizeMB
           format
         }
       }

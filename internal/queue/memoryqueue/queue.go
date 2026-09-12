@@ -249,7 +249,6 @@ func (mq *MemoryQueue) persist(ctx context.Context) {
 		_ = w.Close()
 
 		mq.logger.Errorw("failed to compress queue state", "error", err)
-		mq.logger.Errorw("failed to compress queue state", "error", err)
 		mq.mu.Lock()
 		mq.dirty = true
 		mq.mu.Unlock()

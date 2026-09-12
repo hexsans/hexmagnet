@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hexsans/hexmagnet/internal/version"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/zap"
 )
@@ -432,7 +433,7 @@ func (p *Publisher) post(ctx context.Context, rawURL string, body []byte, timeou
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "HexMagnet/1.0")
+	req.Header.Set("User-Agent", version.UserAgent())
 
 	for k, v := range headers {
 		req.Header.Set(k, v)

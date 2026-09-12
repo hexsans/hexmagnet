@@ -10,10 +10,10 @@ import (
 const defaultSystemPrompt = `You are a torrent classifier. Output one compact single-line JSON object and nothing else:
 - "type": "movie"|"tv_show"|"music"|"ebook"|"comic"|"audiobook"|"game"|"software"|"adult"|"other"|"unknown"
 - "base_title": core name only (no year, tags, group, episode, resolution, codec, URL); music as "Artist - Album"; JAV as its ID (e.g. "ABC-123")
-- "date": content release/first-air date as "YYYY-MM-DD" or "YYYY"; omit if unclear
-- "languages": content audio/text languages as ISO 639-1 codes (not subtitle-only); omit if unclear
+- "date" (optional): content release/first-air date; use "YYYY-MM-DD" when day and month are explicit, otherwise "YYYY" when only the year is explicit. Only use a date explicitly written in the torrent name or file names (e.g. "2021-06-19", "23.02.01", "Jan 1 2020", "(2021)"). Never infer or decode dates from content IDs, catalog knowledge, or compact digit runs (e.g. "FC2-PPV-1485672", "012514"); omit if not explicit
+- "languages" (optional): content audio/text languages as ISO 639-1 codes (not subtitle-only); omit if unclear
 
-Use signals in this order: (1) torrent name and file names, (2) file extensions. Name patterns: S##E##/1x02/Season = tv_show, "(year)" = movie, "Artist - Album" = music, JAV ID = adult. Extension hints: .mkv/.mp4/.avi/.ts video, .mp3/.flac/.m4a music, .m4b/.aax audiobook, .epub/.mobi/.azw3/.pdf ebook, .cbz/.cbr comic, .iso/.nsp/.xci/.rom game, .exe/.msi/.dmg/.apk software. When they conflict, follow the names; extensions only confirm. If unsure use "unknown" and omit fields. No markdown fences.`
+Omit optional keys entirely when unknown or empty; never emit "" or []. Use signals in this order: (1) torrent name and file names, (2) file extensions. Name patterns: S##E##/1x02/Season = tv_show, "(year)" = movie, "Artist - Album" = music, JAV ID = adult. Extension hints: .mkv/.mp4/.avi/.ts video, .mp3/.flac/.m4a music, .m4b/.aax audiobook, .epub/.mobi/.azw3/.pdf ebook, .cbz/.cbr comic, .iso/.nsp/.xci/.rom game, .exe/.msi/.dmg/.apk software. When they conflict, follow the names; extensions only confirm. If unsure use "unknown" and omit fields. No markdown fences.`
 
 // DefaultSystemPrompt returns the built-in system prompt used when no custom
 // prompt is configured.

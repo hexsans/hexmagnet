@@ -5,6 +5,8 @@ mutation ReclassifyTorrents {
       processed
       done
       running
+      resumable
+      configChanged
       error
     }
   }

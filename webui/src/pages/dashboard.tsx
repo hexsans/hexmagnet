@@ -2,6 +2,7 @@ import { useNavigate, } from "react-router";
 import { useTranslation, } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger, } from "@/components/ui/tabs";
 import { CrawlerOverview, } from "@/components/dashboard/crawler-overview";
+import { MaintenanceResumeDialog, } from "@/components/dashboard/maintenance-resume-dialog";
 import { StatsPanel, } from "@/components/dashboard/stats-panel";
 import { ConfigTabs, } from "@/components/dashboard/config-tabs";
 import { Activity, BarChart2, Settings, } from "lucide-react";
@@ -66,6 +67,8 @@ export function DashboardPage({ tab, }: DashboardPageProps,) {
           <ConfigTabs />
         </TabsContent>
       </Tabs>
+
+      <MaintenanceResumeDialog />
     </main>
   );
 }

@@ -385,6 +385,8 @@ func runManagedIndexer(ctx context.Context, p managedIndexerParams) {
 					queries,
 					currentCfg.Elasticsearch.Embedding.Dimensions,
 					currentCfg.MaxSearchFiles,
+					Fingerprint(currentCfg),
+					true,
 					logger,
 				); err != nil {
 					logger.Warnw("auto-reindex skipped", "error", err)

@@ -7,3 +7,6 @@ VALUES ($1, $2, NOW(), NOW())
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
   updated_at = NOW();
+
+-- name: DeleteKeyValue :exec
+DELETE FROM key_value WHERE key = $1;

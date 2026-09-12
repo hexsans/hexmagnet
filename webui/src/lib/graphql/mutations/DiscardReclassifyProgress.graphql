@@ -1,8 +1,8 @@
-mutation ReindexElasticsearch {
+mutation DiscardReclassifyProgress {
   torrent {
-    reindexToElasticsearch {
+    discardReclassifyProgress {
       total
-      indexed
+      processed
       done
       running
       resumable

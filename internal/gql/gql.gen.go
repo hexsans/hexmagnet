@@ -265,19 +265,23 @@ type ComplexityRoot struct {
 	}
 
 	ReclassifyProgress struct {
-		Done      func(childComplexity int) int
-		Error     func(childComplexity int) int
-		Processed func(childComplexity int) int
-		Running   func(childComplexity int) int
-		Total     func(childComplexity int) int
+		ConfigChanged func(childComplexity int) int
+		Done          func(childComplexity int) int
+		Error         func(childComplexity int) int
+		Processed     func(childComplexity int) int
+		Resumable     func(childComplexity int) int
+		Running       func(childComplexity int) int
+		Total         func(childComplexity int) int
 	}
 
 	ReindexProgress struct {
-		Done    func(childComplexity int) int
-		Error   func(childComplexity int) int
-		Indexed func(childComplexity int) int
-		Running func(childComplexity int) int
-		Total   func(childComplexity int) int
+		ConfigChanged func(childComplexity int) int
+		Done          func(childComplexity int) int
+		Error         func(childComplexity int) int
+		Indexed       func(childComplexity int) int
+		Resumable     func(childComplexity int) int
+		Running       func(childComplexity int) int
+		Total         func(childComplexity int) int
 	}
 
 	ReleaseYearAgg struct {
@@ -406,9 +410,11 @@ type ComplexityRoot struct {
 	}
 
 	TorrentMutation struct {
-		ReclassifyTorrents     func(childComplexity int) int
-		ReindexToElasticsearch func(childComplexity int) int
-		Reprocess              func(childComplexity int, input gen.TorrentReprocessInput) int
+		DiscardReclassifyProgress func(childComplexity int) int
+		DiscardReindexProgress    func(childComplexity int) int
+		ReclassifyTorrents        func(childComplexity int) int
+		ReindexToElasticsearch    func(childComplexity int) int
+		Reprocess                 func(childComplexity int, input gen.TorrentReprocessInput) int
 	}
 
 	TorrentQuery struct {
@@ -525,6 +531,8 @@ type TorrentMutationResolver interface {
 	Reprocess(ctx context.Context, obj *gqlmodel.TorrentMutation, input gen.TorrentReprocessInput) (*string, error)
 	ReindexToElasticsearch(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReindexProgress, error)
 	ReclassifyTorrents(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error)
+	DiscardReindexProgress(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReindexProgress, error)
+	DiscardReclassifyProgress(ctx context.Context, obj *gqlmodel.TorrentMutation) (gen.ReclassifyProgress, error)
 }
 type TorrentQueryResolver interface {
 	Files(ctx context.Context, obj *gqlmodel.TorrentQuery, input gqlmodel.TorrentFilesQueryInput) (gqlmodel.TorrentFilesQueryResult, error)
@@ -1379,6 +1387,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.QueueQuery.Metrics(childComplexity, args["input"].(gen.QueueMetricsQueryInput)), true
 
+	case "ReclassifyProgress.configChanged":
+		if e.ComplexityRoot.ReclassifyProgress.ConfigChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.ConfigChanged(childComplexity), true
 	case "ReclassifyProgress.done":
 		if e.ComplexityRoot.ReclassifyProgress.Done == nil {
 			break
@@ -1397,6 +1411,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ReclassifyProgress.Processed(childComplexity), true
+	case "ReclassifyProgress.resumable":
+		if e.ComplexityRoot.ReclassifyProgress.Resumable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReclassifyProgress.Resumable(childComplexity), true
 	case "ReclassifyProgress.running":
 		if e.ComplexityRoot.ReclassifyProgress.Running == nil {
 			break
@@ -1410,6 +1430,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ReclassifyProgress.Total(childComplexity), true
 
+	case "ReindexProgress.configChanged":
+		if e.ComplexityRoot.ReindexProgress.ConfigChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReindexProgress.ConfigChanged(childComplexity), true
 	case "ReindexProgress.done":
 		if e.ComplexityRoot.ReindexProgress.Done == nil {
 			break
@@ -1428,6 +1454,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ReindexProgress.Indexed(childComplexity), true
+	case "ReindexProgress.resumable":
+		if e.ComplexityRoot.ReindexProgress.Resumable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReindexProgress.Resumable(childComplexity), true
 	case "ReindexProgress.running":
 		if e.ComplexityRoot.ReindexProgress.Running == nil {
 			break
@@ -1895,6 +1927,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TorrentMetricsQueryResult.Buckets(childComplexity), true
 
+	case "TorrentMutation.discardReclassifyProgress":
+		if e.ComplexityRoot.TorrentMutation.DiscardReclassifyProgress == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorrentMutation.DiscardReclassifyProgress(childComplexity), true
+	case "TorrentMutation.discardReindexProgress":
+		if e.ComplexityRoot.TorrentMutation.DiscardReindexProgress == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TorrentMutation.DiscardReindexProgress(childComplexity), true
 	case "TorrentMutation.reclassifyTorrents":
 		if e.ComplexityRoot.TorrentMutation.ReclassifyTorrents == nil {
 			break
@@ -2929,6 +2973,8 @@ type TorrentMutation {
   reprocess(input: TorrentReprocessInput!): Void
   reindexToElasticsearch: ReindexProgress!
   reclassifyTorrents: ReclassifyProgress!
+  discardReindexProgress: ReindexProgress!
+  discardReclassifyProgress: ReclassifyProgress!
 }
 
 input TorrentReprocessInput {
@@ -2942,6 +2988,8 @@ type ReindexProgress {
   indexed: Int!
   done: Boolean!
   running: Boolean!
+  resumable: Boolean!
+  configChanged: Boolean!
   error: String
 }
 
@@ -2950,6 +2998,8 @@ type ReclassifyProgress {
   processed: Int!
   done: Boolean!
   running: Boolean!
+  resumable: Boolean!
+  configChanged: Boolean!
   error: String
 }
 `, BuiltIn: false},
@@ -3662,6 +3712,10 @@ func (ec *executionContext) childFields_ReclassifyProgress(ctx context.Context, 
 		return ec.fieldContext_ReclassifyProgress_done(ctx, field)
 	case "running":
 		return ec.fieldContext_ReclassifyProgress_running(ctx, field)
+	case "resumable":
+		return ec.fieldContext_ReclassifyProgress_resumable(ctx, field)
+	case "configChanged":
+		return ec.fieldContext_ReclassifyProgress_configChanged(ctx, field)
 	case "error":
 		return ec.fieldContext_ReclassifyProgress_error(ctx, field)
 	}
@@ -3678,6 +3732,10 @@ func (ec *executionContext) childFields_ReindexProgress(ctx context.Context, fie
 		return ec.fieldContext_ReindexProgress_done(ctx, field)
 	case "running":
 		return ec.fieldContext_ReindexProgress_running(ctx, field)
+	case "resumable":
+		return ec.fieldContext_ReindexProgress_resumable(ctx, field)
+	case "configChanged":
+		return ec.fieldContext_ReindexProgress_configChanged(ctx, field)
 	case "error":
 		return ec.fieldContext_ReindexProgress_error(ctx, field)
 	}
@@ -3942,6 +4000,10 @@ func (ec *executionContext) childFields_TorrentMutation(ctx context.Context, fie
 		return ec.fieldContext_TorrentMutation_reindexToElasticsearch(ctx, field)
 	case "reclassifyTorrents":
 		return ec.fieldContext_TorrentMutation_reclassifyTorrents(ctx, field)
+	case "discardReindexProgress":
+		return ec.fieldContext_TorrentMutation_discardReindexProgress(ctx, field)
+	case "discardReclassifyProgress":
+		return ec.fieldContext_TorrentMutation_discardReclassifyProgress(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TorrentMutation", field.Name)
 }
@@ -7956,6 +8018,52 @@ func (ec *executionContext) fieldContext_ReclassifyProgress_running(_ context.Co
 	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _ReclassifyProgress_resumable(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_resumable(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Resumable, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_resumable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ReclassifyProgress_configChanged(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReclassifyProgress_configChanged(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConfigChanged, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReclassifyProgress_configChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReclassifyProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _ReclassifyProgress_error(ctx context.Context, field graphql.CollectedField, obj *gen.ReclassifyProgress) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8068,6 +8176,52 @@ func (ec *executionContext) _ReindexProgress_running(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_ReindexProgress_running(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReindexProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ReindexProgress_resumable(ctx context.Context, field graphql.CollectedField, obj *gen.ReindexProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReindexProgress_resumable(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Resumable, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReindexProgress_resumable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReindexProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ReindexProgress_configChanged(ctx context.Context, field graphql.CollectedField, obj *gen.ReindexProgress) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReindexProgress_configChanged(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConfigChanged, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReindexProgress_configChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ReindexProgress", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
@@ -9955,6 +10109,70 @@ func (ec *executionContext) _TorrentMutation_reclassifyTorrents(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_TorrentMutation_reclassifyTorrents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TorrentMutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReclassifyProgress(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TorrentMutation_discardReindexProgress(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.TorrentMutation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorrentMutation_discardReindexProgress(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.TorrentMutation().DiscardReindexProgress(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.ReindexProgress) graphql.Marshaler {
+			return ec.marshalNReindexProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReindexProgress(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorrentMutation_discardReindexProgress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TorrentMutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReindexProgress(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TorrentMutation_discardReclassifyProgress(ctx context.Context, field graphql.CollectedField, obj *gqlmodel.TorrentMutation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TorrentMutation_discardReclassifyProgress(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.TorrentMutation().DiscardReclassifyProgress(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v gen.ReclassifyProgress) graphql.Marshaler {
+			return ec.marshalNReclassifyProgress2githubᚗcomᚋhexsansᚋhexmagnetᚋinternalᚋgqlᚋgqlmodelᚋgenᚐReclassifyProgress(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TorrentMutation_discardReclassifyProgress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "TorrentMutation",
 		Field:      field,
@@ -16432,6 +16650,16 @@ func (ec *executionContext) _ReclassifyProgress(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "resumable":
+			out.Values[i] = ec._ReclassifyProgress_resumable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "configChanged":
+			out.Values[i] = ec._ReclassifyProgress_configChanged(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "error":
 			out.Values[i] = ec._ReclassifyProgress_error(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
@@ -16487,6 +16715,16 @@ func (ec *executionContext) _ReindexProgress(ctx context.Context, sel ast.Select
 			}
 		case "running":
 			out.Values[i] = ec._ReindexProgress_running(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resumable":
+			out.Values[i] = ec._ReindexProgress_resumable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "configChanged":
+			out.Values[i] = ec._ReindexProgress_configChanged(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17662,6 +17900,82 @@ func (ec *executionContext) _TorrentMutation(ctx context.Context, sel ast.Select
 					}
 				}()
 				res = ec._TorrentMutation_reclassifyTorrents(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "discardReindexProgress":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._TorrentMutation_discardReindexProgress(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "discardReclassifyProgress":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._TorrentMutation_discardReclassifyProgress(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

@@ -3,6 +3,7 @@ package resolvers
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -76,6 +77,30 @@ func TestConfigValidator_Validate_structuralInputChecks(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "console_level")
 	assert.Contains(t, err.Error(), "format must be one of text, json")
+}
+
+func TestConfigValidator_Validate_LLMPromptTooLong(t *testing.T) {
+	t.Parallel()
+
+	tooLong := strings.Repeat("x", llmPromptMaxRunes+1)
+
+	v := &ConfigValidator{}
+	data := map[string]any{
+		"classifier": map[string]any{
+			"llm": map[string]any{"prompt": tooLong},
+		},
+	}
+	input := gen.ConfigInput{
+		Classifier: graphql.OmittableOf[*gen.ClassifierConfigInput](&gen.ClassifierConfigInput{
+			Llm: graphql.OmittableOf[*gen.LLMConfigInput](&gen.LLMConfigInput{
+				Prompt: graphql.OmittableOf[*string](testutil.StrPtr(tooLong)),
+			}),
+		}),
+	}
+
+	err := v.Validate(context.Background(), input, data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt must be at most")
 }
 
 func TestConfigValidator_Validate_probesOnlyChangedSections(t *testing.T) {

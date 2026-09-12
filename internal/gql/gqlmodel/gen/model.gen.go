@@ -162,6 +162,7 @@ type LLMConfig struct {
 	Temperature     float64 `json:"temperature"`
 	ReasoningEffort string  `json:"reasoningEffort"`
 	MaxFiles        int     `json:"maxFiles"`
+	Prompt          string  `json:"prompt"`
 	Enabled         bool    `json:"enabled"`
 }
 
@@ -174,6 +175,7 @@ type LLMConfigInput struct {
 	Temperature     graphql.Omittable[*float64] `json:"temperature,omitempty"`
 	ReasoningEffort graphql.Omittable[*string]  `json:"reasoningEffort,omitempty"`
 	MaxFiles        graphql.Omittable[*int]     `json:"maxFiles,omitempty"`
+	Prompt          graphql.Omittable[*string]  `json:"prompt,omitempty"`
 	Enabled         graphql.Omittable[*bool]    `json:"enabled,omitempty"`
 }
 

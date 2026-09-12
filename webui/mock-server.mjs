@@ -238,6 +238,7 @@ const DEFAULT_CONFIG = {
       temperature: 0,
       reasoningEffort: "",
       maxFiles: -1,
+      prompt: "",
       enabled: false,
     },
     torrentFilter: { mode: "off", titlePatterns: [], filenamePatterns: [] },

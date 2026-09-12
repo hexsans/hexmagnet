@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -34,7 +35,7 @@ func NewClient(cfg LLMConfig, logger *zap.SugaredLogger) *Client {
 }
 
 func (c *Client) Classify(ctx context.Context, name string, files []TorrentFile, infoHash string) (*LLMResult, error) {
-	systemMsg, userMsg := BuildPrompt(name, files, c.config.ReasoningEffort, c.config.MaxFiles)
+	systemMsg, userMsg := BuildPrompt(name, c.config.Prompt, files, c.config.MaxFiles)
 
 	var lastErr error
 
@@ -117,7 +118,7 @@ func (c *Client) tryClassify(ctx context.Context, systemMsg, userMsg string) (*L
 		return nil, fmt.Errorf("no choices in response")
 	}
 
-	content := chatResp.Choices[0].Message.Content
+	content := stripCodeFence(chatResp.Choices[0].Message.Content)
 	if content == "" {
 		return nil, fmt.Errorf("empty response content")
 	}
@@ -128,4 +129,24 @@ func (c *Client) tryClassify(ctx context.Context, systemMsg, userMsg string) (*L
 	}
 
 	return &result, nil
+}
+
+// stripCodeFence trims surrounding whitespace and unwraps a markdown code
+// fence around a JSON payload, since some models ignore the compact-JSON
+// instruction and still emit ```json blocks.
+func stripCodeFence(content string) string {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "```") {
+		return content
+	}
+
+	content = strings.TrimSpace(strings.TrimPrefix(content, "```"))
+	if len(content) >= 4 && strings.EqualFold(content[:4], "json") {
+		content = content[4:]
+	}
+
+	content = strings.TrimSpace(content)
+	content = strings.TrimSuffix(content, "```")
+
+	return strings.TrimSpace(content)
 }

@@ -131,6 +131,7 @@ func configToClassifier(c classifier.Config) gen.ClassifierConfig {
 			Temperature:     c.LLM.Temperature,
 			ReasoningEffort: c.LLM.ReasoningEffort,
 			MaxFiles:        c.LLM.MaxFiles,
+			Prompt:          effectiveLLMPrompt(c.LLM.Prompt),
 			Enabled:         c.LLM.Enabled,
 		},
 		TorrentFilter: gen.TorrentFilterConfig{
@@ -144,6 +145,17 @@ func configToClassifier(c classifier.Config) gen.ClassifierConfig {
 			RateLimit:   uint64(c.Tmdb.RateLimit),
 		},
 	}
+}
+
+// effectiveLLMPrompt returns the configured custom prompt, or the built-in
+// default when it is empty or blank, so clients always see the prompt that is
+// actually used.
+func effectiveLLMPrompt(prompt string) string {
+	if strings.TrimSpace(prompt) == "" {
+		return classifier.DefaultSystemPrompt()
+	}
+
+	return prompt
 }
 
 func configToDHTRequester(c metainforequester.Config) gen.DHTRequesterConfig {
@@ -406,6 +418,10 @@ func applyClassifierInput(data map[string]any, input gen.ClassifierConfigInput) 
 
 		if vv, ok := v.MaxFiles.ValueOK(); ok && vv != nil {
 			llmSection["max_files"] = *vv
+		}
+
+		if vv, ok := v.Prompt.ValueOK(); ok && vv != nil {
+			llmSection["prompt"] = *vv
 		}
 
 		if vv, ok := v.Enabled.ValueOK(); ok && vv != nil {

@@ -41,6 +41,7 @@ query Config {
         temperature
         reasoningEffort
         maxFiles
+        prompt
         enabled
       }
       torrentFilter {

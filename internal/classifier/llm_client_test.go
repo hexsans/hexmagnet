@@ -275,6 +275,79 @@ func TestClassify_UnparseableLLMResult(t *testing.T) {
 	require.Contains(t, err.Error(), "failed to parse llm output")
 }
 
+func TestClassify_UsesJSONSchemaResponseFormat(t *testing.T) {
+	t.Parallel()
+
+	var reqBodyBytes []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqBodyBytes, _ = io.ReadAll(r.Body)
+
+		expected := LLMResult{Type: testMovieType, BaseTitle: "Test"}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(chatResponseBody(t, llmResultJSON(t, expected))))
+	}))
+	defer server.Close()
+
+	c := &Client{
+		config: LLMConfig{
+			Model:      testModel,
+			MaxRetries: 0,
+			Timeout:    10,
+		},
+		http:   resty.New().SetBaseURL(server.URL),
+		logger: zap.NewNop().Sugar(),
+	}
+
+	_, err := c.Classify(context.Background(), "Test Movie 2024", []TorrentFile{}, "testhash")
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(reqBodyBytes, &body))
+
+	format, ok := body["response_format"].(map[string]any)
+	require.True(t, ok, "response_format should be present")
+	require.Equal(t, "json_schema", format["type"])
+
+	jsonSchema, ok := format["json_schema"].(map[string]any)
+	require.True(t, ok, "json_schema should be present")
+	require.Equal(t, llmResultSchemaName, jsonSchema["name"])
+	require.Equal(t, true, jsonSchema["strict"])
+
+	schema, ok := jsonSchema["schema"].(map[string]any)
+	require.True(t, ok, "schema should be present")
+	require.Equal(t, "object", schema["type"])
+	require.Equal(t, false, schema["additionalProperties"])
+	require.ElementsMatch(t,
+		[]any{"type", "base_title", "date", "languages"},
+		schema["required"],
+	)
+
+	properties, ok := schema["properties"].(map[string]any)
+	require.True(t, ok, "properties should be present")
+
+	typeProp, ok := properties["type"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "string", typeProp["type"])
+	require.ElementsMatch(t, []any{
+		"movie", "tv_show", "music", "ebook", "comic", "audiobook",
+		"game", "software", "adult", "other", "unknown",
+	}, typeProp["enum"])
+
+	baseTitleProp, ok := properties["base_title"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "string", baseTitleProp["type"])
+
+	dateProp, ok := properties["date"].(map[string]any)
+	require.True(t, ok)
+	require.ElementsMatch(t, []any{"string", "null"}, dateProp["type"])
+
+	languagesProp, ok := properties["languages"].(map[string]any)
+	require.True(t, ok)
+	require.ElementsMatch(t, []any{"array", "null"}, languagesProp["type"])
+}
+
 func TestClassify_ReasoningEffortNone_DisablesThinking(t *testing.T) {
 	t.Parallel()
 

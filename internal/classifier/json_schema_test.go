@@ -13,6 +13,17 @@ import (
 //go:embed json-schema.draft-07.json
 var metaSchemaJSON []byte
 
+func TestLLMResultSchemaIsValidJSONSchema(t *testing.T) {
+	t.Parallel()
+
+	schemaLoader := gojsonschema.NewBytesLoader(llmResultSchema)
+	metaSchemaLoader := gojsonschema.NewBytesLoader(metaSchemaJSON)
+
+	result, err := gojsonschema.Validate(metaSchemaLoader, schemaLoader)
+	require.NoError(t, err)
+	assert.True(t, result.Valid(), result.Errors())
+}
+
 func TestJSONSchema(t *testing.T) {
 	t.Parallel()
 

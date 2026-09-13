@@ -85,7 +85,7 @@ func (c *Client) tryClassify(ctx context.Context, systemMsg, userMsg string) (*L
 			{Role: "system", Content: systemMsg},
 			{Role: "user", Content: userMsg},
 		},
-		ResponseFormat: &responseFormat{Type: "json_object"},
+		ResponseFormat: newJSONSchemaResponseFormat(),
 	}
 
 	if c.config.ReasoningEffort != "" {

@@ -1,5 +1,7 @@
 package classifier
 
+import "encoding/json"
+
 type TorrentFile struct {
 	Path      string `json:"path"`
 	Size      uint64 `json:"size"`
@@ -30,7 +32,14 @@ type chatRequest struct {
 }
 
 type responseFormat struct {
-	Type string `json:"type"`
+	Type       string          `json:"type"`
+	JSONSchema *jsonSchemaSpec `json:"json_schema,omitempty"`
+}
+
+type jsonSchemaSpec struct {
+	Name   string          `json:"name"`
+	Strict bool            `json:"strict"`
+	Schema json.RawMessage `json:"schema"`
 }
 
 type chatTemplateKwargs struct {

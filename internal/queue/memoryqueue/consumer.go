@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hexsans/hexmagnet/internal/queue/permanent"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -65,13 +66,7 @@ func (c *Consumer) Start(ctx context.Context) error {
 	c.wg.Add(1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				c.logger.Errorw("memory queue consumer panicked",
-					"topic", c.topic, "group", c.groupID, "panic", r,
-				)
-			}
-		}()
+		defer utils.Recover(c.logger, "memory queue consumer panicked", "topic", c.topic, "group", c.groupID)
 
 		c.run(ctx)
 	}()
@@ -82,6 +77,14 @@ func (c *Consumer) Start(ctx context.Context) error {
 func (c *Consumer) run(ctx context.Context) {
 	defer c.wg.Done()
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Stop automatically cancels internalCtx; propagate that to the retry
+	// waits so shutdown never blocks on a pending backoff.
+	stopWatch := context.AfterFunc(c.internalCtx, cancel) //nolint:contextcheck // internalCtx is the consumer-owned shutdown context
+	defer stopWatch()
+
 	c.replay(ctx)
 
 	for {
@@ -91,7 +94,9 @@ func (c *Consumer) run(ctx context.Context) {
 				return
 			}
 
-			c.process(ctx, msg)
+			if !c.process(ctx, msg) {
+				return
+			}
 		case <-c.internalCtx.Done():
 			return
 		case <-ctx.Done():
@@ -118,7 +123,7 @@ func (c *Consumer) replay(ctx context.Context) {
 		idx := (ts.Head + i) % ts.Capacity
 
 		msg := ts.Messages[idx]
-		if msg != nil && msg.Seq > offset {
+		if msg != nil && msg.Seq >= offset {
 			replayMsgs = append(replayMsgs, msg)
 		}
 	}
@@ -136,24 +141,65 @@ func (c *Consumer) replay(ctx context.Context) {
 	}
 }
 
-func (c *Consumer) process(ctx context.Context, msg *Message) {
-	if err := c.handler(ctx, msg.Key, []byte(msg.Value)); err != nil {
+// process handles one message with at-least-once semantics: retryable
+// failures are retried in place with backoff until MaxAttempts is reached,
+// then discarded as poison. It reports whether the consumer loop should keep
+// running.
+func (c *Consumer) process(ctx context.Context, msg *Message) bool {
+	if c.alreadyProcessed(msg) {
+		return true
+	}
+
+	deliveryCfg := c.queue.deliveryConfig()
+
+	for attempt := 1; ; attempt++ {
+		err := c.handler(ctx, msg.Key, []byte(msg.Value))
+		if err == nil {
+			c.advanceOffset(msg)
+
+			return true
+		}
+
+		if ctx.Err() != nil {
+			return false
+		}
+
 		if permanent.Is(err) {
 			c.logger.Debugw("skipping permanently failed message",
 				"topic", c.topic, "group", c.groupID, "seq", msg.Seq, "error", err)
 
 			c.advanceOffset(msg)
 
-			return
+			return true
 		}
 
-		c.logger.Debugw("message handler failed",
-			"topic", c.topic, "group", c.groupID, "seq", msg.Seq, "error", err)
+		if attempt >= deliveryCfg.MaxAttempts {
+			c.logger.Errorw("queue message exceeded delivery attempts, discarding",
+				"topic", c.topic, "group", c.groupID, "seq", msg.Seq,
+				"attempts", attempt, "error", err)
 
-		return
+			c.advanceOffset(msg)
+
+			return true
+		}
+
+		c.logger.Warnw("message handler failed, retrying",
+			"topic", c.topic, "group", c.groupID, "seq", msg.Seq,
+			"attempt", attempt, "error", err)
+
+		if deliveryCfg.Backoff.Wait(ctx, attempt) != nil {
+			return false
+		}
 	}
+}
 
-	c.advanceOffset(msg)
+// alreadyProcessed reports whether msg was acknowledged by an earlier
+// delivery (replay and the live channel can both surface the same message).
+func (c *Consumer) alreadyProcessed(msg *Message) bool {
+	c.queue.mu.RLock()
+	defer c.queue.mu.RUnlock()
+
+	return msg.Seq < c.queue.offsets[c.groupID][c.topic]
 }
 
 func (c *Consumer) advanceOffset(msg *Message) {
@@ -164,8 +210,10 @@ func (c *Consumer) advanceOffset(msg *Message) {
 		c.queue.offsets[c.groupID] = make(map[string]uint64)
 	}
 
-	if msg.Seq > c.queue.offsets[c.groupID][c.topic] {
-		c.queue.offsets[c.groupID][c.topic] = msg.Seq
+	// Offsets track the next sequence to consume, so the very first message
+	// (seq 0) is distinguishable from "nothing processed yet".
+	if next := msg.Seq + 1; next > c.queue.offsets[c.groupID][c.topic] {
+		c.queue.offsets[c.groupID][c.topic] = next
 	}
 }
 

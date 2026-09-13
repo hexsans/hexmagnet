@@ -666,6 +666,13 @@ func Test_readConfigFile(t *testing.T) {
 		assert.Equal(t, 8080, server["port"])
 		assert.Equal(t, "0.0.0.0", server["ip"])
 	})
+
+	t.Run("returns error for unreadable path", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := readConfigFile(t.TempDir())
+		require.Error(t, err)
+	})
 }
 
 func Test_writeConfigFile(t *testing.T) {
@@ -955,12 +962,12 @@ func Test_UpdateConfigMutation_storagePhase2Push_updatesAllRuntimes(t *testing.T
 	cm := configmgr.NewManager(&configmgr.Snapshot{
 		Queue:  resolver.QueueCfg,
 		Search: resolver.SearchCfg,
-	}, "", nil, zap.NewNop().Sugar())
-	cm.Subscribe(context.Background(), "queue_test", func(_ context.Context, snap *configmgr.Snapshot) error {
+	}, zap.NewNop().Sugar())
+	cm.Subscribe("queue_test", func(_ context.Context, snap *configmgr.Snapshot) error {
 		_ = resolver.QueueRuntime.SwitchTo(snap.Queue) //nolint:contextcheck // SwitchTo accepts no context
 		return nil
 	}, configmgr.ApplySync)
-	cm.Subscribe(context.Background(), "search_test", func(_ context.Context, snap *configmgr.Snapshot) error {
+	cm.Subscribe("search_test", func(_ context.Context, snap *configmgr.Snapshot) error {
 		resolver.SearchRuntime.SwitchBackend(snap.Search)
 		return nil
 	}, configmgr.ApplySync)

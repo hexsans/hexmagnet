@@ -2,14 +2,10 @@ package classifier
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 )
-
-const nullStr = "null"
 
 const (
 	FlagTypeBool            FlagType = "bool"
@@ -142,86 +138,4 @@ func (x *FlagType) Scan(value interface{}) (err error) {
 // Value implements the driver Valuer interface.
 func (x FlagType) Value() (driver.Value, error) {
 	return x.String(), nil
-}
-
-type NullFlagType struct {
-	FlagType FlagType
-	Valid    bool
-}
-
-func NewNullFlagType(val interface{}) (x NullFlagType) {
-	err := x.Scan(val) // yes, we ignore this error, it will just be an invalid value.
-	_ = err            // make any errcheck linters happy
-
-	return
-}
-
-// Scan implements the Scanner interface.
-func (x *NullFlagType) Scan(value interface{}) (err error) {
-	if value == nil {
-		x.FlagType, x.Valid = FlagType(""), false
-		return
-	}
-
-	err = x.FlagType.Scan(value)
-	x.Valid = (err == nil)
-
-	return
-}
-
-// Value implements the driver Valuer interface.
-func (x NullFlagType) Value() (driver.Value, error) {
-	if !x.Valid {
-		//nolint:nilnil
-		return nil, nil
-	}
-
-	return x.FlagType.String(), nil
-}
-
-// MarshalJSON correctly serializes a NullFlagType to JSON.
-func (x NullFlagType) MarshalJSON() ([]byte, error) {
-	if x.Valid {
-		return json.Marshal(x.FlagType)
-	}
-
-	return []byte(nullStr), nil
-}
-
-// UnmarshalJSON correctly deserializes a NullFlagType from JSON.
-func (x *NullFlagType) UnmarshalJSON(b []byte) error {
-	var v interface{}
-
-	err := json.Unmarshal(b, &v)
-	if err != nil {
-		return err
-	}
-
-	return x.Scan(v)
-}
-
-// MarshalGQL correctly serializes a NullFlagType to GraphQL.
-func (x NullFlagType) MarshalGQL(w io.Writer) {
-	bytes, err := json.Marshal(x)
-	if err == nil {
-		_, _ = w.Write(bytes)
-	}
-}
-
-// UnmarshalGQL correctly deserializes a NullFlagType from GraphQL.
-func (x *NullFlagType) UnmarshalGQL(v any) error {
-	if v == nil {
-		return nil
-	}
-
-	str, ok := v.(string)
-	if !ok {
-		return errors.New("value is not a string")
-	}
-
-	if str == nullStr {
-		return nil
-	}
-
-	return x.UnmarshalJSON([]byte("\"" + str + "\""))
 }

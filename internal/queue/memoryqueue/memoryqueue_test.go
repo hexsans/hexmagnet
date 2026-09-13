@@ -2,9 +2,12 @@ package memoryqueue
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/hexsans/hexmagnet/internal/backoff"
+	"github.com/hexsans/hexmagnet/internal/queue/delivery"
 	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,8 +178,12 @@ func TestConsumer_PermanentErrorAdvancesOffset(t *testing.T) {
 	t.Parallel()
 
 	mq := New(zap.NewNop().Sugar())
+	mq.SetDelivery(delivery.Config{
+		MaxAttempts: 2,
+		Backoff:     backoff.Config{Base: time.Millisecond},
+	})
 
-	handled := make(chan struct{}, 3)
+	handled := make(chan struct{}, 10)
 	c := mq.NewConsumer("t", "g", func(_ context.Context, key string, _ []byte) error {
 		handled <- struct{}{}
 
@@ -197,7 +204,8 @@ func TestConsumer_PermanentErrorAdvancesOffset(t *testing.T) {
 	mq.Produce("t", "permanent", "v")
 	mq.Produce("t", "transient", "v")
 
-	for range 3 {
+	// ok once, permanent once, transient retried MaxAttempts times.
+	for range 4 {
 		select {
 		case <-handled:
 		case <-time.After(5 * time.Second):
@@ -211,9 +219,168 @@ func TestConsumer_PermanentErrorAdvancesOffset(t *testing.T) {
 	offset := mq.offsets["g"]["t"]
 	mq.mu.RUnlock()
 
-	// The successful and permanent messages advance the offset; the transient
-	// failure must not, so the offset stays at the permanent message's seq.
-	assert.Equal(t, uint64(1), offset)
+	// All three messages advance the offset (next seq): the transient message
+	// is retried until MaxAttempts and then discarded as poison.
+	assert.Equal(t, uint64(3), offset)
+}
+
+func TestConsumer_RetryableErrorDiscardedAfterMaxAttempts(t *testing.T) {
+	t.Parallel()
+
+	mq := New(zap.NewNop().Sugar())
+	mq.SetDelivery(delivery.Config{
+		MaxAttempts: 3,
+		Backoff:     backoff.Config{Base: time.Millisecond},
+	})
+
+	var attempts atomic.Int32
+
+	c := mq.NewConsumer("t", "g", func(_ context.Context, _ string, _ []byte) error {
+		attempts.Add(1)
+
+		return assert.AnError
+	}, zap.NewNop().Sugar())
+
+	ctx := context.Background()
+	require.NoError(t, c.Start(ctx))
+
+	mq.Produce("t", "k", "v")
+
+	require.Eventually(t, func() bool {
+		mq.mu.RLock()
+		defer mq.mu.RUnlock()
+
+		offset, ok := mq.offsets["g"]["t"]
+
+		return ok && offset == 1
+	}, 5*time.Second, 5*time.Millisecond, "poison message should be discarded and the offset advanced")
+
+	assert.Equal(t, int32(3), attempts.Load())
+
+	require.NoError(t, c.Stop(ctx))
+}
+
+func TestConsumer_CanceledErrorRetriesWhileContextAlive(t *testing.T) {
+	t.Parallel()
+
+	mq := New(zap.NewNop().Sugar())
+	mq.SetDelivery(delivery.Config{
+		MaxAttempts: 2,
+		Backoff:     backoff.Config{Base: time.Millisecond},
+	})
+
+	var attempts atomic.Int32
+
+	c := mq.NewConsumer("t", "g", func(_ context.Context, _ string, _ []byte) error {
+		attempts.Add(1)
+
+		return context.Canceled
+	}, zap.NewNop().Sugar())
+
+	require.NoError(t, c.Start(context.Background()))
+
+	mq.Produce("t", "k", "v")
+
+	require.Eventually(t, func() bool {
+		mq.mu.RLock()
+		defer mq.mu.RUnlock()
+
+		offset, ok := mq.offsets["g"]["t"]
+
+		return ok && offset == 1
+	}, 5*time.Second, 5*time.Millisecond, "canceled error with a live context must be treated as retryable")
+
+	assert.Equal(t, int32(2), attempts.Load())
+
+	require.NoError(t, c.Stop(context.Background()))
+}
+
+func TestConsumer_ContextCancelledStopsWithoutAdvancing(t *testing.T) {
+	t.Parallel()
+
+	mq := New(zap.NewNop().Sugar())
+
+	started := make(chan struct{}, 1)
+
+	c := mq.NewConsumer("t", "g", func(ctx context.Context, _ string, _ []byte) error {
+		started <- struct{}{}
+
+		<-ctx.Done()
+
+		return ctx.Err()
+	}, zap.NewNop().Sugar())
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	require.NoError(t, c.Start(ctx))
+
+	mq.Produce("t", "k", "v")
+
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for handler")
+	}
+
+	cancel()
+	c.wg.Wait()
+
+	mq.mu.RLock()
+	_, ok := mq.offsets["g"]["t"]
+	mq.mu.RUnlock()
+
+	assert.False(t, ok, "message must not be acknowledged when the context is canceled")
+
+	require.NoError(t, c.Stop(context.Background()))
+}
+
+func TestConsumer_UnackedMessageRedeliveredOnRestart(t *testing.T) {
+	t.Parallel()
+
+	mq := New(zap.NewNop().Sugar())
+
+	c1 := mq.NewConsumer("t", "g", func(ctx context.Context, _ string, _ []byte) error {
+		<-ctx.Done()
+
+		return ctx.Err()
+	}, zap.NewNop().Sugar())
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	require.NoError(t, c1.Start(ctx))
+
+	mq.Produce("t", "k", "v")
+
+	require.Eventually(t, func() bool {
+		mq.mu.RLock()
+		defer mq.mu.RUnlock()
+
+		ts, ok := mq.topics["t"]
+
+		return ok && ts.Tail != ts.Head
+	}, 5*time.Second, 5*time.Millisecond, "message should be pending while the handler blocks")
+
+	cancel()
+	c1.wg.Wait()
+	require.NoError(t, c1.Stop(context.Background()))
+
+	redelivered := make(chan struct{}, 1)
+
+	c2 := mq.NewConsumer("t", "g", func(_ context.Context, _ string, _ []byte) error {
+		redelivered <- struct{}{}
+
+		return nil
+	}, zap.NewNop().Sugar())
+
+	require.NoError(t, c2.Start(context.Background()))
+
+	select {
+	case <-redelivered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("unacknowledged message was not redelivered after restart")
+	}
+
+	require.NoError(t, c2.Stop(context.Background()))
 }
 
 func TestListConsumerGroups_Empty(t *testing.T) {
@@ -256,6 +423,9 @@ func TestDescribeConsumerGroup(t *testing.T) {
 	assert.Equal(t, "topic-a", detail.Topics[0].Topic)
 	require.Len(t, detail.Topics[0].Partitions, 1)
 	assert.Equal(t, int32(0), detail.Topics[0].Partitions[0].Partition)
+	assert.Equal(t, int64(0), detail.Topics[0].Partitions[0].CurrentOffset)
+	assert.Equal(t, int64(2), detail.Topics[0].Partitions[0].EndOffset)
+	assert.Equal(t, int64(2), detail.Topics[0].Partitions[0].Lag)
 }
 
 func TestDescribeConsumerGroup_NotFound(t *testing.T) {

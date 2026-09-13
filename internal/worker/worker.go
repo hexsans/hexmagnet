@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"runtime/debug"
 	"slices"
 	"sort"
 	"sync"
@@ -101,15 +100,7 @@ func (w *worker) setStarted(started bool) {
 // The goroutine is stopped after recovery; the process continues.
 func GoRecover(logger *zap.SugaredLogger, name string, fn func()) {
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				logger.Errorw("goroutine panicked",
-					"goroutine", name,
-					"panic", r,
-					"stack", string(debug.Stack()),
-				)
-			}
-		}()
+		defer utils.Recover(logger, "goroutine panicked", "goroutine", name)
 
 		fn()
 	}()

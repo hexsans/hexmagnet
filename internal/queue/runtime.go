@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hexsans/hexmagnet/internal/concurrency"
+	"github.com/hexsans/hexmagnet/internal/queue/delivery"
 	kafka2 "github.com/hexsans/hexmagnet/internal/queue/kafka"
 	"github.com/hexsans/hexmagnet/internal/queue/memoryqueue"
 	"go.uber.org/zap"
@@ -21,6 +22,7 @@ type Runtime struct {
 	memoryManager      Manager
 	memoryQueueActive  bool
 	kafkaConfig        kafka2.Config
+	deliveryCfg        delivery.Config
 	kafkaProducerFn    func() Producer
 	kafkaConsumerFn    func() ConsumerMaker
 	kafkaManagerFn     func() Manager
@@ -47,6 +49,7 @@ func NewRuntime(cfg Config, logger *zap.SugaredLogger) *Runtime {
 		memoryQueue:       mq,
 		memoryManager:     &memoryManager{queue: mq},
 		kafkaConfig:       cfg.Kafka,
+		deliveryCfg:       cfg.deliveryConfig(),
 		logger:            logger,
 		backendChangeSubs: make(map[int]chan struct{}),
 	}
@@ -76,6 +79,8 @@ func (r *Runtime) rebuildKafkaClosures() {
 	}
 
 	cfg := r.kafkaConfig
+	deliveryCfg := r.deliveryCfg
+
 	r.kafkaProducerFn = func() Producer {
 		prod, err := kafka2.NewProducer(cfg.Brokers, r.logger.Named("kafka"))
 		if err != nil {
@@ -88,9 +93,16 @@ func (r *Runtime) rebuildKafkaClosures() {
 	r.kafkaConsumerFn = func() ConsumerMaker {
 		return ConsumerMaker{
 			NewConsumer: func(topic, groupID string, handler MessageHandler, l *zap.SugaredLogger) (Consumer, error) {
-				return kafka2.NewConsumer(cfg.Brokers, topic, groupID, func(ctx context.Context, key, value []byte) error {
+				consumer, err := kafka2.NewConsumer(cfg.Brokers, topic, groupID, func(ctx context.Context, key, value []byte) error {
 					return handler(ctx, string(key), value)
 				}, l)
+				if err != nil {
+					return nil, err
+				}
+
+				consumer.SetDelivery(deliveryCfg)
+
+				return consumer, nil
 			},
 		}
 	}
@@ -111,6 +123,7 @@ func (r *Runtime) SwitchTo(cfg Config) error {
 
 	oldBackend := r.ActiveBackend.Get()
 	r.kafkaConfig = cfg.Kafka
+	r.deliveryCfg = cfg.deliveryConfig()
 	r.rebuildKafkaClosures()
 	r.applyConfig(cfg)
 
@@ -131,6 +144,8 @@ func (r *Runtime) SwitchTo(cfg Config) error {
 func (r *Runtime) applyConfig(cfg Config) {
 	oldManager := r.Manager.Get()
 	oldProducer := r.Producer.Get()
+
+	r.memoryQueue.SetDelivery(r.deliveryCfg)
 
 	switch cfg.Backend {
 	case backendKafka:

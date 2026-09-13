@@ -73,6 +73,8 @@ func (r *fileRotator) Write(output []byte) (int, error) {
 	return r.file.Write(output)
 }
 
+// Sync flushes buffered log data to disk without closing the active file, so
+// the rotator stays writable after a Sync.
 func (r *fileRotator) Sync() error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -81,7 +83,7 @@ func (r *fileRotator) Sync() error {
 		return nil
 	}
 
-	return r.file.Close()
+	return r.file.Flush()
 }
 
 func (r *fileRotator) Close() error {

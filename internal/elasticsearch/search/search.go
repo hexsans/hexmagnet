@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
-	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/zap"
@@ -477,133 +475,6 @@ func (s *ESearch) TorrentSearch(ctx context.Context, params search.TorrentSearch
 	}, nil
 }
 
-func (s *ESearch) TorrentsWithMissingInfoHashes(
-	ctx context.Context,
-	params search.TorrentsWithMissingInfoHashesParams,
-) (search.TorrentsWithMissingInfoHashesResult, error) {
-	placeholders := make([]string, len(params.InfoHashes))
-
-	args := make([]any, len(params.InfoHashes))
-	for i, h := range params.InfoHashes {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = h
-	}
-
-	rows, err := s.q.Pool().Query(ctx, fmt.Sprintf(`
-		SELECT info_hash, name, size, private,
-			files_count, created_at, updated_at
-		FROM torrents
-		WHERE info_hash IN (%s)
-	`, strings.Join(placeholders, ", ")), args...)
-	if err != nil {
-		return search.TorrentsWithMissingInfoHashesResult{}, fmt.Errorf("query torrents: %w", err)
-	}
-
-	var rawTorrents []db.Torrent
-
-	for rows.Next() {
-		var t db.Torrent
-		if err := rows.Scan(
-			&t.InfoHash, &t.Name, &t.Size, &t.Private,
-			&t.FilesCount,
-			&t.CreatedAt, &t.UpdatedAt,
-		); err != nil {
-			rows.Close()
-			return search.TorrentsWithMissingInfoHashesResult{}, fmt.Errorf("scan torrent: %w", err)
-		}
-
-		rawTorrents = append(rawTorrents, t)
-	}
-
-	rows.Close()
-
-	if err := rows.Err(); err != nil {
-		return search.TorrentsWithMissingInfoHashesResult{}, fmt.Errorf("rows error: %w", err)
-	}
-
-	found := make(map[string]model.Torrent, len(rawTorrents))
-	for _, rt := range rawTorrents {
-		t := db.TorrentToModel(rt, nil, nil)
-
-		files, err := s.q.ListTorrentFiles(ctx, rt.InfoHash)
-		if err != nil {
-			return search.TorrentsWithMissingInfoHashesResult{}, fmt.Errorf("list files for %s: %w", rt.InfoHash, err)
-		}
-
-		for i := range files {
-			t.Files = append(t.Files, db.TorrentFileToModel(files[i]))
-		}
-
-		found[rt.InfoHash] = t
-	}
-
-	var (
-		torrents []model.Torrent
-		missing  []string
-	)
-
-	for _, h := range params.InfoHashes {
-		if t, ok := found[h]; ok {
-			torrents = append(torrents, t)
-		} else {
-			missing = append(missing, h)
-		}
-	}
-
-	return search.TorrentsWithMissingInfoHashesResult{
-		Torrents:          torrents,
-		MissingInfoHashes: missing,
-	}, nil
-}
-
-func (s *ESearch) TorrentFiles(ctx context.Context, params search.TorrentFilesSearchParams) (search.TorrentFilesResult, error) {
-	result := search.TorrentFilesResult{Items: []db.TorrentFile{}}
-
-	limit := utils.ClampInt32(params.Limit)
-	offset := utils.ClampInt32(params.Offset)
-
-	if limit > 0 {
-		rows, err := s.q.ListTorrentFilesPaginated(ctx, db.ListTorrentFilesPaginatedParams{
-			InfoHash: params.InfoHash,
-			Limit:    limit,
-			Offset:   offset,
-		})
-		if err != nil {
-			return result, fmt.Errorf("query torrent files: %w", err)
-		}
-
-		result.Items = rows
-	} else {
-		rows, err := s.q.ListTorrentFiles(ctx, params.InfoHash)
-		if err != nil {
-			return result, fmt.Errorf("query torrent files: %w", err)
-		}
-
-		result.Items = rows
-	}
-
-	if params.TotalCount {
-		count, err := s.q.CountTorrentFiles(ctx, params.InfoHash)
-		if err != nil {
-			return result, fmt.Errorf("count torrent files: %w", err)
-		}
-
-		result.TotalCount = uint(count)
-	}
-
-	if params.HasNextPage && len(result.Items) > 0 {
-		nextExists, err := s.q.TorrentFileExists(ctx, db.TorrentFileExistsParams{
-			InfoHash: params.InfoHash,
-			Offset:   offset + int32(len(result.Items)),
-		})
-		if err == nil {
-			result.HasNextPage = nextExists
-		}
-	}
-
-	return result, nil
-}
-
 func esSortField(f search.TorrentSearchField) string {
 	switch f {
 	case search.FieldCreatedAt:
@@ -966,8 +837,8 @@ func parseAggs(raw map[string]json.RawMessage, params search.TorrentSearchParams
 
 func (ESearch) Close() error { return nil }
 
-// Ensure ESearch implements search.Search
-var _ search.Search = (*ESearch)(nil)
+// Ensure ESearch implements the query side consumed by search.Router.
+var _ search.TorrentSearcher = (*ESearch)(nil)
 
 type aggBucketItem struct {
 	Key      string `json:"key"`

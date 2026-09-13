@@ -10,6 +10,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/hexsans/hexmagnet/internal/version"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Client struct {
@@ -19,6 +20,10 @@ type Client struct {
 }
 
 func NewClient(cfg LLMConfig, logger *zap.SugaredLogger) *Client {
+	if logger == nil {
+		logger = zap.NewNop().Sugar()
+	}
+
 	endpoint := cfg.Endpoint
 	if endpoint == "" {
 		endpoint = "https://api.openai.com/v1"
@@ -26,7 +31,9 @@ func NewClient(cfg LLMConfig, logger *zap.SugaredLogger) *Client {
 
 	return &Client{
 		config: cfg,
-		logger: logger,
+		logger: logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+			return zapcore.NewSamplerWithOptions(core, time.Minute, llmWarnLogBurst, 0)
+		})),
 		http: resty.New().
 			SetBaseURL(endpoint).
 			SetTimeout(time.Duration(cfg.Timeout)*time.Second).
@@ -64,10 +71,21 @@ func (c *Client) Classify(ctx context.Context, name string, files []TorrentFile,
 		)
 	}
 
+	c.logger.Warnw("llm classify failed",
+		"model", c.config.Model,
+		"endpoint", c.config.Endpoint,
+		"info_hash", infoHash,
+		"attempts", c.config.MaxRetries+1,
+		"error", lastErr,
+	)
+
 	return nil, fmt.Errorf("llm classify failed after %d retries: %w", c.config.MaxRetries+1, lastErr)
 }
 
-const maxErrorBodyLen = 512
+const (
+	maxErrorBodyLen = 512
+	llmWarnLogBurst = 10
+)
 
 func truncateBody(body []byte) string {
 	if len(body) <= maxErrorBodyLen {

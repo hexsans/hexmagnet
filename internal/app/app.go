@@ -63,6 +63,7 @@ func New() *fx.App {
 		fx.Supply(resolved.Resolved.NodeMap["webhooks"].Value.(webhook.Config)),
 		fx.Supply(resolved.Resolved.NodeMap["retry_queue"].Value.(retryqueue.Config)),
 		fx.Supply(*resolved.Resolved),
+		fx.Supply(resolved.Path),
 		appfx.New(resolved.Resolved.NodeMap["storage.queue"].Value.(queue.Config)),
 		logging.WithLogger(),
 		fx.Invoke(func(

@@ -3,6 +3,7 @@ package classifier
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 const (
@@ -153,6 +156,91 @@ func TestClassify_AllAttemptsFail(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "llm classify failed after")
 	require.Equal(t, 3, callCount)
+}
+
+func TestClassify_AllAttemptsFail_LogsWarn(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error": {"message": "rate limited"}}`))
+	}))
+	defer server.Close()
+
+	core, logs := observer.New(zapcore.DebugLevel)
+
+	c := &Client{
+		config: LLMConfig{
+			Model:      testModel,
+			MaxRetries: 2,
+			Timeout:    10,
+		},
+		http:   resty.New().SetBaseURL(server.URL),
+		logger: zap.New(core).Sugar(),
+	}
+
+	_, err := c.Classify(context.Background(), "Test", []TorrentFile{}, "testhash")
+	require.Error(t, err)
+
+	warns := logs.FilterLevelExact(zapcore.WarnLevel).All()
+	require.Len(t, warns, 1)
+	require.Equal(t, "llm classify failed", warns[0].Message)
+
+	ctxMap := warns[0].ContextMap()
+	require.Equal(t, testModel, ctxMap["model"])
+	require.Equal(t, "testhash", ctxMap["info_hash"])
+	require.Equal(t, int64(3), ctxMap["attempts"])
+	require.Contains(t, fmt.Sprint(ctxMap["error"]), "rate limited")
+}
+
+func TestClassify_Success_NoWarn(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		expected := LLMResult{Type: testMovieType, BaseTitle: "Test Movie"}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(chatResponseBody(t, llmResultJSON(t, expected))))
+	}))
+	defer server.Close()
+
+	core, logs := observer.New(zapcore.DebugLevel)
+
+	c := &Client{
+		config: LLMConfig{
+			Model:      testModel,
+			MaxRetries: 0,
+			Timeout:    10,
+		},
+		http:   resty.New().SetBaseURL(server.URL),
+		logger: zap.New(core).Sugar(),
+	}
+
+	_, err := c.Classify(context.Background(), "Test", []TorrentFile{}, "testhash")
+	require.NoError(t, err)
+	require.Empty(t, logs.FilterLevelExact(zapcore.WarnLevel).All())
+}
+
+func TestNewClient_SamplesRepeatedWarns(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error": {"message": "rate limited"}}`))
+	}))
+	defer server.Close()
+
+	core, logs := observer.New(zapcore.DebugLevel)
+
+	c := NewClient(LLMConfig{Model: testModel, MaxRetries: 0, Timeout: 10}, zap.New(core).Sugar())
+	c.http = resty.New().SetBaseURL(server.URL)
+
+	for range llmWarnLogBurst * 2 {
+		_, err := c.Classify(context.Background(), "Test", []TorrentFile{}, "testhash")
+		require.Error(t, err)
+	}
+
+	require.Equal(t, llmWarnLogBurst, logs.FilterLevelExact(zapcore.WarnLevel).Len())
 }
 
 func TestClassify_EmptyChoices(t *testing.T) {

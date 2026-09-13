@@ -10,7 +10,6 @@ import (
 	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -20,11 +19,10 @@ var semGetPeers = semaphore.NewWeighted(maxConcurrentGetPeers)
 
 type QueueConsumerParams struct {
 	fx.In
-	Handler       Handler
-	Producer      queue.Producer
-	ConsumerMaker queue.ConsumerMaker
-	Logger        *zap.SugaredLogger
-	Runtime       *queue.Runtime
+	dht.QueueConsumerParams
+
+	Handler  Handler
+	Producer queue.Producer
 }
 
 type QueueConsumerResult struct {
@@ -34,12 +32,11 @@ type QueueConsumerResult struct {
 
 func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 	return QueueConsumerResult{
-		Worker: dht.NewConsumerWorker(
+		Worker: p.NewWorker(
 			"dht_metainfo_consumer",
-			p.ConsumerMaker,
-			p.Runtime,
 			kafka.TopicGetPeers,
 			"dht-metainfo",
+			"message_queue.metainfo",
 			func(ctx context.Context, _ string, value []byte) error {
 				var msg dht.GetPeersMessage
 				if err := json.Unmarshal(value, &msg); err != nil {
@@ -67,7 +64,6 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 
 				return nil
 			},
-			p.Logger.Named("message_queue.metainfo"),
 		),
 	}
 }

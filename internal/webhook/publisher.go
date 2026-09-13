@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hexsans/hexmagnet/internal/backoff"
+	"github.com/hexsans/hexmagnet/internal/filter"
 	"github.com/hexsans/hexmagnet/internal/version"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/zap"
@@ -39,23 +41,13 @@ func compileFilter(cfg Config) (*compiledFilter, error) {
 		}
 	}
 
-	for _, p := range cfg.TitlePatterns {
-		re, err := regexp.Compile("(?i)" + p)
-		if err != nil {
-			return nil, fmt.Errorf("invalid title pattern %q: %w", p, err)
-		}
-
-		f.titlePatterns = append(f.titlePatterns, re)
+	patterns, err := filter.Compile(cfg.TitlePatterns, cfg.FilenamePatterns)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, p := range cfg.FilenamePatterns {
-		re, err := regexp.Compile("(?i)" + p)
-		if err != nil {
-			return nil, fmt.Errorf("invalid filename pattern %q: %w", p, err)
-		}
-
-		f.filenamePatterns = append(f.filenamePatterns, re)
-	}
+	f.titlePatterns = patterns.Titles()
+	f.filenamePatterns = patterns.Filenames()
 
 	return f, nil
 }
@@ -81,7 +73,7 @@ func (f *compiledFilter) matches(e Event) bool {
 		}
 	}
 
-	if len(f.titlePatterns) > 0 && !anyMatch(f.titlePatterns, e.Name) {
+	if len(f.titlePatterns) > 0 && !filter.AnyMatch(f.titlePatterns, e.Name) {
 		return false
 	}
 
@@ -89,8 +81,9 @@ func (f *compiledFilter) matches(e Event) bool {
 		matched := false
 
 		for _, path := range e.Files {
-			if anyMatch(f.filenamePatterns, path) {
+			if filter.AnyMatch(f.filenamePatterns, path) {
 				matched = true
+
 				break
 			}
 		}
@@ -101,16 +94,6 @@ func (f *compiledFilter) matches(e Event) bool {
 	}
 
 	return true
-}
-
-func anyMatch(patterns []*regexp.Regexp, s string) bool {
-	for _, p := range patterns {
-		if p.MatchString(s) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Publisher delivers events to the configured webhook Urls asynchronously.
@@ -126,10 +109,9 @@ type Publisher struct {
 	// at runtime (queue_size changes); Publish holds the read lock across the
 	// enqueue so an event can never land in a channel that has already been
 	// drained by a resize.
-	queueMu   sync.RWMutex
-	queue     chan envelope
-	wake      chan struct{}
-	queueSize int
+	queueMu sync.RWMutex
+	queue   chan envelope
+	wake    chan struct{}
 
 	client *http.Client
 
@@ -154,11 +136,10 @@ type envelope struct {
 // replaced at runtime via Update.
 func NewPublisher(cfg Config, logger *zap.SugaredLogger) *Publisher {
 	p := &Publisher{
-		queue:     make(chan envelope, queueCapacity(cfg)),
-		wake:      make(chan struct{}, 1),
-		queueSize: queueCapacity(cfg),
-		logger:    logger,
-		ctx:       context.Background(),
+		queue:  make(chan envelope, queueCapacity(cfg)),
+		wake:   make(chan struct{}, 1),
+		logger: logger,
+		ctx:    context.Background(),
 	}
 
 	p.config.Store(&cfg)
@@ -221,8 +202,6 @@ drain:
 			break drain
 		}
 	}
-
-	p.queueSize = size
 
 	select {
 	case p.wake <- struct{}{}:
@@ -407,14 +386,11 @@ func (p *Publisher) deliverTo(rawURL string, body []byte, attempts int, timeout 
 		}
 
 		if attempt < attempts {
-			backoff := time.Duration(1<<uint(attempt-1)) * 200 * time.Millisecond
-			if backoff > 5*time.Second {
-				backoff = 5 * time.Second
-			}
-
-			select {
-			case <-time.After(backoff):
-			case <-p.ctx.Done():
+			if err := (backoff.Config{
+				Base:   200 * time.Millisecond,
+				Factor: 2,
+				Max:    5 * time.Second,
+			}).Wait(p.ctx, attempt); err != nil {
 				return lastErr
 			}
 		}

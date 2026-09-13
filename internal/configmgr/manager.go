@@ -48,24 +48,26 @@ type subscriber struct {
 }
 
 type Manager struct {
-	snapshot atomic.Pointer[Snapshot]
-	subs     []*subscriber
-	filePath string
-	writeFn  func(path string, snap *Snapshot) error
-	logger   *zap.SugaredLogger
-	mu       sync.Mutex
-	stopped  atomic.Bool
+	snapshot   atomic.Pointer[Snapshot]
+	subs       []*subscriber
+	logger     *zap.SugaredLogger
+	mu         sync.Mutex
+	stopped    atomic.Bool
+	stopCtx    context.Context
+	stopCancel context.CancelFunc
 }
 
-func NewManager(initial *Snapshot, filePath string, writeFn func(string, *Snapshot) error, logger *zap.SugaredLogger) *Manager {
+func NewManager(initial *Snapshot, logger *zap.SugaredLogger) *Manager {
 	if initial == nil {
 		initial = &Snapshot{}
 	}
 
+	stopCtx, stopCancel := context.WithCancel(context.Background())
+
 	m := &Manager{
-		filePath: filePath,
-		writeFn:  writeFn,
-		logger:   logger,
+		logger:     logger,
+		stopCtx:    stopCtx,
+		stopCancel: stopCancel,
 	}
 	m.snapshot.Store(initial)
 
@@ -78,8 +80,9 @@ func (m *Manager) Apply(ctx context.Context, snap *Snapshot) error {
 	copy(subs, m.subs)
 	m.mu.Unlock()
 
-	// Sync subscribers run first: if any fail, the snapshot and file are
-	// left untouched so the service keeps running on the old values.
+	// Sync subscribers run first: if any fail, the snapshot is left untouched
+	// so the service keeps running on the old values. Persisting the config
+	// file is the caller's responsibility.
 	var applyErr error
 
 	for _, s := range subs {
@@ -92,12 +95,6 @@ func (m *Manager) Apply(ctx context.Context, snap *Snapshot) error {
 
 	if applyErr != nil {
 		return applyErr
-	}
-
-	if m.writeFn != nil && m.filePath != "" {
-		if err := m.writeFn(m.filePath, snap); err != nil {
-			return fmt.Errorf("persist config: %w", err)
-		}
 	}
 
 	m.snapshot.Store(snap)
@@ -130,7 +127,18 @@ func (m *Manager) Get() *Snapshot {
 	return m.snapshot.Load()
 }
 
-func (m *Manager) Subscribe(ctx context.Context, name string, fn func(context.Context, *Snapshot) error, mode ApplyMode) {
+// SetLogger attaches the application logger after construction. It exists to
+// break the dependency cycle between the logger and the config manager (the
+// logging subsystem subscribes to config updates). It must be called before
+// the first Apply.
+func (m *Manager) SetLogger(logger *zap.SugaredLogger) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger = logger
+}
+
+func (m *Manager) Subscribe(name string, fn func(context.Context, *Snapshot) error, mode ApplyMode) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -146,28 +154,38 @@ func (m *Manager) Subscribe(ctx context.Context, name string, fn func(context.Co
 	m.subs = append(m.subs, s)
 
 	if mode == ApplyAsync {
-		go m.asyncSubLoop(ctx, s)
+		go m.asyncSubLoop(s)
 	}
 }
 
-func (m *Manager) asyncSubLoop(ctx context.Context, s *subscriber) {
+func (m *Manager) asyncSubLoop(s *subscriber) {
 	var last *Snapshot
-	for snap := range s.ch {
-		if snap == last {
-			continue
-		}
 
-		last = snap
-		if err := s.fn(ctx, snap); err != nil {
-			if m.logger != nil {
-				m.logger.Errorw("async subscriber failed", "name", s.name, "error", err)
+	for {
+		select {
+		case <-m.stopCtx.Done():
+			return
+		case snap := <-s.ch:
+			if snap == last {
+				continue
+			}
+
+			last = snap
+			if err := s.fn(m.stopCtx, snap); err != nil {
+				if m.logger != nil {
+					m.logger.Errorw("async subscriber failed", "name", s.name, "error", err)
+				}
 			}
 		}
 	}
 }
 
+// Stop cancels the manager's lifetime context, terminating all async
+// subscriber goroutines. It is idempotent.
 func (m *Manager) Stop() {
 	if m.stopped.Swap(true) {
 		return
 	}
+
+	m.stopCancel()
 }

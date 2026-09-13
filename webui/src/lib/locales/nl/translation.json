@@ -228,6 +228,7 @@
     "resumeReclassifyProgress": "{{processed}} van {{total}} torrents verwerkt voordat het proces stopte.",
     "resumeReindexConfigChanged": "De embeddingconfiguratie is gewijzigd sinds deze run begon. Doorgaan hervat vanaf de opgeslagen positie; al geïndexeerde torrents kunnen de vorige configuratie gebruiken.",
     "resumeReclassifyConfigChanged": "De classifierconfiguratie is gewijzigd sinds deze run begon. Doorgaan hervat vanaf de opgeslagen positie; al herclassificeerde torrents kunnen de vorige configuratie gebruiken.",
+    "resumePausedByError": "De taak is gepauzeerd na een fout:",
     "resumeContinue": "Doorgaan",
     "resumeCancel": "Annuleren",
     "torrentFilePath": "Torrentbestandspad",

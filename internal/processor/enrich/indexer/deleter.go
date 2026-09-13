@@ -3,14 +3,14 @@ package indexer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
-	"sync"
-	"time"
 
 	"github.com/hexsans/hexmagnet/internal/concurrency"
 	"github.com/hexsans/hexmagnet/internal/elasticsearch"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/queue/supervisor"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -30,44 +30,8 @@ type DeleterParams struct {
 func NewDeleter(p DeleterParams) Result {
 	logger := p.Logger.Named("message_queue.enrich.deleter")
 
-	var wg sync.WaitGroup
-
 	esRef := &concurrency.AtomicValue[*elasticsearch.Client]{}
 	esRef.Set(p.ESClient)
-
-	return Result{
-		Worker: worker.NewWorker("message_queue_enrich_deleter", fx.Hook{
-			OnStart: func(ctx context.Context) error {
-				wg.Add(1)
-				go runDeleter(ctx, p.ConsumerMaker, p.Runtime, logger, esRef, p.SearchConfigAtom, p.ConfigNotifier, &wg)
-
-				return nil
-			},
-			OnStop: func(_ context.Context) error {
-				wg.Wait()
-				return nil
-			},
-		}),
-	}
-}
-
-func runDeleter(
-	ctx context.Context,
-	cm queue.ConsumerMaker,
-	runtime *queue.Runtime,
-	logger *zap.SugaredLogger,
-	esRef *concurrency.AtomicValue[*elasticsearch.Client],
-	searchConfigAtom *concurrency.AtomicValue[SearchConfig],
-	configNotifier *ConfigNotifier,
-	wg *sync.WaitGroup,
-) {
-	defer wg.Done()
-
-	backendCh, unsubscribe := runtime.SubscribeBackendChanges()
-	defer unsubscribe()
-
-	cfgCh, unsubscribeCfg := configNotifier.Subscribe()
-	defer unsubscribeCfg()
 
 	var lastAddr []string
 
@@ -75,6 +39,7 @@ func runDeleter(
 		var infoHash string
 		if err := json.Unmarshal(value, &infoHash); err != nil {
 			logger.Warnw("failed to unmarshal info hash", "error", err)
+
 			return nil
 		}
 
@@ -82,7 +47,7 @@ func runDeleter(
 			return nil
 		}
 
-		cfg := searchConfigAtom.Get()
+		cfg := p.SearchConfigAtom.Get()
 
 		es := esRef.Get()
 		if cfg.Backend != backendElasticsearch || es == nil {
@@ -90,89 +55,64 @@ func runDeleter(
 		}
 
 		if err := es.Delete(ctx, IndexName, infoHash); err != nil {
-			logger.Debugw("failed to delete document from ES",
+			logger.Warnw("failed to delete document from ES",
 				"info_hash", infoHash,
 				"index", IndexName,
 				"error", err,
 			)
-		} else {
-			logger.Debugw("deleted document from ES",
-				"info_hash", infoHash,
-				"index", IndexName,
-			)
+
+			return fmt.Errorf("delete torrent %s from index: %w", infoHash, err)
 		}
+
+		logger.Debugw("deleted document from ES",
+			"info_hash", infoHash,
+			"index", IndexName,
+		)
 
 		return nil
 	}
 
-	for {
-		consumer, err := cm.NewConsumer(
-			kafka.TopicDeleteTorrent,
-			"hexmagnet-deleter",
-			handler,
-			logger,
-		)
-		if err != nil {
-			logger.Errorw("failed to create consumer", "error", err)
+	sup := supervisor.New(supervisor.Params{
+		Maker:   p.ConsumerMaker,
+		Runtime: p.Runtime,
+		Topic:   kafka.TopicDeleteTorrent,
+		GroupID: "hexmagnet-deleter",
+		Handler: handler,
+		Trigger: &supervisor.Trigger{
+			Subscribe: p.ConfigNotifier.Subscribe,
+			OnEvent: func(context.Context) bool {
+				cfg := p.SearchConfigAtom.Get()
+				if cfg.Backend != backendElasticsearch {
+					esRef.Set(nil)
 
-			select {
-			case <-time.After(time.Second):
-				continue
-			case <-ctx.Done():
-				return
-			}
-		}
+					lastAddr = nil
 
-		if err := consumer.Start(ctx); err != nil {
-			logger.Errorw("failed to start consumer", "error", err)
+					return false
+				}
 
-			select {
-			case <-time.After(time.Second):
-				continue
-			case <-ctx.Done():
-				return
-			}
-		}
+				if reflect.DeepEqual(cfg.Elasticsearch.Addresses, lastAddr) {
+					return false
+				}
 
-		logger.Infow("consumer started", "topic", kafka.TopicDeleteTorrent)
+				client, clientErr := elasticsearch.NewClient(cfg.Elasticsearch)
+				if clientErr != nil {
+					logger.Errorw("failed to create elasticsearch client", "error", clientErr)
 
-		select {
-		case <-backendCh:
-			logger.Infow("backend changed, restarting consumer")
+					return false
+				}
 
-			if err := consumer.Stop(ctx); err != nil {
-				logger.Errorw("failed to stop consumer", "error", err)
-			}
-		case <-cfgCh:
-			cfg := searchConfigAtom.Get()
-			if cfg.Backend != backendElasticsearch {
-				esRef.Set(nil)
+				esRef.Set(client)
 
-				lastAddr = nil
+				lastAddr = cfg.Elasticsearch.Addresses
+				logger.Infow("elasticsearch client updated", "addresses", cfg.Elasticsearch.Addresses)
 
-				continue
-			}
+				return false
+			},
+		},
+		Logger: logger,
+	})
 
-			if reflect.DeepEqual(cfg.Elasticsearch.Addresses, lastAddr) {
-				continue
-			}
-
-			client, clientErr := elasticsearch.NewClient(cfg.Elasticsearch)
-			if clientErr != nil {
-				logger.Errorw("failed to create elasticsearch client", "error", clientErr)
-				continue
-			}
-
-			esRef.Set(client)
-
-			lastAddr = cfg.Elasticsearch.Addresses
-			logger.Infow("elasticsearch client updated", "addresses", cfg.Elasticsearch.Addresses)
-		case <-ctx.Done():
-			if err := consumer.Stop(ctx); err != nil {
-				logger.Errorw("failed to stop consumer on shutdown", "error", err)
-			}
-
-			return
-		}
+	return Result{
+		Worker: worker.NewWorker("message_queue_enrich_deleter", sup.Hook()),
 	}
 }

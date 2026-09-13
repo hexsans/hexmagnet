@@ -3,19 +3,13 @@ package configmgr
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/metainfo/metainforequester"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
-	"github.com/hexsans/hexmagnet/internal/torznab"
-	"github.com/hexsans/hexmagnet/internal/webhook"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
-	"gopkg.in/yaml.v3"
 )
 
 func TestNewManager(t *testing.T) {
@@ -23,7 +17,7 @@ func TestNewManager(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	if m == nil {
 		t.Fatal("expected non-nil manager")
 	}
@@ -43,7 +37,7 @@ func TestGetStoresInitialSnapshot(t *testing.T) {
 		DHT: dht.Config{Port: 3334},
 	}
 
-	m := NewManager(initial, "", nil, logger)
+	m := NewManager(initial, logger)
 	defer m.Stop()
 
 	snap := m.Get()
@@ -57,7 +51,7 @@ func TestApplyAndGet(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	snap := &Snapshot{
@@ -84,12 +78,12 @@ func TestSyncSubscriberCalled(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	called := make(chan struct{}, 1)
 
-	m.Subscribe(context.Background(), "test_sync", func(_ context.Context, snap *Snapshot) error {
+	m.Subscribe("test_sync", func(_ context.Context, snap *Snapshot) error {
 		if snap.DHTRequester.RequestLimit != 50 {
 			t.Errorf("expected RequestLimit 50, got %d", snap.DHTRequester.RequestLimit)
 		}
@@ -118,10 +112,10 @@ func TestSyncSubscriberErrorPropagates(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
-	m.Subscribe(context.Background(), "failing_sync", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("failing_sync", func(_ context.Context, _ *Snapshot) error {
 		return fmt.Errorf("test error")
 	}, ApplySync)
 
@@ -138,12 +132,12 @@ func TestAsyncSubscriberCalled(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	called := make(chan struct{}, 1)
 
-	m.Subscribe(context.Background(), "test_async", func(_ context.Context, snap *Snapshot) error {
+	m.Subscribe("test_async", func(_ context.Context, snap *Snapshot) error {
 		if snap.DHTRequester.HashDiscoverLimit != 20 {
 			t.Errorf("expected HashDiscoverLimit 20, got %d", snap.DHTRequester.HashDiscoverLimit)
 		}
@@ -172,14 +166,14 @@ func TestAsyncSubscriberSkipsDuplicate(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	var callCount int
 
 	called := make(chan struct{}, 10)
 
-	m.Subscribe(context.Background(), "test_dedup", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("test_dedup", func(_ context.Context, _ *Snapshot) error {
 		callCount++
 
 		called <- struct{}{}
@@ -210,14 +204,14 @@ func TestAsyncSubscriberDifferentSnapshots(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	var callCount int
 
 	called := make(chan struct{}, 10)
 
-	m.Subscribe(context.Background(), "test_multiple", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("test_multiple", func(_ context.Context, _ *Snapshot) error {
 		callCount++
 
 		called <- struct{}{}
@@ -244,51 +238,54 @@ func TestAsyncSubscriberDifferentSnapshots(t *testing.T) {
 	}
 }
 
-func TestWriteFnCalled(t *testing.T) {
+func TestStopCancelsAsyncSubscriber(t *testing.T) {
 	t.Parallel()
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	var writtenSnap *Snapshot
-
-	writeFn := func(_ string, snap *Snapshot) error {
-		writtenSnap = snap
-		return nil
-	}
-
-	m := NewManager(nil, "/tmp/test.yaml", writeFn, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
-	snap := &Snapshot{DHTRequester: metainforequester.Config{RequestLimit: 75}}
-	if err := m.Apply(context.Background(), snap); err != nil {
+	entered := make(chan struct{})
+	ctxDone := make(chan struct{})
+
+	m.Subscribe("blocking", func(ctx context.Context, _ *Snapshot) error {
+		close(entered)
+		<-ctx.Done()
+		close(ctxDone)
+
+		return nil
+	}, ApplyAsync)
+
+	if err := m.Apply(context.Background(), &Snapshot{}); err != nil {
 		t.Fatalf("Apply failed: %v", err)
 	}
 
-	if writtenSnap == nil {
-		t.Fatal("writeFn was not called")
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("async subscriber was never called")
 	}
 
-	if writtenSnap.DHTRequester.RequestLimit != 75 {
-		t.Fatalf("expected RequestLimit 75, got %d", writtenSnap.DHTRequester.RequestLimit)
+	m.Stop()
+
+	select {
+	case <-ctxDone:
+	case <-time.After(time.Second):
+		t.Fatal("async subscriber context was not canceled on Stop")
 	}
 }
 
-func TestSyncFailureLeavesSnapshotAndFileUntouched(t *testing.T) {
+func TestSyncFailureLeavesSnapshotUntouched(t *testing.T) {
 	t.Parallel()
 
 	logger := zaptest.NewLogger(t).Sugar()
 	initial := &Snapshot{DHTRequester: metainforequester.Config{RequestLimit: 1}}
 
-	writeCalls := 0
-	writeFn := func(string, *Snapshot) error {
-		writeCalls++
-		return nil
-	}
-
-	m := NewManager(initial, "/tmp/test.yaml", writeFn, logger)
+	m := NewManager(initial, logger)
 	defer m.Stop()
 
-	m.Subscribe(context.Background(), "failing_sync", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("failing_sync", func(_ context.Context, _ *Snapshot) error {
 		return fmt.Errorf("boom")
 	}, ApplySync)
 
@@ -302,41 +299,14 @@ func TestSyncFailureLeavesSnapshotAndFileUntouched(t *testing.T) {
 	if got := m.Get(); got.DHTRequester.RequestLimit != 1 {
 		t.Fatalf("snapshot must stay on old value, got limit %d", got.DHTRequester.RequestLimit)
 	}
-
-	if writeCalls != 0 {
-		t.Fatalf("writeFn must not be called when a sync subscriber fails, got %d calls", writeCalls)
-	}
 }
 
-func TestWriteFailureLeavesSnapshotUntouched(t *testing.T) {
-	t.Parallel()
-
-	logger := zaptest.NewLogger(t).Sugar()
-	initial := &Snapshot{DHTRequester: metainforequester.Config{RequestLimit: 1}}
-
-	m := NewManager(initial, "/tmp/test.yaml", func(string, *Snapshot) error {
-		return fmt.Errorf("disk full")
-	}, logger)
-	defer m.Stop()
-
-	newSnap := &Snapshot{DHTRequester: metainforequester.Config{RequestLimit: 2}}
-
-	err := m.Apply(context.Background(), newSnap)
-	if err == nil {
-		t.Fatal("expected error from writeFn")
-	}
-
-	if got := m.Get(); got.DHTRequester.RequestLimit != 1 {
-		t.Fatalf("snapshot must stay on old value, got limit %d", got.DHTRequester.RequestLimit)
-	}
-}
-
-func TestApplyOrderSyncThenWriteThenAsync(t *testing.T) {
+func TestApplyOrderSyncThenAsync(t *testing.T) {
 	t.Parallel()
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "/tmp/test.yaml", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	var events []string
@@ -345,21 +315,14 @@ func TestApplyOrderSyncThenWriteThenAsync(t *testing.T) {
 		events = append(events, e)
 	}
 
-	writeFn := func(string, *Snapshot) error {
-		event("write")
-		return nil
-	}
-	m.filePath = "/tmp/test.yaml"
-	m.writeFn = writeFn
-
-	m.Subscribe(context.Background(), "sync", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("sync", func(_ context.Context, _ *Snapshot) error {
 		event("sync")
 		return nil
 	}, ApplySync)
 
 	asyncDone := make(chan struct{}, 1)
 
-	m.Subscribe(context.Background(), "async", func(_ context.Context, _ *Snapshot) error {
+	m.Subscribe("async", func(_ context.Context, _ *Snapshot) error {
 		event("async")
 
 		asyncDone <- struct{}{}
@@ -377,8 +340,8 @@ func TestApplyOrderSyncThenWriteThenAsync(t *testing.T) {
 		t.Fatal("async subscriber was never called")
 	}
 
-	if len(events) != 3 || events[0] != "sync" || events[1] != "write" || events[2] != "async" {
-		t.Fatalf("expected order [sync write async], got %v", events)
+	if len(events) != 2 || events[0] != "sync" || events[1] != "async" {
+		t.Fatalf("expected order [sync async], got %v", events)
 	}
 }
 
@@ -387,13 +350,13 @@ func TestAsyncChannelFullReplacesPending(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	m := NewManager(nil, "", nil, logger)
+	m := NewManager(nil, logger)
 	defer m.Stop()
 
 	blocked := make(chan struct{})
 	seen := make(chan *Snapshot, 10)
 
-	m.Subscribe(context.Background(), "slow_sub", func(_ context.Context, snap *Snapshot) error {
+	m.Subscribe("slow_sub", func(_ context.Context, snap *Snapshot) error {
 		seen <- snap
 
 		<-blocked
@@ -430,83 +393,4 @@ func TestAsyncChannelFullReplacesPending(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("latest pending snapshot was never applied")
 	}
-}
-
-func TestWriteSnapshotToYAML_IncludesTorznabAndWebhooks(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-
-	path := dir + "/hexmagnet.yaml"
-
-	snap := &Snapshot{
-		Torznab: torznab.Config{
-			Enabled:    true,
-			APIKey:     "k",
-			Path:       "/torznab",
-			MaxResults: 50,
-			Categories: []string{"2000", "3000"},
-		},
-		Webhooks: webhook.Config{
-			Enabled:    true,
-			Urls:       []string{"https://example.com/hook"},
-			Events:     []string{"classified"},
-			Timeout:    10 * time.Second,
-			MaxRetries: 3,
-			BaseURL:    "http://localhost:3333",
-			QueueSize:  1000,
-		},
-	}
-
-	require.NoError(t, WriteSnapshotToYAML(path, snap))
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	doc := string(data)
-
-	assert.Contains(t, doc, "torznab:")
-	assert.Contains(t, doc, "enabled: true")
-	assert.Contains(t, doc, "api_key: k")
-	assert.Contains(t, doc, "webhooks:")
-	assert.Contains(t, doc, "urls:")
-	assert.Contains(t, doc, "- https://example.com/hook")
-	assert.Contains(t, doc, "timeout: 10s")
-	assert.Contains(t, doc, "max_retries: 3")
-	assert.Contains(t, doc, "base_url: http://localhost:3333")
-}
-
-func TestWriteSnapshotToYAML_WebhookFiltersRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-
-	path := dir + "/hexmagnet.yaml"
-
-	want := webhook.Config{
-		Enabled:          true,
-		Urls:             []string{"https://example.com/hook"},
-		Events:           []string{"classified"},
-		Categories:       []string{"movie", "music"},
-		TitlePatterns:    []string{`\bflac\b`},
-		FilenamePatterns: []string{`\.mkv$`},
-		Timeout:          7 * time.Second,
-		MaxRetries:       2,
-		BaseURL:          "http://localhost:3333",
-		Headers:          map[string]string{"Authorization": "Bearer token123"},
-		QueueSize:        64,
-	}
-
-	require.NoError(t, WriteSnapshotToYAML(path, &Snapshot{Webhooks: want}))
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	var doc struct {
-		Webhooks webhook.Config `yaml:"webhooks"`
-	}
-
-	require.NoError(t, yaml.Unmarshal(data, &doc))
-
-	assert.Equal(t, want, doc.Webhooks)
 }

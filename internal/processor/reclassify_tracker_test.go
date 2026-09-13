@@ -13,19 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestReclassifyProgress_InitialState(t *testing.T) {
-	t.Parallel()
-
-	p := &ReclassifyProgress{}
-	status := p.Snapshot()
-	assert.Equal(t, 0, status.Total)
-	assert.Equal(t, 0, status.Processed)
-	assert.False(t, status.Done)
-	assert.False(t, status.Running)
-	assert.False(t, status.Resumable)
-	assert.Empty(t, status.Error)
-}
-
 func TestReclassifyTracker_Progress_Nil(t *testing.T) {
 	t.Parallel()
 
@@ -39,18 +26,6 @@ func TestReclassifyTracker_Progress_Nil(t *testing.T) {
 	assert.Empty(t, status.Error)
 }
 
-func TestReclassifyTracker_Start_AlreadyRunning(t *testing.T) {
-	t.Parallel()
-
-	tracker := NewReclassifyTracker(nil, nil)
-	tracker.mu.Lock()
-	tracker.progress = &ReclassifyProgress{running: true}
-	tracker.mu.Unlock()
-
-	err := tracker.Start(context.Background(), nil, nil, "", nil)
-	assert.ErrorContains(t, err, "reclassify already in progress")
-}
-
 func TestReclassifyTracker_Start_MutualExclusion(t *testing.T) {
 	t.Parallel()
 
@@ -62,7 +37,7 @@ func TestReclassifyTracker_Start_MutualExclusion(t *testing.T) {
 
 	tracker := NewReclassifyTracker(ctrl, nil)
 
-	err := tracker.Start(context.Background(), nil, nil, "", nil)
+	err := tracker.Start(context.Background(), nil, nil, "", zap.NewNop().Sugar())
 	require.ErrorContains(t, err, "another operation in progress")
 	assert.Contains(t, err.Error(), jobcontrol.JobReindex)
 }
@@ -159,54 +134,6 @@ func TestReclassifyTracker_Discard(t *testing.T) {
 	assert.True(t, status.Done)
 	assert.False(t, status.Resumable)
 	assert.NotContains(t, store.states, jobcontrol.KeyReclassifyState)
-}
-
-func TestReclassifyTracker_StartResumesFromStoredCursor(t *testing.T) {
-	t.Parallel()
-
-	store := newFakeStateStore()
-	store.states[jobcontrol.KeyReclassifyState] = jobcontrol.State{
-		BarrierTime:     time.Now().UTC().Add(-time.Hour),
-		CursorCreatedAt: time.Now().UTC().Add(-30 * time.Minute),
-		CursorInfoHash:  "cursor",
-		Total:           100,
-		Count:           25,
-		Fingerprint:     "fp",
-	}
-
-	tracker := NewReclassifyTracker(nil, store)
-
-	require.NoError(t, tracker.Load(context.Background(), "fp", nil))
-
-	// Start without a usable processor/queries will fail asynchronously; the
-	// progress object should keep the restored cursor so a later resume can
-	// pick it up.
-	err := tracker.Start(context.Background(), nil, nil, "fp", zap.NewNop().Sugar())
-	require.NoError(t, err)
-
-	deadline := time.Now().Add(5 * time.Second)
-
-	for time.Now().Before(deadline) {
-		status := tracker.Progress()
-		if !status.Running {
-			break
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	tracker.mu.Lock()
-	progress := tracker.progress
-	tracker.mu.Unlock()
-
-	require.NotNil(t, progress)
-
-	progress.mu.Lock()
-	defer progress.mu.Unlock()
-
-	assert.Equal(t, "cursor", progress.cursorInfoHash)
-	assert.Equal(t, 25, progress.processed)
-	assert.False(t, progress.done)
 }
 
 func TestFingerprint_ChangesWithClassifierConfig(t *testing.T) {

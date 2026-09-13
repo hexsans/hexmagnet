@@ -228,6 +228,7 @@
     "resumeReclassifyProgress": "プロセス停止前に {{total}} 件中 {{processed}} 件を処理済み。",
     "resumeReindexConfigChanged": "この実行の開始後に埋め込み設定が変更されました。続行すると保存された位置から再開します。既にインデックス済みのトレントは以前の設定で処理されている可能性があります。",
     "resumeReclassifyConfigChanged": "この実行の開始後に分類器設定が変更されました。続行すると保存された位置から再開します。既に再分類済みのトレントは以前の設定で処理されている可能性があります。",
+    "resumePausedByError": "エラーによりタスクが一時停止しました：",
     "resumeContinue": "続行",
     "resumeCancel": "キャンセル",
     "torrentFilePath": "トレントファイルパス",

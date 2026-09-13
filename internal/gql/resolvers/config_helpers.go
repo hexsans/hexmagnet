@@ -1,6 +1,7 @@
 package resolvers
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -66,10 +67,16 @@ func readConfigFile(path string) (map[string]any, error) {
 	data := make(map[string]any)
 
 	existing, err := os.ReadFile(path)
-	if err == nil {
-		if err := yaml.Unmarshal(existing, &data); err != nil {
-			return nil, err
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return data, nil
 		}
+
+		return nil, err
+	}
+
+	if err := yaml.Unmarshal(existing, &data); err != nil {
+		return nil, err
 	}
 
 	return data, nil

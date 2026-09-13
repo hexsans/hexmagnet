@@ -10,7 +10,13 @@ import (
 
 const maxDefaultConfigSize = 64 * 1024 * 1024
 
+// FilePath is the resolved path of the runtime config file. It is exposed so
+// components that persist config changes write back to the same file the
+// loader read from.
+type FilePath string
+
 type LoadResult struct {
+	Path     FilePath
 	Resolved *ResolvedConfig
 }
 
@@ -53,6 +59,7 @@ func Load(specs ...SpecEntry) (*LoadResult, error) {
 	}
 
 	return &LoadResult{
+		Path:     FilePath(hexmagnetPath),
 		Resolved: resolved,
 	}, nil
 }

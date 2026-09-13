@@ -104,8 +104,8 @@ func TestEnsureTorrentDir_FollowsConfigUpdate(t *testing.T) {
 	dir2 := filepath.Join(t.TempDir(), "b")
 
 	s := New(func() string { return dir1 })
-	cm := configmgr.NewManager(&configmgr.Snapshot{}, "", nil, nil)
-	cm.Subscribe(context.Background(), "torrent_store",
+	cm := configmgr.NewManager(&configmgr.Snapshot{}, nil)
+	cm.Subscribe("torrent_store",
 		func(context.Context, *configmgr.Snapshot) error { return s.EnsureTorrentDir() },
 		configmgr.ApplyAsync)
 

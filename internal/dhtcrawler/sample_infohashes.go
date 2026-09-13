@@ -3,12 +3,12 @@ package dhtcrawler
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/dht/ktable"
 	"github.com/hexsans/hexmagnet/internal/queue/kafka"
+	"github.com/hexsans/hexmagnet/internal/utils"
 )
 
 func (c *crawler) getNodesForSampleInfoHashes(ctx context.Context) {
@@ -101,14 +101,7 @@ func (c *crawler) runSampleInfoHashes(ctx context.Context) {
 
 			go func() {
 				defer func() { <-c.nodeDispatchSem }()
-				defer func() {
-					if r := recover(); r != nil {
-						c.logger.Errorw("sample_infohashes node send panicked",
-							"panic", r,
-							"stack", string(debug.Stack()),
-						)
-					}
-				}()
+				defer utils.Recover(c.logger, "sample_infohashes node send panicked")
 
 				timeoutCtx, cancel := context.WithTimeout(ctx, time.Second)
 				defer cancel()

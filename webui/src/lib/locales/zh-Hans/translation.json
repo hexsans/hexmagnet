@@ -228,6 +228,7 @@
     "resumeReclassifyProgress": "进程停止前已处理 {{processed}} / {{total}} 个种子。",
     "resumeReindexConfigChanged": "自本次任务开始以来，嵌入配置已发生变化。继续将从上次保存的位置恢复；已索引的种子可能使用旧配置。",
     "resumeReclassifyConfigChanged": "自本次任务开始以来，分类器配置已发生变化。继续将从上次保存的位置恢复；已重新分类的种子可能使用旧配置。",
+    "resumePausedByError": "任务因错误已暂停：",
     "resumeContinue": "继续",
     "resumeCancel": "取消",
     "torrentFilePath": "种子文件路径",

@@ -450,6 +450,27 @@ func TestFileRotator_SyncWithFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFileRotator_WriteAfterSync(t *testing.T) {
+	t.Parallel()
+
+	logDir := t.TempDir()
+	fr := &fileRotator{path: logDir, baseName: defaultBaseName}
+
+	_, err := fr.Write([]byte("first\n"))
+	require.NoError(t, err)
+
+	require.NoError(t, fr.Sync())
+
+	_, err = fr.Write([]byte("second\n"))
+	require.NoError(t, err)
+
+	require.NoError(t, fr.Close())
+
+	data, err := os.ReadFile(fr.filePath)
+	require.NoError(t, err)
+	assert.Equal(t, "first\nsecond\n", string(data))
+}
+
 func TestFileRotator_Close(t *testing.T) {
 	t.Parallel()
 

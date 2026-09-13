@@ -20,15 +20,9 @@ func (s *pgSearch) TorrentsWithMissingInfoHashes(
 
 	found := make(map[string]model.Torrent, len(rawTorrents))
 	for _, rt := range rawTorrents {
-		t := db.TorrentToModel(rt.Torrent, rt.Seeders, rt.Leechers)
-
-		files, err := s.q.ListTorrentFiles(ctx, rt.Torrent.InfoHash)
+		t, err := db.TorrentWithFiles(ctx, s.q, rt.Torrent, rt.Seeders, rt.Leechers)
 		if err != nil {
 			return search.TorrentsWithMissingInfoHashesResult{}, fmt.Errorf("list files for %s: %w", rt.Torrent.InfoHash, err)
-		}
-
-		for i := range files {
-			t.Files = append(t.Files, db.TorrentFileToModel(files[i]))
 		}
 
 		found[rt.Torrent.InfoHash] = t

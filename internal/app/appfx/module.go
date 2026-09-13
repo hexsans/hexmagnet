@@ -67,7 +67,7 @@ func New(queueCfg queue.Config) fx.Option {
 				return
 			}
 
-			cm.Subscribe(context.Background(), "torznab",
+			cm.Subscribe("torznab",
 				func(_ context.Context, snap *configmgr.Snapshot) error {
 					handler.Update(snap.Torznab)
 					return nil
@@ -81,7 +81,7 @@ func New(queueCfg queue.Config) fx.Option {
 				return
 			}
 
-			cm.Subscribe(context.Background(), "webhooks",
+			cm.Subscribe("webhooks",
 				func(_ context.Context, snap *configmgr.Snapshot) error {
 					publisher.Update(snap.Webhooks)
 					return nil
@@ -95,7 +95,7 @@ func New(queueCfg queue.Config) fx.Option {
 				return
 			}
 
-			cm.Subscribe(context.Background(), "retry_queue",
+			cm.Subscribe("retry_queue",
 				func(_ context.Context, snap *configmgr.Snapshot) error {
 					retryQueue.UpdateConfig(snap.RetryQueue)
 					return nil
@@ -175,6 +175,9 @@ func New(queueCfg queue.Config) fx.Option {
 			})
 		}),
 		fx.Provide(newConfigManager),
+		fx.Invoke(func(cm *configmgr.Manager, logger *zap.SugaredLogger) {
+			cm.SetLogger(logger)
+		}),
 		fx.Provide(searchfx.New),
 		fx.Provide(func(r *search.Runtime) *concurrency.AtomicValue[indexer.SearchConfig] {
 			return r.SearchConfig
@@ -201,6 +204,7 @@ func New(queueCfg queue.Config) fx.Option {
 
 //nolint:revive // config bundle injected by the fx container
 func newConfigManager(
+	lc fx.Lifecycle,
 	serverCfg servercfg.Config,
 	dhtCfg dhtPkg.Config,
 	classifierCfg classifier.Config,
@@ -225,6 +229,14 @@ func newConfigManager(
 		RetryQueue:   retryQueueCfg,
 	}
 
-	return configmgr.NewManager(initial, "./hexmagnet.yaml",
-		configmgr.WriteSnapshotToYAML, nil)
+	mgr := configmgr.NewManager(initial, nil)
+
+	lc.Append(fx.Hook{
+		OnStop: func(context.Context) error {
+			mgr.Stop()
+			return nil
+		},
+	})
+
+	return mgr
 }

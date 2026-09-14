@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hexsans/hexmagnet/internal/database/db"
+	"github.com/hexsans/hexmagnet/internal/queue/delivery"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -51,6 +53,21 @@ type MemoryQueue struct {
 	stopCh    chan struct{}
 	stopped   bool
 	dirty     bool
+	delivery  atomic.Pointer[delivery.Config]
+}
+
+// SetDelivery overrides the delivery policy used by consumers of this queue.
+func (mq *MemoryQueue) SetDelivery(cfg delivery.Config) {
+	normalized := cfg.Normalize()
+	mq.delivery.Store(&normalized)
+}
+
+func (mq *MemoryQueue) deliveryConfig() delivery.Config {
+	if p := mq.delivery.Load(); p != nil {
+		return *p
+	}
+
+	return delivery.DefaultConfig()
 }
 
 func New(logger *zap.SugaredLogger) *MemoryQueue {

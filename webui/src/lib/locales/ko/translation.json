@@ -228,6 +228,7 @@
     "resumeReclassifyProgress": "프로세스 중단 전 {{total}}개 중 {{processed}}개 처리됨.",
     "resumeReindexConfigChanged": "이 실행이 시작된 이후 임베딩 구성이 변경되었습니다. 계속하면 저장된 위치에서 재개되며, 이미 인덱싱된 토렌트는 이전 구성을 사용했을 수 있습니다.",
     "resumeReclassifyConfigChanged": "이 실행이 시작된 이후 분류기 구성이 변경되었습니다. 계속하면 저장된 위치에서 재개되며, 이미 재분류된 토렌트는 이전 구성을 사용했을 수 있습니다.",
+    "resumePausedByError": "오류로 인해 작업이 일시 중지되었습니다:",
     "resumeContinue": "계속",
     "resumeCancel": "취소",
     "torrentFilePath": "토렌트 파일 경로",

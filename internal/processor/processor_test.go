@@ -359,6 +359,41 @@ func TestHandleClassified_DropsMissingHashes(t *testing.T) {
 	assert.Empty(t, prod.topics, "missing torrents must not be re-produced")
 }
 
+func TestSplitClassifyFailures_PausesOnLLMFailure(t *testing.T) {
+	t.Parallel()
+
+	llmErr := &classifier.LLMClassifyError{Cause: assert.AnError}
+	failures := []classifyFailure{
+		{infoHash: testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), err: errors.New("db error")},
+		{infoHash: testutil.MustParseID("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), err: llmErr},
+	}
+
+	retryable, pauseErr := splitClassifyFailures(failures)
+
+	require.Len(t, retryable, 1)
+	require.NotErrorIs(t, retryable[0].err, llmErr)
+	require.Error(t, pauseErr)
+	require.ErrorIs(t, pauseErr, assert.AnError)
+}
+
+func TestHandleClassified_PausesOnLLMFailure(t *testing.T) {
+	t.Parallel()
+
+	p := &processor{logger: zap.NewNop().Sugar()}
+
+	err := p.handleClassified(context.Background(), nil, nil, []classifyFailure{
+		{
+			infoHash: testutil.MustParseID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+			err:      &classifier.LLMClassifyError{Cause: assert.AnError},
+		},
+	}, MessageParams{})
+
+	require.Error(t, err)
+
+	var llmErr *classifier.LLMClassifyError
+	require.ErrorAs(t, err, &llmErr)
+}
+
 func TestNew_ReturnsResult(t *testing.T) {
 	t.Parallel()
 

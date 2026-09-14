@@ -133,18 +133,6 @@ func TestLanguageID(t *testing.T) {
 	assert.Equal(t, "fr", Language("fr").ID())
 }
 
-func TestMaybeValid(t *testing.T) {
-	t.Parallel()
-
-	m := MaybeValid("hello")
-	assert.True(t, m.Valid)
-	assert.Equal(t, "hello", m.Val)
-
-	m2 := MaybeValid(42)
-	assert.True(t, m2.Valid)
-	assert.Equal(t, 42, m2.Val)
-}
-
 func TestNewNullString(t *testing.T) {
 	t.Parallel()
 

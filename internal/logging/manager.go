@@ -24,7 +24,7 @@ func (m *Manager) SubscribeToConfigManager(cm *configmgr.Manager) {
 		return
 	}
 
-	cm.Subscribe(context.Background(), "log_manager",
+	cm.Subscribe("log_manager",
 		func(_ context.Context, snap *configmgr.Snapshot) error {
 			return m.UpdateLogConfig(snap.Server.Log)
 		}, configmgr.ApplyAsync)

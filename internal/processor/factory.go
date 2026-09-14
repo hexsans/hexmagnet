@@ -80,7 +80,7 @@ func New(p Params) Result {
 			proc.filter.Store(initialFilter)
 
 			if p.ConfigManager != nil && p.RebuildRunner != nil {
-				p.ConfigManager.Subscribe(context.Background(), "classifier",
+				p.ConfigManager.Subscribe("classifier",
 					func(_ context.Context, snap *configmgr.Snapshot) error {
 						if err := proc.UpdateTorrentFilter(snap.Classifier.TorrentFilter); err != nil {
 							p.Logger.Warnw("failed to update torrent filter", "error", err)

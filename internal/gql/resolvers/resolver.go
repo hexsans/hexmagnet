@@ -13,7 +13,6 @@ import (
 	"github.com/hexsans/hexmagnet/internal/elasticsearch/embedding"
 	"github.com/hexsans/hexmagnet/internal/health"
 	"github.com/hexsans/hexmagnet/internal/jobcontrol"
-	"github.com/hexsans/hexmagnet/internal/logging"
 	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 	"github.com/hexsans/hexmagnet/internal/processor"
 	"github.com/hexsans/hexmagnet/internal/processor/enrich/indexer"
@@ -23,7 +22,6 @@ import (
 	"github.com/hexsans/hexmagnet/internal/retryqueue"
 	dbsearch "github.com/hexsans/hexmagnet/internal/search"
 	"github.com/hexsans/hexmagnet/internal/servercfg"
-	"github.com/hexsans/hexmagnet/internal/tmdb"
 	"github.com/hexsans/hexmagnet/internal/torznab"
 	"github.com/hexsans/hexmagnet/internal/webhook"
 	"github.com/hexsans/hexmagnet/internal/worker"
@@ -44,7 +42,6 @@ type Resolver struct {
 	ServerCfg       servercfg.Config
 	DhtCfg          dht.Config
 	ClassifierCfg   classifier.Config
-	TmdbCfg         tmdb.Config
 	PostgresCfg     postgres.Config
 	SearchCfg       indexer.SearchConfig
 	QueueCfg        queue.Config
@@ -55,7 +52,6 @@ type Resolver struct {
 
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime
-	LogManager        *logging.Manager
 	ConfigFilePath    string
 	PostgresRuntime   *postgres.Runtime
 	QueueRuntime      *queue.Runtime

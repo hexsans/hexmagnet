@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/hexsans/hexmagnet/internal/backoff"
+	"github.com/hexsans/hexmagnet/internal/queue/delivery"
+	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -228,8 +231,75 @@ func TestConsumerGroupHandler_ConsumeClaim_HandlerError(t *testing.T) {
 
 	close(claim.messages)
 
+	// A retryable failure aborts the claim so the message is redelivered.
+	err := h.ConsumeClaim(mockSession, claim)
+	require.Error(t, err)
+	mockSession.AssertNotCalled(t, "MarkMessage", mock.Anything, mock.Anything)
+}
+
+func TestConsumerGroupHandler_ConsumeClaim_PermanentErrorMarks(t *testing.T) {
+	t.Parallel()
+
+	mockSession := new(mockConsumerGroupSession)
+	msg := &sarama.ConsumerMessage{Topic: "t", Partition: 0, Offset: 7, Key: []byte("k")}
+	claim := &mockConsumerGroupClaim{
+		messages: make(chan *sarama.ConsumerMessage, 1),
+	}
+
+	h := &consumerGroupHandler{
+		ctx: context.Background(),
+		handler: func(_ context.Context, _, _ []byte) error {
+			return permanent.Mark(assert.AnError)
+		},
+		logger: zap.NewNop().Sugar(),
+	}
+
+	mockSession.On("MarkMessage", msg, "").Return()
+
+	claim.messages <- msg
+
+	close(claim.messages)
+
 	err := h.ConsumeClaim(mockSession, claim)
 	require.NoError(t, err)
+	mockSession.AssertCalled(t, "MarkMessage", msg, "")
+}
+
+func TestConsumerGroupHandler_ConsumeClaim_PoisonDiscarded(t *testing.T) {
+	t.Parallel()
+
+	mockSession := new(mockConsumerGroupSession)
+	msg := &sarama.ConsumerMessage{Topic: "t", Partition: 0, Offset: 7, Key: []byte("k")}
+	claim := &mockConsumerGroupClaim{
+		messages: make(chan *sarama.ConsumerMessage, 1),
+	}
+
+	consumer := &Consumer{logger: zap.NewNop().Sugar()}
+	consumer.SetDelivery(delivery.Config{
+		MaxAttempts: 2,
+		Backoff:     backoff.Config{Base: time.Millisecond},
+	})
+	// The message already failed once before this delivery.
+	consumer.recordAttempt(attemptKey(msg))
+
+	h := &consumerGroupHandler{
+		ctx: context.Background(),
+		handler: func(_ context.Context, _, _ []byte) error {
+			return assert.AnError
+		},
+		logger:   zap.NewNop().Sugar(),
+		consumer: consumer,
+	}
+
+	mockSession.On("MarkMessage", msg, "").Return()
+
+	claim.messages <- msg
+
+	close(claim.messages)
+
+	err := h.ConsumeClaim(mockSession, claim)
+	require.NoError(t, err)
+	mockSession.AssertCalled(t, "MarkMessage", msg, "")
 }
 
 func TestConsumerGroupHandler_ConsumeClaim_CancelledContext(t *testing.T) {
@@ -251,6 +321,41 @@ func TestConsumerGroupHandler_ConsumeClaim_CancelledContext(t *testing.T) {
 
 	err := h.ConsumeClaim(mockSession, claim)
 	require.NoError(t, err)
+}
+
+func TestConsumerGroupHandler_ConsumeClaim_CanceledWithLiveContextRetries(t *testing.T) {
+	t.Parallel()
+
+	mockSession := new(mockConsumerGroupSession)
+	msg := &sarama.ConsumerMessage{Topic: "t", Partition: 0, Offset: 3, Key: []byte("k")}
+	claim := &mockConsumerGroupClaim{
+		messages: make(chan *sarama.ConsumerMessage, 1),
+	}
+
+	consumer := &Consumer{logger: zap.NewNop().Sugar()}
+	consumer.SetDelivery(delivery.Config{
+		MaxAttempts: 2,
+		Backoff:     backoff.Config{Base: time.Millisecond},
+	})
+
+	h := &consumerGroupHandler{
+		ctx: context.Background(),
+		handler: func(_ context.Context, _, _ []byte) error {
+			return context.Canceled
+		},
+		logger:   zap.NewNop().Sugar(),
+		consumer: consumer,
+	}
+
+	claim.messages <- msg
+
+	close(claim.messages)
+
+	// A canceled error with a live context is a handler failure, not a
+	// shutdown signal: the message must not be acknowledged.
+	err := h.ConsumeClaim(mockSession, claim)
+	require.Error(t, err)
+	mockSession.AssertNotCalled(t, "MarkMessage", mock.Anything, mock.Anything)
 }
 
 func TestConsumerGroupHandler_ConsumeClaim_RecoverPanic(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/hexsans/hexmagnet/internal/blocking"
 	"github.com/hexsans/hexmagnet/internal/classifier"
 	"github.com/hexsans/hexmagnet/internal/database/db"
+	"github.com/hexsans/hexmagnet/internal/filter"
 	"github.com/hexsans/hexmagnet/internal/model"
 	"github.com/hexsans/hexmagnet/internal/protocol"
 	"github.com/hexsans/hexmagnet/internal/queue"
@@ -38,26 +39,16 @@ type filterState struct {
 }
 
 func compileFilterState(cfg classifier.TorrentFilterConfig) (*filterState, error) {
-	fs := &filterState{mode: cfg.Mode}
-	for _, pattern := range cfg.TitlePatterns {
-		re, err := regexp.Compile("(?i)" + pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid title pattern %q: %w", pattern, err)
-		}
-
-		fs.titlePatterns = append(fs.titlePatterns, re)
+	patterns, err := filter.Compile(cfg.TitlePatterns, cfg.FilenamePatterns)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, pattern := range cfg.FilenamePatterns {
-		re, err := regexp.Compile("(?i)" + pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid filename pattern %q: %w", pattern, err)
-		}
-
-		fs.filenamePatterns = append(fs.filenamePatterns, re)
-	}
-
-	return fs, nil
+	return &filterState{
+		mode:             cfg.Mode,
+		titlePatterns:    patterns.Titles(),
+		filenamePatterns: patterns.Filenames(),
+	}, nil
 }
 
 const classifyFailureSampleSize = 3
@@ -249,26 +240,13 @@ func (c *processor) filteredByTorrentFilter(torrent model.Torrent) bool {
 		return false
 	}
 
-	match := false
-
-	for _, p := range fs.titlePatterns {
-		if p.MatchString(torrent.Name) {
-			match = true
-			break
-		}
-	}
+	match := filter.AnyMatch(fs.titlePatterns, torrent.Name)
 
 	if len(fs.filenamePatterns) > 0 && !match {
 		for _, f := range torrent.Files {
-			path := strings.Join(f.PathParts, "/")
-			for _, p := range fs.filenamePatterns {
-				if p.MatchString(path) {
-					match = true
-					break
-				}
-			}
+			if filter.AnyMatch(fs.filenamePatterns, strings.Join(f.PathParts, "/")) {
+				match = true
 
-			if match {
 				break
 			}
 		}
@@ -314,7 +292,15 @@ func (c *processor) handleClassified(
 	}
 
 	if len(classifyFailures) > 0 {
-		c.enqueueClassifyRetries(ctx, classifyFailures, params)
+		retryable, pauseErr := splitClassifyFailures(classifyFailures)
+
+		if len(retryable) > 0 {
+			c.enqueueClassifyRetries(ctx, retryable, params)
+		}
+
+		if pauseErr != nil {
+			return pauseErr
+		}
 	}
 
 	if len(tcs) == 0 {
@@ -420,6 +406,31 @@ func classifyFailureErrs(failures []classifyFailure) []error {
 	}
 
 	return errs
+}
+
+// splitClassifyFailures separates failures that should be retried through the
+// retry queue from LLM outages. The latter must pause the calling batch job
+// (strict LLM mode) instead of being silently retried or downgraded to rules.
+func splitClassifyFailures(failures []classifyFailure) ([]classifyFailure, error) {
+	var (
+		retryable []classifyFailure
+		pauseErr  error
+	)
+
+	for _, f := range failures {
+		var llmErr *classifier.LLMClassifyError
+		if errors.As(f.err, &llmErr) {
+			if pauseErr == nil {
+				pauseErr = llmErr
+			}
+
+			continue
+		}
+
+		retryable = append(retryable, f)
+	}
+
+	return retryable, pauseErr
 }
 
 // publishClassified emits webhook events for torrents that were just

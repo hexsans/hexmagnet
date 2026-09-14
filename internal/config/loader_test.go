@@ -23,6 +23,22 @@ func TestResolveConfigPath_WithEnv(t *testing.T) {
 	assert.Equal(t, "/custom/path/config.yaml", path)
 }
 
+func TestLoad_ReturnsResolvedPath(t *testing.T) {
+	type Server struct {
+		Port int
+	}
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "path_config.yaml")
+	t.Setenv("HEXMAGNET_CONFIG_FILE", configPath)
+
+	result, err := Load(
+		SpecEntry{Key: "server", DefaultValue: Server{Port: 8080}},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, FilePath(configPath), result.Path)
+}
+
 func TestLoad_WithDefaults(t *testing.T) {
 	type Server struct {
 		Port int

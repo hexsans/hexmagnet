@@ -80,6 +80,9 @@ storage:
     max_connections: 25
   queue:                       # message queue for async processing
     backend: memory            # memory | kafka
+    max_delivery_attempts: 5   # deliveries per message before it is discarded as poison;
+                               # permanent handler errors are discarded immediately
+    delivery_backoff: 1s       # base delay before a redelivery (exponential, capped at 30s)
     kafka:
       brokers:
         - localhost:9092

@@ -228,6 +228,7 @@
     "resumeReclassifyProgress": "{{processed}} torrents sur {{total}} traités avant l'arrêt du processus.",
     "resumeReindexConfigChanged": "La configuration d'embedding a changé depuis le début de cette exécution. Continuer reprend à la position enregistrée ; les torrents déjà indexés peuvent utiliser l'ancienne configuration.",
     "resumeReclassifyConfigChanged": "La configuration du classificateur a changé depuis le début de cette exécution. Continuer reprend à la position enregistrée ; les torrents déjà reclassés peuvent utiliser l'ancienne configuration.",
+    "resumePausedByError": "La tâche a été mise en pause après une erreur :",
     "resumeContinue": "Continuer",
     "resumeCancel": "Annuler",
     "torrentFilePath": "Chemin des fichiers torrent",

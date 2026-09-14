@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -71,11 +72,7 @@ func runScheduler(ctx context.Context, q *Queue, logger *zap.SugaredLogger, wg *
 		}
 
 		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					logger.Errorw("retry queue scheduler panicked", "panic", r)
-				}
-			}()
+			defer utils.Recover(logger, "retry queue scheduler panicked")
 
 			q.dispatchDue(ctx)
 		}()

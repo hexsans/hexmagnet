@@ -27,7 +27,7 @@ func New(logger *zap.SugaredLogger, store *torrentstore.Store, cm *configmgr.Man
 	b.embedTrackers.Store(&config.EmbedTrackers)
 
 	if cm != nil {
-		cm.Subscribe(context.Background(), "embed_trackers",
+		cm.Subscribe("embed_trackers",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				b.embedTrackers.Store(&snap.Server.EmbedTrackers)
 				return nil

@@ -2,12 +2,20 @@ package search
 
 import "context"
 
+// TorrentSearcher is the query-only backend used for free-text torrent search.
+// The Elasticsearch backend implements only this subset; the remaining
+// operations are always served by the Postgres backend.
+type TorrentSearcher interface {
+	TorrentSearch(ctx context.Context, params TorrentSearchParams) (TorrentSearchResult, error)
+	Close() error
+}
+
 type Router struct {
-	es Search
+	es TorrentSearcher
 	pg Search
 }
 
-func NewRouter(es, pg Search) *Router {
+func NewRouter(es TorrentSearcher, pg Search) *Router {
 	return &Router{es: es, pg: pg}
 }
 

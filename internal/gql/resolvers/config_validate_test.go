@@ -240,8 +240,8 @@ func Test_UpdateConfigMutation_validationFailureRejectsWithoutWrite(t *testing.T
 	resolver.Logger = zap.NewNop().Sugar()
 
 	dispatched := false
-	cm := configmgr.NewManager(&configmgr.Snapshot{}, "", nil, zap.NewNop().Sugar())
-	cm.Subscribe(context.Background(), "test", func(context.Context, *configmgr.Snapshot) error {
+	cm := configmgr.NewManager(&configmgr.Snapshot{}, zap.NewNop().Sugar())
+	cm.Subscribe("test", func(context.Context, *configmgr.Snapshot) error {
 		dispatched = true
 		return nil
 	}, configmgr.ApplySync)

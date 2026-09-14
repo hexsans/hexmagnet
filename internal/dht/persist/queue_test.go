@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/hexsans/hexmagnet/internal/dht"
 	"github.com/hexsans/hexmagnet/internal/queue"
 	"github.com/hexsans/hexmagnet/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -46,14 +47,16 @@ func TestNewQueueConsumer(t *testing.T) {
 
 	handler := New(testutil.NewTestLogger())
 	result := NewQueueConsumer(QueueConsumerParams{
+		QueueConsumerParams: dht.QueueConsumerParams{
+			ConsumerMaker: queue.ConsumerMaker{
+				NewConsumer: func(_, _ string, _ queue.MessageHandler, _ *zap.SugaredLogger) (queue.Consumer, error) {
+					return &mockConsumer{}, nil
+				},
+			},
+			Logger: testutil.NewTestLogger(),
+		},
 		Handler:  handler,
 		Producer: &mockProducer{},
-		ConsumerMaker: queue.ConsumerMaker{
-			NewConsumer: func(_, _ string, _ queue.MessageHandler, _ *zap.SugaredLogger) (queue.Consumer, error) {
-				return &mockConsumer{}, nil
-			},
-		},
-		Logger: testutil.NewTestLogger(),
 	})
 
 	assert.NotNil(t, result.Worker)
@@ -65,14 +68,16 @@ func TestNewQueueConsumer_NilProducer(t *testing.T) {
 
 	handler := New(testutil.NewTestLogger())
 	result := NewQueueConsumer(QueueConsumerParams{
+		QueueConsumerParams: dht.QueueConsumerParams{
+			ConsumerMaker: queue.ConsumerMaker{
+				NewConsumer: func(_, _ string, _ queue.MessageHandler, _ *zap.SugaredLogger) (queue.Consumer, error) {
+					return &mockConsumer{}, nil
+				},
+			},
+			Logger: testutil.NewTestLogger(),
+		},
 		Handler:  handler,
 		Producer: nil,
-		ConsumerMaker: queue.ConsumerMaker{
-			NewConsumer: func(_, _ string, _ queue.MessageHandler, _ *zap.SugaredLogger) (queue.Consumer, error) {
-				return &mockConsumer{}, nil
-			},
-		},
-		Logger: testutil.NewTestLogger(),
 	})
 
 	assert.NotNil(t, result.Worker)

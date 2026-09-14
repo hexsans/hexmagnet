@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -95,14 +94,7 @@ func (s *Store) StartSaveLoop(ctx context.Context) {
 
 	go func() {
 		defer s.wg.Done()
-		defer func() {
-			if r := recover(); r != nil {
-				s.logger.Errorw("runtime store stats save loop panicked",
-					"panic", r,
-					"stack", string(debug.Stack()),
-				)
-			}
-		}()
+		defer utils.Recover(s.logger, "runtime store stats save loop panicked")
 
 		ticker := time.NewTicker(saveInterval)
 		defer ticker.Stop()
@@ -120,14 +112,7 @@ func (s *Store) StartSaveLoop(ctx context.Context) {
 
 	go func() {
 		defer s.wg.Done()
-		defer func() {
-			if r := recover(); r != nil {
-				s.logger.Errorw("runtime store bloom save loop panicked",
-					"panic", r,
-					"stack", string(debug.Stack()),
-				)
-			}
-		}()
+		defer utils.Recover(s.logger, "runtime store bloom save loop panicked")
 
 		ticker := time.NewTicker(bloomSaveInterval)
 		defer ticker.Stop()

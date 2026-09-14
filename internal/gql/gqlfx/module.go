@@ -9,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/hexsans/hexmagnet/internal/blocking"
 	"github.com/hexsans/hexmagnet/internal/classifier"
+	"github.com/hexsans/hexmagnet/internal/config"
 	"github.com/hexsans/hexmagnet/internal/configmgr"
 	"github.com/hexsans/hexmagnet/internal/database/db"
 	"github.com/hexsans/hexmagnet/internal/database/postgres"
@@ -20,7 +21,6 @@ import (
 	"github.com/hexsans/hexmagnet/internal/gql/resolvers"
 	"github.com/hexsans/hexmagnet/internal/health"
 	"github.com/hexsans/hexmagnet/internal/jobcontrol"
-	"github.com/hexsans/hexmagnet/internal/logging"
 	"github.com/hexsans/hexmagnet/internal/metrics/torrentmetrics"
 	"github.com/hexsans/hexmagnet/internal/processor"
 	"github.com/hexsans/hexmagnet/internal/processor/enrich/indexer"
@@ -102,7 +102,6 @@ func New() fx.Option {
 							ServerCfg:            p.ServerCfg,
 							DhtCfg:               p.DhtCfg,
 							ClassifierCfg:        p.ClassifierCfg,
-							TmdbCfg:              p.TmdbCfg,
 							PostgresCfg:          p.PostgresCfg,
 							SearchCfg:            p.SearchCfg,
 							QueueCfg:             p.QueueCfg,
@@ -112,8 +111,7 @@ func New() fx.Option {
 							RetryQueueCfg:        p.RetryQueueCfg,
 							ConfigManager:        p.ConfigManager,
 							DhtCrawlerRuntime:    p.DhtCrawlerRuntime,
-							LogManager:           p.LogManager,
-							ConfigFilePath:       "./hexmagnet.yaml",
+							ConfigFilePath:       string(p.ConfigPath),
 							PostgresRuntime:      p.PostgresRuntime,
 							QueueRuntime:         p.QueueRuntime,
 							SearchRuntime:        p.SearchRuntime,
@@ -171,7 +169,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 
 	if p.RequestLimiter != nil {
 		last := p.DHTRequesterCfg.RequestLimit
-		p.ConfigManager.Subscribe(context.Background(), "request_limiter",
+		p.ConfigManager.Subscribe("request_limiter",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if snap.DHTRequester.RequestLimit == last {
 					return nil
@@ -188,7 +186,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 
 	if p.ResponderEnabled != nil {
 		last := p.DhtCfg.Responder.Enabled
-		p.ConfigManager.Subscribe(context.Background(), "responder_enabled",
+		p.ConfigManager.Subscribe("responder_enabled",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if snap.DHT.Responder.Enabled == last {
 					return nil
@@ -204,7 +202,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 	if p.ResponderRateLimiter != nil {
 		lastGlobal := p.DhtCfg.Responder.GlobalRateLimit
 		lastPerIP := p.DhtCfg.Responder.PerIPRateLimit
-		p.ConfigManager.Subscribe(context.Background(), "responder_rate_limiter",
+		p.ConfigManager.Subscribe("responder_rate_limiter",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if snap.DHT.Responder.GlobalRateLimit == lastGlobal &&
 					snap.DHT.Responder.PerIPRateLimit == lastPerIP {
@@ -224,7 +222,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 	if p.TmdbUpdater != nil {
 		var last tmdb.Config
 
-		p.ConfigManager.Subscribe(context.Background(), "tmdb",
+		p.ConfigManager.Subscribe("tmdb",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if snap.Classifier.Tmdb == last {
 					return nil
@@ -258,7 +256,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 
 	if p.QueueRuntime != nil {
 		last := p.QueueCfg
-		p.ConfigManager.Subscribe(context.Background(), "queue",
+		p.ConfigManager.Subscribe("queue",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if reflect.DeepEqual(snap.Queue, last) {
 					return nil
@@ -272,7 +270,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 
 	if p.SearchRuntime != nil {
 		last := p.SearchCfg
-		p.ConfigManager.Subscribe(context.Background(), "search",
+		p.ConfigManager.Subscribe("search",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				if reflect.DeepEqual(snap.Search, last) {
 					return nil
@@ -290,7 +288,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 	}
 
 	if p.PostgresRuntime != nil {
-		p.ConfigManager.Subscribe(context.Background(), "postgres",
+		p.ConfigManager.Subscribe("postgres",
 			func(ctx context.Context, snap *configmgr.Snapshot) error {
 				if p.PostgresRuntime.GetConfig() == snap.Postgres {
 					return nil
@@ -314,7 +312,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 	}
 
 	lastSearch := p.SearchCfg
-	p.ConfigManager.Subscribe(context.Background(), "elasticsearch",
+	p.ConfigManager.Subscribe("elasticsearch",
 		func(_ context.Context, snap *configmgr.Snapshot) error {
 			if reflect.DeepEqual(snap.Search, lastSearch) {
 				return nil
@@ -348,6 +346,7 @@ func registerGlobalSubscribers(p GlobalSubscriberParams) {
 
 type Params struct {
 	fx.In
+	ConfigPath           config.FilePath
 	Queries              utils.Lazy[*db.Queries]
 	Checker              utils.Lazy[health.Checker]
 	TorrentMetricsClient utils.Lazy[torrentmetrics.Client]
@@ -359,7 +358,6 @@ type Params struct {
 	ServerCfg         servercfg.Config
 	DhtCfg            dht.Config
 	ClassifierCfg     classifier.Config
-	TmdbCfg           tmdb.Config
 	TmdbUpdater       tmdb.ConfigUpdater `optional:"true"`
 	PostgresCfg       postgres.Config
 	SearchCfg         indexer.SearchConfig
@@ -371,7 +369,6 @@ type Params struct {
 	RetryQueue        *retryqueue.Queue
 	ConfigManager     *configmgr.Manager
 	DhtCrawlerRuntime *dhtcrawler.Runtime `name:"dht_crawler_runtime" optional:"true"`
-	LogManager        *logging.Manager    `optional:"true"`
 	PostgresRuntime   *postgres.Runtime
 	QueueRuntime      *queue.Runtime
 	SearchRuntime     *dbsearch.Runtime

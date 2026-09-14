@@ -58,10 +58,10 @@ func (mq *MemoryQueue) DescribeConsumerGroup(groupID string) (*kafka.GroupDetail
 
 		offset := mq.offsets[groupID][topic]
 
-		var latest int64
-		if ts.NextSeq > 0 {
-			latest = int64(ts.NextSeq - 1)
-		}
+		// Offsets track the next sequence to consume, matching Kafka's
+		// committed-offset convention: EndOffset is the next sequence that
+		// will be assigned, so lag is simply end minus current.
+		endOffset := int64(ts.NextSeq)
 
 		detail.Topics = append(detail.Topics, kafka.TopicDetail{
 			Topic: topic,
@@ -69,8 +69,8 @@ func (mq *MemoryQueue) DescribeConsumerGroup(groupID string) (*kafka.GroupDetail
 				{
 					Partition:     0,
 					CurrentOffset: int64(offset),
-					EndOffset:     latest,
-					Lag:           max(latest-int64(offset), 0),
+					EndOffset:     endOffset,
+					Lag:           max(endOffset-int64(offset), 0),
 				},
 			},
 		})

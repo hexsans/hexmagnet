@@ -10,16 +10,14 @@ import (
 	"github.com/hexsans/hexmagnet/internal/queue/permanent"
 	"github.com/hexsans/hexmagnet/internal/worker"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 )
 
 type QueueConsumerParams struct {
 	fx.In
-	Handler       Handler
-	Producer      queue.Producer
-	ConsumerMaker queue.ConsumerMaker
-	Logger        *zap.SugaredLogger
-	Runtime       *queue.Runtime
+	dht.QueueConsumerParams
+
+	Handler  Handler
+	Producer queue.Producer
 }
 
 type QueueConsumerResult struct {
@@ -29,12 +27,11 @@ type QueueConsumerResult struct {
 
 func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 	return QueueConsumerResult{
-		Worker: dht.NewConsumerWorker(
+		Worker: p.NewWorker(
 			"dht_triage_consumer",
-			p.ConsumerMaker,
-			p.Runtime,
 			kafka.TopicDiscoveredHashes,
 			"dht-triage",
+			"message_queue.triage",
 			func(ctx context.Context, key string, value []byte) error {
 				var msg dht.DiscoveredHash
 				if err := json.Unmarshal(value, &msg); err != nil {
@@ -57,7 +54,6 @@ func NewQueueConsumer(p QueueConsumerParams) QueueConsumerResult {
 
 				return nil
 			},
-			p.Logger.Named("message_queue.triage"),
 		),
 	}
 }

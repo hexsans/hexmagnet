@@ -29,7 +29,7 @@ func NewModule() fx.Option {
 			}
 
 			if cm != nil {
-				cm.Subscribe(context.Background(), "torrent_store",
+				cm.Subscribe("torrent_store",
 					func(context.Context, *configmgr.Snapshot) error {
 						return store.EnsureTorrentDir()
 					}, configmgr.ApplyAsync)

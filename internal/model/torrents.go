@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
 	"slices"
 	"strconv"
@@ -186,34 +185,6 @@ func (t Torrent) InferID() string {
 	}
 
 	return strings.Join(parts, ":")
-}
-
-func (t Torrent) Title() string {
-	if !t.ContentID.Valid || t.Content.Title == "" {
-		return t.Name
-	}
-
-	var titleParts []string
-
-	titleParts = append(titleParts, t.Content.Title)
-
-	if !t.Content.ReleaseDate.IsNil() {
-		titleParts = append(titleParts, fmt.Sprintf("(%d)", t.Content.ReleaseDate.Year))
-	}
-
-	return strings.Join(titleParts, " ")
-}
-
-func (t Torrent) ContentRef() Maybe[ContentRef] {
-	if t.ContentID.Valid {
-		return MaybeValid(ContentRef{
-			Type:   t.ContentType.ContentType,
-			Source: t.ContentSource.String,
-			ID:     t.ContentID.String,
-		})
-	}
-
-	return Maybe[ContentRef]{}
 }
 
 // UpdateTsv rebuilds the full-text search vector for a torrent. maxSearchFiles

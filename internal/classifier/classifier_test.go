@@ -224,7 +224,7 @@ func TestClassifier(t *testing.T) {
 }
 
 type testClassifierMocks struct {
-	compiler   Compiler
+	compiler   compiler
 	search     *classifier_mocks.LocalSearch
 	tmdbClient *tmdb_mocks.Client
 }

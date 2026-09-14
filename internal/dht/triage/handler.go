@@ -60,7 +60,7 @@ func New(p Params) Handler {
 	h.rescrapeThreshold.Store(uint64(p.Config.RescrapeThreshold))
 
 	if p.ConfigManager != nil {
-		p.ConfigManager.Subscribe(context.Background(), "triage",
+		p.ConfigManager.Subscribe("triage",
 			func(_ context.Context, snap *configmgr.Snapshot) error {
 				h.rescrapeThreshold.Store(uint64(snap.DHTRequester.RescrapeThreshold))
 				return nil

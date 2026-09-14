@@ -13,6 +13,7 @@ import (
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/hexsans/hexmagnet/internal/protocol/dht"
 	"github.com/hexsans/hexmagnet/internal/protocol/dht/responder"
+	"github.com/hexsans/hexmagnet/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -42,14 +43,7 @@ func (s *server) start() error {
 	}
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.logger.Errorw("dht lifecycle wrapper panicked",
-					"panic", r,
-					"stack", string(debug.Stack()),
-				)
-			}
-		}()
+		defer utils.Recover(s.logger, "dht lifecycle wrapper panicked")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go s.read(ctx)
@@ -68,14 +62,7 @@ func (s *server) stop() {
 }
 
 func (s *server) read(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Errorw("dht read loop panicked",
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
-		}
-	}()
+	defer utils.Recover(s.logger, "dht read loop panicked")
 	/*   The field size sets a theoretical limit of 65,535 bytes (8 byte header + 65,527 bytes of
 	 * data) for a UDP datagram. However the actual limit for the data length, which is imposed by
 	 * the underlying IPv4 protocol, is 65,507 bytes (65,535 − 8 byte UDP header − 20 byte IP
@@ -136,14 +123,7 @@ func (s *server) read(ctx context.Context) {
 }
 
 func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Errorw("handleQuery panicked",
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
-		}
-	}()
+	defer utils.Recover(s.logger, "handleQuery panicked")
 
 	if !s.responderEnabled.Load() {
 		return
@@ -179,14 +159,7 @@ func (s *server) handleQuery(ctx context.Context, msg dht.RecvMsg) {
 }
 
 func (s *server) handleResponse(msg dht.RecvMsg) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Errorw("handleResponse panicked",
-				"panic", r,
-				"stack", string(debug.Stack()),
-			)
-		}
-	}()
+	defer utils.Recover(s.logger, "handleResponse panicked")
 
 	transactionID := msg.Msg.T
 

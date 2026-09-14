@@ -72,7 +72,7 @@ func TestGlobalSubscribers_RevertToStartupValueIsApplied(t *testing.T) {
 
 	logger := zaptest.NewLogger(t).Sugar()
 
-	cm := configmgr.NewManager(nil, "", nil, logger)
+	cm := configmgr.NewManager(nil, logger)
 	defer cm.Stop()
 
 	limiter := rate.NewLimiter(rate.Limit(100), 100)

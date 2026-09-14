@@ -55,6 +55,10 @@ func (llmClassifyAction) compileAction(ctx compilerContext) (action, error) {
 
 			result, err := ctx.llmClient.Classify(ctx, ctx.torrent.Name, llmFiles, ctx.torrent.InfoHash.String())
 			if err != nil {
+				if StrictLLM(ctx) {
+					return cl, &LLMClassifyError{Cause: err}
+				}
+
 				ctx.logger.Debugw("llm classify failed, falling back to rules",
 					"info_hash", ctx.torrent.InfoHash,
 					"name", ctx.torrent.Name,

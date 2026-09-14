@@ -106,7 +106,7 @@ func New(params Params) Result {
 					c.soughtNodeID.Set(protocol.RandomNodeID())
 
 					if params.ConfigManager != nil {
-						params.ConfigManager.Subscribe(ctx, "dht_crawler",
+						params.ConfigManager.Subscribe("dht_crawler",
 							func(_ context.Context, snap *configmgr.Snapshot) error {
 								c.config.Store(&crawlerConfig{
 									hashDiscoverLimiter: rate.NewLimiter(

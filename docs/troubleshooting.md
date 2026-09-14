@@ -142,9 +142,10 @@ Only checked when the LLM classifier is enabled and an endpoint is set.
 
 1. Both `classifier.llm.enabled` **and** `classifier.llm.api_key` must be set — one alone is not enough
 2. Verify the endpoint is reachable and the model name is valid for that provider
-3. If requests fail silently: raise `classifier.llm.timeout` and `classifier.llm.max_retries`
-4. Test the same request with `curl` against the endpoint — this isolates provider problems
-5. Reprocess an existing torrent to see it in action
+3. Failures are logged as `llm classify failed` warnings with the model, endpoint, info hash, and the provider's error (for example a non-resolvable `provider/model`). Warnings are rate-limited to 10 per minute; set the log level to `debug` to see every attempt
+4. If requests fail slowly: raise `classifier.llm.timeout` and `classifier.llm.max_retries`
+5. Test the same request with `curl` against the endpoint — this isolates provider problems
+6. Reprocess an existing torrent to see it in action
 
 ### Semantic search doesn't work (Elasticsearch backend)
 

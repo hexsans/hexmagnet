@@ -1,8 +1,9 @@
 package retryqueue
 
 import (
-	"math"
 	"time"
+
+	"github.com/hexsans/hexmagnet/internal/backoff"
 )
 
 // Config controls the torrent retry queue behaviour. The retry queue is
@@ -61,10 +62,9 @@ func (c Config) backoffDelay(failCount int32) time.Duration {
 		maxInterval = time.Hour
 	}
 
-	delay := time.Duration(float64(interval) * math.Pow(factor, float64(failCount-1)))
-	if delay <= 0 || delay > maxInterval {
-		return maxInterval
-	}
-
-	return delay
+	return backoff.Config{
+		Base:   interval,
+		Factor: factor,
+		Max:    maxInterval,
+	}.Delay(int(failCount))
 }

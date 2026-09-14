@@ -26,6 +26,49 @@ export function TorrentRow({ torrent, onClickDetail, selected = false, onToggleS
     toast.success(t("toast.magnetCopied",),);
   }
 
+  const actions = (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={<Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-green" onClick={copyMagnet} />}
+        >
+          <Magnet className="size-3.5" />
+          <span className="sr-only">{t("tooltip.copyMagnetLink",)}</span>
+        </TooltipTrigger>
+        <TooltipContent>{t("tooltip.copyMagnetLink",)}</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "size-7 transition-colors",
+                torrent.hasFile ? "text-muted-foreground hover:text-cyan" : "text-muted-foreground/25 cursor-not-allowed",
+              )}
+              disabled={!torrent.hasFile}
+              onClick={(e,) => {
+                if (torrent.hasFile) {
+                  e.stopPropagation();
+                  const a = document.createElement("a",);
+                  a.href = `/api/torrents/${torrent.infoHash}/download`;
+                  a.download = "";
+                  a.click();
+                }
+              }}
+            />
+          }
+        >
+          <Download className="size-3.5" />
+          <span className="sr-only">{t("tooltip.downloadTorrent",)}</span>
+        </TooltipTrigger>
+        <TooltipContent>{torrent.hasFile ? t("tooltip.downloadTorrent",) : t("tooltip.noFileAvailable",)}</TooltipContent>
+      </Tooltip>
+    </>
+  );
+
   return (
     <div
       role="button"
@@ -45,7 +88,35 @@ export function TorrentRow({ torrent, onClickDetail, selected = false, onToggleS
         }
       }}
     >
-      <div className="grid items-center gap-x-3 px-3 py-2.5" style={{ gridTemplateColumns: "var(--torrent-grid-cols)", }}>
+      <div className="flex items-start gap-2.5 px-3 py-3 md:hidden">
+        <span
+          className="flex shrink-0 items-center justify-center pt-0.5"
+          onClick={(e,) => e.stopPropagation()}
+          onKeyDown={(e,) => e.stopPropagation()}
+        >
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label={t("tooltip.selectTorrent", { name: torrent.name, },)} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-sm font-medium leading-snug text-foreground line-clamp-2" title={torrent.name}>
+            {torrent.name}
+          </p>
+          <p className="font-mono text-[10px] text-muted-foreground truncate leading-relaxed">{torrent.infoHash}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <CategoryBadge contentType={torrent.contentType} />
+            <span className="font-mono text-[11px] text-green">{formatBytes(torrent.size, i18n.language,)}</span>
+            <span className="font-mono text-[11px] text-cyan">{"\u2191"}{torrent.seeders.toLocaleString()}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{"\u2193"}{torrent.leechers.toLocaleString()}</span>
+            <span className="font-mono text-[11px] text-muted-foreground">{formatRelative(torrent.addedAt, t,)}</span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5" onClick={(e,) => e.stopPropagation()}>
+          {actions}
+        </div>
+      </div>
+
+      <div className="hidden items-center gap-x-3 px-3 py-2.5 md:grid" style={{ gridTemplateColumns: "var(--torrent-grid-cols)", }}>
         <span
           className="flex items-center justify-center self-stretch w-full"
           onClick={(e,) => e.stopPropagation()}
@@ -65,54 +136,17 @@ export function TorrentRow({ torrent, onClickDetail, selected = false, onToggleS
           <p className="font-mono text-[10px] text-muted-foreground truncate leading-relaxed">{torrent.infoHash}</p>
         </div>
 
-        <p className="hidden font-mono text-xs text-green text-right md:block">{formatBytes(torrent.size, i18n.language,)}</p>
+        <p className="font-mono text-xs text-green text-right">{formatBytes(torrent.size, i18n.language,)}</p>
 
-        <div className="hidden text-right md:block">
+        <div className="text-right">
           <p className="font-mono text-xs text-cyan leading-snug">{torrent.seeders.toLocaleString()}</p>
           <p className="font-mono text-[10px] text-muted-foreground leading-snug">{torrent.leechers.toLocaleString()}</p>
         </div>
 
-        <p className="hidden font-mono text-xs text-muted-foreground text-right md:block">{formatRelative(torrent.addedAt, t,)}</p>
+        <p className="font-mono text-xs text-muted-foreground text-right">{formatRelative(torrent.addedAt, t,)}</p>
 
         <div className="flex items-center justify-end gap-0.5" onClick={(e,) => e.stopPropagation()}>
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-green" onClick={copyMagnet} />}
-            >
-              <Magnet className="size-3.5" />
-              <span className="sr-only">{t("tooltip.copyMagnetLink",)}</span>
-            </TooltipTrigger>
-            <TooltipContent>{t("tooltip.copyMagnetLink",)}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "size-7 transition-colors",
-                    torrent.hasFile ? "text-muted-foreground hover:text-cyan" : "text-muted-foreground/25 cursor-not-allowed",
-                  )}
-                  disabled={!torrent.hasFile}
-                  onClick={(e,) => {
-                    if (torrent.hasFile) {
-                      e.stopPropagation();
-                      const a = document.createElement("a",);
-                      a.href = `/api/torrents/${torrent.infoHash}/download`;
-                      a.download = "";
-                      a.click();
-                    }
-                  }}
-                />
-              }
-            >
-              <Download className="size-3.5" />
-              <span className="sr-only">{t("tooltip.downloadTorrent",)}</span>
-            </TooltipTrigger>
-            <TooltipContent>{torrent.hasFile ? t("tooltip.downloadTorrent",) : t("tooltip.noFileAvailable",)}</TooltipContent>
-          </Tooltip>
+          {actions}
         </div>
       </div>
     </div>

@@ -19,35 +19,36 @@ export function SiteHeader() {
   const isDark = theme === "dark";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-6 px-4">
+    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-3 sm:gap-6 sm:px-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <Activity className="size-5 text-green" />
-          <span className="font-mono text-base font-bold tracking-widest text-green">
+          <span className="hidden font-mono text-base font-bold tracking-widest text-green sm:inline">
             {t("nav.dhtCrawlerPrefix",)}<span className="text-foreground">::</span>{t("nav.dhtCrawlerSuffix",)}
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5 sm:gap-1">
           {NAV.map(({ href, labelKey, icon: Icon, },) => {
             const active = pathname === href || pathname.startsWith(href + "/",);
             return (
               <Link
                 key={href}
                 to={href}
+                aria-label={t(labelKey,)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-mono font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-mono font-medium transition-colors pointer-coarse:min-h-11",
                   active ? "bg-green/10 text-green" : "text-muted-foreground hover:text-foreground hover:bg-muted",
                 )}
               >
                 <Icon className="size-4" />
-                {t(labelKey,)}
+                <span className="hidden sm:inline">{t(labelKey,)}</span>
               </Link>
             );
           },)}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-1 sm:gap-3">
           <Button
             variant="ghost"
             size="icon"

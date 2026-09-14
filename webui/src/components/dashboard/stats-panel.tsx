@@ -1,12 +1,14 @@
-import { useEffect, } from "react";
+import { useEffect, useState, } from "react";
 import { useQuery, } from "urql";
 import { useTranslation, } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, } from "@/components/ui/card";
 import { TorrentMetricsDocument, } from "@/lib/graphql/generated/graphql";
 import { QueuePanel, } from "@/components/dashboard/queue-panel";
+import { cn, } from "@/lib/utils";
 
 export function StatsPanel() {
   const { t, } = useTranslation();
+  const [activeDate, setActiveDate,] = useState<string | null>(null,);
   const [metricsResult, reexecute,] = useQuery({
     query: TorrentMetricsDocument,
     variables: {
@@ -57,29 +59,37 @@ export function StatsPanel() {
               <p className="font-mono text-xs text-muted-foreground w-full text-center py-8">{t("dashboard.noMetrics",)}</p>
             )}
             {crawlHistory.length > 0 &&
-              crawlHistory.map(({ date, count, updatedCount, },) => {
+              crawlHistory.map(({ date, count, updatedCount, }, idx,) => {
                 const max = Math.max(...crawlHistory.map((d,) => d.count,), 1,);
                 const heightPct = Math.max((count / max) * 100, 4,);
                 const hasUpdated = updatedCount > 0;
+                const active = activeDate === date;
                 return (
                   <div
                     key={date}
                     className="group relative flex-1 flex flex-col items-center justify-end h-full"
+                    onClick={() => setActiveDate((d,) => (d === date ? null : date),)}
                   >
                     <div
                       className="w-full rounded-sm transition-all cursor-pointer"
                       style={{
                         height: `${heightPct}%`,
-                        backgroundColor: "oklch(0.72 0.19 158 / 0.55)",
+                        backgroundColor: active ? "oklch(0.72 0.19 158 / 1)" : "oklch(0.72 0.19 158 / 0.55)",
                       }}
                       onMouseEnter={(e,) => {
                         (e.currentTarget as HTMLDivElement).style.backgroundColor = "oklch(0.72 0.19 158 / 1)";
                       }}
                       onMouseLeave={(e,) => {
-                        (e.currentTarget as HTMLDivElement).style.backgroundColor = "oklch(0.72 0.19 158 / 0.55)";
+                        (e.currentTarget as HTMLDivElement).style.backgroundColor = active ? "oklch(0.72 0.19 158 / 1)" : "oklch(0.72 0.19 158 / 0.55)";
                       }}
                     />
-                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
+                    <div
+                      className={cn(
+                        "absolute -top-7 z-10 pointer-events-none",
+                        idx < 2 ? "left-0" : idx >= crawlHistory.length - 2 ? "right-0" : "left-1/2 -translate-x-1/2",
+                        active ? "block" : "hidden group-hover:block",
+                      )}
+                    >
                       <div className="rounded bg-card border border-border px-1.5 py-0.5 font-mono text-xs text-foreground whitespace-nowrap">
                         {date}: {count.toLocaleString()} total{hasUpdated && `, ${updatedCount.toLocaleString()} updated`}
                       </div>

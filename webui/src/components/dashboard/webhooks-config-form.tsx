@@ -182,7 +182,7 @@ export function WebhooksConfigForm() {
         <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
           <legend className="font-mono text-xs text-foreground uppercase tracking-wider px-1">{t("dashboard.webhooksGroup",)}</legend>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Checkbox
               id="webhooksEnabled"
               checked={active.enabled}
@@ -191,7 +191,7 @@ export function WebhooksConfigForm() {
             <label htmlFor="webhooksEnabled" className="font-mono text-xs text-foreground uppercase cursor-pointer">
               {t("dashboard.webhooksEnabled",)}
             </label>
-            <span className="font-mono text-[10px] text-muted-foreground/60 mt-0.5 block">{t("dashboard.webhooksEnabledHint",)}</span>
+            <span className="font-mono text-[10px] text-muted-foreground/60 block w-full sm:mt-0.5 sm:w-auto">{t("dashboard.webhooksEnabledHint",)}</span>
           </div>
 
           <div>
@@ -210,7 +210,7 @@ export function WebhooksConfigForm() {
                 update({ urls: lines, },);
               }}
               placeholder="https://example.com/hook"
-              className={`font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.urls ? "border-red" : ""}`}
+              className={`font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.urls ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksUrlsHint",)}</span>
             {errors.urls && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.urls}</span>}
@@ -239,7 +239,7 @@ export function WebhooksConfigForm() {
             {errors.events && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.events}</span>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="webhooksTimeout" className="font-mono text-xs text-foreground uppercase block mb-1.5">
                 {t("dashboard.webhooksTimeout",)}
@@ -250,7 +250,7 @@ export function WebhooksConfigForm() {
                 min={1}
                 value={active.timeout}
                 onChange={(e,) => update({ timeout: parseInt(e.target.value, 10,) || 0, },)}
-                className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.timeout ? "border-red" : ""}`}
+                className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.timeout ? "border-red" : ""}`}
               />
               <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksTimeoutHint",)}</span>
               {errors.timeout && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.timeout}</span>}
@@ -267,7 +267,7 @@ export function WebhooksConfigForm() {
                 max={10}
                 value={active.maxRetries}
                 onChange={(e,) => update({ maxRetries: parseInt(e.target.value, 10,) || 0, },)}
-                className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxRetries ? "border-red" : ""}`}
+                className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxRetries ? "border-red" : ""}`}
               />
               <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksMaxRetriesHint",)}</span>
               {errors.maxRetries && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.maxRetries}</span>}
@@ -283,7 +283,7 @@ export function WebhooksConfigForm() {
                 min={1}
                 value={active.queueSize}
                 onChange={(e,) => update({ queueSize: parseInt(e.target.value, 10,) || 0, },)}
-                className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.queueSize ? "border-red" : ""}`}
+                className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.queueSize ? "border-red" : ""}`}
               />
               <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksQueueSizeHint",)}</span>
               {errors.queueSize && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.queueSize}</span>}
@@ -300,7 +300,7 @@ export function WebhooksConfigForm() {
               value={active.baseUrl}
               onChange={(e,) => update({ baseUrl: e.target.value, },)}
               placeholder="http://localhost:3333"
-              className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.baseUrl ? "border-red" : ""}`}
+              className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.baseUrl ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksBaseUrlHint",)}</span>
             {errors.baseUrl && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.baseUrl}</span>}
@@ -322,7 +322,7 @@ export function WebhooksConfigForm() {
               {normalizedHeaders(active.headers,).map((h, i,) => {
                 const rows = normalizedHeaders(active.headers,);
                 return (
-                  <div key={i} className="flex items-center gap-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2">
                     <Input
                       type="text"
                       value={h.key}
@@ -332,7 +332,7 @@ export function WebhooksConfigForm() {
                         next[i] = { key: e.target.value, value: h.value, };
                         update({ headers: next, },);
                       }}
-                      className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 w-2/5"
+                      className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 w-2/5"
                     />
                     <Input
                       type="text"
@@ -343,7 +343,7 @@ export function WebhooksConfigForm() {
                         next[i] = { key: h.key, value: e.target.value, };
                         update({ headers: next, },);
                       }}
-                      className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 flex-1"
+                      className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 flex-1"
                     />
                     <Button
                       variant="ghost"
@@ -409,7 +409,7 @@ export function WebhooksConfigForm() {
                 update({ titlePatterns: lines, },);
               }}
               placeholder={"FLAC|2160p|4K"}
-              className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
+              className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksTitleRegexHint",)}</span>
           </div>
@@ -430,7 +430,7 @@ export function WebhooksConfigForm() {
                 update({ filenamePatterns: lines, },);
               }}
               placeholder={String.raw`\.flac$|\.mkv$`}
-              className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
+              className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.webhooksFilenameRegexHint",)}</span>
           </div>

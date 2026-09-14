@@ -122,7 +122,7 @@ export function DHTConfigForm() {
               max={65535}
               value={active.port}
               onChange={(e,) => update({ port: parseInt(e.target.value, 10,) || 0, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">
               {t("dashboard.dhtPortHint",)} — {t("dashboard.restartRequired",)}
@@ -144,7 +144,7 @@ export function DHTConfigForm() {
                 }
                 update({ bootstrapNodes: lines, },);
               }}
-              className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
+              className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.bootstrapNodesHint",)}</span>
           </div>
@@ -161,7 +161,7 @@ export function DHTConfigForm() {
               onChange={(e,) => update({
                 requester: { ...active.requester, requestLimit: parseInt(e.target.value, 10,) || 0, },
               } as unknown as Partial<DHTSection>,)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.requesterRequestLimitHint",)}</span>
           </div>
@@ -178,7 +178,7 @@ export function DHTConfigForm() {
               onChange={(e,) => update({
                 requester: { ...active.requester, hashDiscoverLimit: parseInt(e.target.value, 10,) || 0, },
               } as unknown as Partial<DHTSection>,)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.hashDiscoverLimitHint",)}</span>
           </div>
@@ -195,7 +195,7 @@ export function DHTConfigForm() {
               onChange={(e,) => update({
                 requester: { ...active.requester, rescrapeThreshold: Number(e.target.value,), },
               } as unknown as Partial<DHTSection>,)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.rescrapeThresholdHint",)}</span>
           </div>
@@ -236,7 +236,7 @@ export function DHTConfigForm() {
                     onChange={(e,) =>
                       updateResponder({ globalRateLimit: parseInt(e.target.value, 10,) || 0, },)
                     }
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.responderGlobalRateLimitHint",)}</span>
                 </div>
@@ -253,7 +253,7 @@ export function DHTConfigForm() {
                     onChange={(e,) =>
                       updateResponder({ perIPRateLimit: parseInt(e.target.value, 10,) || 0, },)
                     }
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.responderPerIPRateLimitHint",)}</span>
                 </div>

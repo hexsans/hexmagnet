@@ -136,8 +136,8 @@ export function QueuePanel() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1" />
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <div className="hidden flex-1 sm:block" />
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -163,7 +163,7 @@ export function QueuePanel() {
               <ChevronRight className="size-3.5" />
             </Button>
           </div>
-          <div className="flex flex-1 items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 sm:flex-1">
             <span className="font-mono text-xs text-muted-foreground">{t("common.perPage",)}</span>
             <Select
               value={String(limit,)}

@@ -233,7 +233,7 @@ export function StorageConfigForm() {
               type="text"
               value={active.postgres.host}
               onChange={(e,) => updatePostgres({ host: e.target.value, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgHostHint",)}</span>
           </div>
@@ -245,7 +245,7 @@ export function StorageConfigForm() {
               type="number"
               value={active.postgres.port}
               onChange={(e,) => updatePostgres({ port: parseInt(e.target.value, 10,) || 0, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgPortHint",)}</span>
           </div>
@@ -257,7 +257,7 @@ export function StorageConfigForm() {
               type="text"
               value={active.postgres.username}
               onChange={(e,) => updatePostgres({ username: e.target.value, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgUserHint",)}</span>
           </div>
@@ -269,7 +269,7 @@ export function StorageConfigForm() {
               type="password"
               value={active.postgres.password}
               onChange={(e,) => updatePostgres({ password: e.target.value, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgPasswordHint",)}</span>
           </div>
@@ -281,7 +281,7 @@ export function StorageConfigForm() {
               type="text"
               value={active.postgres.database}
               onChange={(e,) => updatePostgres({ database: e.target.value, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgNameHint",)}</span>
           </div>
@@ -293,7 +293,7 @@ export function StorageConfigForm() {
               type="number"
               value={active.postgres.connectionTimeout}
               onChange={(e,) => updatePostgres({ connectionTimeout: parseInt(e.target.value, 10,) || 0, },)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgConnectionTimeoutHint",)}</span>
           </div>
@@ -305,7 +305,7 @@ export function StorageConfigForm() {
               type="number"
               value={active.postgres.maxConnections}
               onChange={(e,) => updatePostgres({ maxConnections: parseInt(e.target.value, 10,) || 0, },)}
-              className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxConnections ? "border-red" : ""}`}
+              className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxConnections ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgMaxConnectionsHint",)}</span>
             {errors.maxConnections && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.maxConnections}</span>}
@@ -352,7 +352,7 @@ export function StorageConfigForm() {
                     type="text"
                     value={active.postgres.sslCertPath}
                     onChange={(e,) => updatePostgres({ sslCertPath: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgSSLCertPathHint",)}</span>
                 </div>
@@ -364,7 +364,7 @@ export function StorageConfigForm() {
                     type="text"
                     value={active.postgres.sslKeyPath}
                     onChange={(e,) => updatePostgres({ sslKeyPath: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgSSLKeyPathHint",)}</span>
                 </div>
@@ -376,7 +376,7 @@ export function StorageConfigForm() {
                     type="text"
                     value={active.postgres.sslRootCertPath}
                     onChange={(e,) => updatePostgres({ sslRootCertPath: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.pgSSLRootCertPathHint",)}</span>
                 </div>
@@ -426,7 +426,7 @@ export function StorageConfigForm() {
                       }
                       updateKafka({ brokers: lines, },);
                     }}
-                    className={`font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.brokers ? "border-red" : ""}`}
+                    className={`font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.brokers ? "border-red" : ""}`}
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.kafkaBrokersHint",)}</span>
                   {errors.brokers && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.brokers}</span>}
@@ -476,7 +476,7 @@ export function StorageConfigForm() {
                       }
                       updateElasticsearch({ addresses: lines, },);
                     }}
-                    className={`font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.addresses ? "border-red" : ""}`}
+                    className={`font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y ${errors.addresses ? "border-red" : ""}`}
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.esAddressesHint",)}</span>
                   {errors.addresses && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.addresses}</span>}
@@ -488,7 +488,7 @@ export function StorageConfigForm() {
                       type="text"
                       value={active.search.elasticsearch.embedding?.endpoint ?? ""}
                       onChange={(e,) => updateElasticsearchEmbedding({ endpoint: e.target.value, },)}
-                      className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.embeddingEndpoint ? "border-red" : ""}`}
+                      className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.embeddingEndpoint ? "border-red" : ""}`}
                     />
                     <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embeddingEndpointHint",)}</span>
                     {errors.embeddingEndpoint && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.embeddingEndpoint}</span>}
@@ -501,7 +501,7 @@ export function StorageConfigForm() {
                       type="text"
                       value={active.search.elasticsearch.embedding?.apikey ?? ""}
                       onChange={(e,) => updateElasticsearchEmbedding({ apikey: e.target.value, },)}
-                      className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                      className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                     />
                     <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embeddingApiKeyHint",)}</span>
                   </div>
@@ -525,7 +525,7 @@ export function StorageConfigForm() {
                       type="text"
                       value={active.search.elasticsearch.embedding?.model ?? ""}
                       onChange={(e,) => updateElasticsearchEmbedding({ model: e.target.value, },)}
-                      className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.embeddingModel ? "border-red" : ""}`}
+                      className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.embeddingModel ? "border-red" : ""}`}
                     />
                     <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embeddingModelHint",)}</span>
                     {errors.embeddingModel && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.embeddingModel}</span>}
@@ -540,7 +540,7 @@ export function StorageConfigForm() {
                       disabled={maintenanceBusy}
                       value={active.search.elasticsearch.embedding?.dimensions ?? 1024}
                       onChange={(e,) => updateElasticsearchEmbedding({ dimensions: parseInt(e.target.value, 10,) || 0, },)}
-                      className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 disabled:opacity-50 ${errors.embeddingDimensions ? "border-red" : ""}`}
+                      className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 disabled:opacity-50 ${errors.embeddingDimensions ? "border-red" : ""}`}
                     />
                     <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embeddingDimensionsHint",)}</span>
                     {maintenanceBusy && <span className="font-mono text-[10px] text-amber mt-0.5 block">{t("dashboard.dimsLockedHint",)}</span>}

@@ -1,4 +1,4 @@
-import { useMemo, useState, } from "react";
+import { useMemo, useState, type CSSProperties, } from "react";
 import { useMutation, useQuery, } from "urql";
 import { useTranslation, } from "react-i18next";
 import {
@@ -187,8 +187,8 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
               tabIndex={0}
               onClick={() => toggleFolder(node.path,)}
               onKeyDown={(e,) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleFolder(node.path,); } }}
-              className="grid grid-cols-[2.25rem_1fr_10rem] items-start gap-3 rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
-              style={{ paddingLeft: `${16 + depth * 48}px`, }}
+              className="grid grid-cols-[2.25rem_1fr] items-start gap-3 rounded-md px-3 py-2 hover:bg-muted/50 transition-colors pl-[calc(1rem+var(--tree-depth)*1.25rem)] sm:grid-cols-[2.25rem_1fr_10rem] sm:pl-[calc(1rem+var(--tree-depth)*3rem)]"
+              style={{ "--tree-depth": depth, } as CSSProperties}
             >
               <div className="flex items-center justify-center gap-0.5 self-center">
                 <ChevronRight className={`size-3.5 text-muted-foreground transition-transform duration-300 ${isExpanded ? "rotate-90" : ""}`} />
@@ -200,7 +200,7 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
                   {node.fileCount} {t("detail.files",)}
                 </span>
               </div>
-              <div className="flex items-center gap-2 self-center justify-self-end">
+              <div className="hidden items-center gap-2 self-center justify-self-end sm:flex">
                 <span className="font-mono text-xs text-foreground whitespace-nowrap">{formatBytes(node.size, i18n.language,)}</span>
                 <div className="h-1 w-20 overflow-hidden rounded-full bg-secondary">
                   <div className="h-full rounded-full bg-muted-foreground/30" style={{ width: `${Math.max(pct, 1,)}%`, }} />
@@ -221,8 +221,8 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
       return (
         <div
           key={node.path}
-          className="grid grid-cols-[2.25rem_1fr_10rem] items-start gap-3 rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
-          style={{ paddingLeft: `${16 + depth * 48}px`, }}
+          className="grid grid-cols-[2.25rem_1fr] items-start gap-3 rounded-md px-3 py-2 hover:bg-muted/50 transition-colors pl-[calc(1rem+var(--tree-depth)*1.25rem)] sm:grid-cols-[2.25rem_1fr_10rem] sm:pl-[calc(1rem+var(--tree-depth)*3rem)]"
+          style={{ "--tree-depth": depth, } as CSSProperties}
         >
           <span
             className="flex items-center justify-center rounded py-0.5 font-mono text-[10px] font-bold text-background self-center"
@@ -237,7 +237,7 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
               <span className="text-muted-foreground italic">&lt;{t("detail.itemWithoutName",)}&gt;</span>
             )}
           </p>
-          <div className="flex items-center gap-2 self-center justify-self-end">
+          <div className="hidden items-center gap-2 self-center justify-self-end sm:flex">
             <span className="font-mono text-xs text-foreground whitespace-nowrap">{formatBytes(node.size,)}</span>
             <div className="h-1 w-20 overflow-hidden rounded-full bg-secondary">
               <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2,)}%`, backgroundColor: color, opacity: 0.7, }} />
@@ -252,8 +252,8 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-4xl gap-0 p-0 overflow-hidden data-open:[--tw-enter-translate-y:1rem] data-open:[--tw-animate-duration:300ms] data-closed:[--tw-exit-translate-y:1rem] data-closed:[--tw-animate-duration:200ms]">
-        <DialogHeader className="p-6 pb-4 border-b border-border">
+      <DialogContent className="!max-w-4xl gap-0 p-0 overflow-hidden max-h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-2rem)] max-md:flex max-md:flex-col data-open:[--tw-enter-translate-y:1rem] data-open:[--tw-animate-duration:300ms] data-closed:[--tw-exit-translate-y:1rem] data-closed:[--tw-animate-duration:200ms]">
+        <DialogHeader className="shrink-0 p-4 pb-4 border-b border-border sm:p-6 sm:pb-4">
           <div className="grid grid-cols-[auto_1fr_0rem] items-start gap-3">
             <CategoryBadge contentType={torrent.contentType} className="mt-0.5" />
             <div className="min-w-0">
@@ -327,8 +327,8 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
 
         </DialogHeader>
 
-        <ScrollArea className="h-[55vh] min-h-[300px]">
-          <div className="px-6 py-4">
+        <ScrollArea className="h-[45dvh] min-h-0 flex-1 md:h-[55vh] md:min-h-[300px]">
+          <div className="px-3 py-4 sm:px-6">
             <div className="flex items-center justify-between mb-3 py-1">
               <p className="font-mono text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 {t("detail.fileList", { count: totalFiles, },)}
@@ -371,7 +371,7 @@ export function TorrentDetailDialog({ torrent, open, onOpenChange, }: TorrentDet
           </div>
         </ScrollArea>
 
-        <div className="flex items-center gap-2 border-t border-border px-6 py-4">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-4 py-4 sm:px-6">
           <Button
             variant="default"
             size="sm"

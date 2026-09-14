@@ -47,7 +47,7 @@ export function LanguageSwitcher() {
           {LANGUAGES.map(({ code, label, },) => (
             <button
               key={code}
-              className={`block w-full px-3 py-1.5 text-left text-sm font-mono transition-colors hover:bg-accent hover:text-accent-foreground ${
+              className={`block w-full px-3 py-1.5 text-left text-sm font-mono transition-colors hover:bg-accent hover:text-accent-foreground pointer-coarse:flex pointer-coarse:min-h-11 pointer-coarse:items-center ${
                 currentLang === code ? "bg-accent text-accent-foreground" : ""
               }`}
               onClick={() => {

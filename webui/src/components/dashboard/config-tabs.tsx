@@ -15,26 +15,28 @@ export function ConfigTabs() {
 
   return (
     <Tabs value={configTab} onValueChange={(v,) => navigate(`/dashboard/config/${v}`,)} className="w-full">
-      <TabsList className="font-mono bg-card border border-border h-9 gap-0.5 p-1">
-        <TabsTrigger value="general" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.general",)}
-        </TabsTrigger>
-        <TabsTrigger value="dht" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.dht",)}
-        </TabsTrigger>
-        <TabsTrigger value="classifier" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.classifier",)}
-        </TabsTrigger>
-        <TabsTrigger value="storage" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.storage",)}
-        </TabsTrigger>
-        <TabsTrigger value="torznab" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.torznab",)}
-        </TabsTrigger>
-        <TabsTrigger value="webhooks" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
-          {t("dashboard.webhooks",)}
-        </TabsTrigger>
-      </TabsList>
+      <div className="mb-4 max-w-full overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <TabsList className="font-mono bg-card border border-border h-9 gap-0.5 p-1">
+          <TabsTrigger value="general" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.general",)}
+          </TabsTrigger>
+          <TabsTrigger value="dht" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.dht",)}
+          </TabsTrigger>
+          <TabsTrigger value="classifier" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.classifier",)}
+          </TabsTrigger>
+          <TabsTrigger value="storage" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.storage",)}
+          </TabsTrigger>
+          <TabsTrigger value="torznab" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.torznab",)}
+          </TabsTrigger>
+          <TabsTrigger value="webhooks" className="gap-1.5 text-xs data-active:bg-green/10 data-active:text-green">
+            {t("dashboard.webhooks",)}
+          </TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="general">
         <div className="flex flex-col gap-6 pt-4">

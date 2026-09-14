@@ -147,7 +147,7 @@ export function ServerConfigForm() {
               value={active.ip}
               onChange={(e,) => update({ ip: e.target.value, },)}
               placeholder={t("dashboard.ipEmptyHint",)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">
               {active.ip === ""
@@ -170,7 +170,7 @@ export function ServerConfigForm() {
               type="number"
               value={active.port}
               onChange={(e,) => update({ port: parseInt(e.target.value, 10,), },)}
-              className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.port ? "border-red" : ""}`}
+              className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.port ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.restartRequired",)}</span>
             {errors.port && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.port}</span>}
@@ -186,7 +186,7 @@ export function ServerConfigForm() {
               value={active.torrentFilePath}
               onChange={(e,) => update({ torrentFilePath: e.target.value, },)}
               placeholder={t("dashboard.torrentFilePathHint",)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.torrentFilePathHint",)}</span>
           </div>
@@ -250,7 +250,7 @@ export function ServerConfigForm() {
                     type="text"
                     value={active.log.fileRotator.path}
                     onChange={(e,) => update({ log: { fileRotator: { path: e.target.value, }, }, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.logPathHint",)}</span>
                 </div>
@@ -263,7 +263,7 @@ export function ServerConfigForm() {
                     min={0}
                     value={active.log.fileRotator.maxBackups}
                     onChange={(e,) => update({ log: { fileRotator: { maxBackups: parseInt(e.target.value, 10,) || 0, }, }, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.maxLogFileCountHint",)}</span>
                 </div>
@@ -276,7 +276,7 @@ export function ServerConfigForm() {
                     min={0}
                     value={active.log.fileRotator.maxSizeMB}
                     onChange={(e,) => update({ log: { fileRotator: { maxSizeMB: parseInt(e.target.value, 10,) || 0, }, }, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.maxLogFileSizeHint",)}</span>
                 </div>
@@ -323,7 +323,7 @@ export function ServerConfigForm() {
                 }
                 update({ embedTrackers: lines, },);
               }}
-              className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
+              className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.embedTrackersHint",)}</span>
           </div>

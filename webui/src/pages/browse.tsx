@@ -313,12 +313,12 @@ export function BrowsePage() {
             value={query}
             onChange={(e,) => handleSearch(e.target.value,)}
             placeholder={t("browse.searchPlaceholder",)}
-            className="pl-9 pr-9 font-mono text-sm bg-card border-border focus-visible:ring-green/50 focus-visible:border-green/50"
+            className="pl-9 pr-9 font-mono bg-card border-border focus-visible:ring-green/50 focus-visible:border-green/50"
           />
           {query.length > 0 && (
             <button
               onClick={() => handleSearch("",)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors pointer-coarse:-m-2 pointer-coarse:flex pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:p-2"
               aria-label={t("browse.clearSearch",)}
             >
               <X className="size-4" />
@@ -330,7 +330,7 @@ export function BrowsePage() {
           <Button
             variant="outline"
             className={cn(
-              "shrink-0 gap-1.5 font-mono text-sm font-normal border-border bg-card",
+              "w-full shrink-0 gap-1.5 font-mono text-sm font-normal border-border bg-card sm:w-auto",
               categoryOpen && "ring-1 ring-green/50 border-green/50",
             )}
             onClick={() => setCategoryOpen((v,) => !v,)}
@@ -345,14 +345,14 @@ export function BrowsePage() {
           {categoryOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setCategoryOpen(false,)} />
-              <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-lg border border-border bg-card p-2 shadow-lg">
+              <div className="absolute right-0 top-full mt-2 z-50 max-h-[60vh] w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-lg">
                 {categoryOptions.map((cat,) => {
                   const selected = categories.includes(cat.value,);
                   return (
                     <button
                       key={cat.value}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-mono text-sm cursor-pointer transition-colors",
+                        "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-mono text-sm cursor-pointer transition-colors pointer-coarse:min-h-11",
                         selected ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                       )}
                       onClick={() => {
@@ -381,7 +381,7 @@ export function BrowsePage() {
                   <>
                     <Separator className="my-1" />
                     <button
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-mono text-xs text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-mono text-xs text-muted-foreground hover:text-destructive cursor-pointer transition-colors pointer-coarse:min-h-11"
                       onClick={() => {
                         setCategories([],);
                         setPage(1,);
@@ -401,7 +401,7 @@ export function BrowsePage() {
           <Button
             variant="outline"
             className={cn(
-              "gap-1.5 font-mono text-sm font-normal border-border bg-card",
+              "w-full gap-1.5 font-mono text-sm font-normal border-border bg-card sm:w-auto",
               sortOpen && "ring-1 ring-green/50 border-green/50",
             )}
             onClick={() => setSortOpen((v,) => !v,)}
@@ -415,7 +415,7 @@ export function BrowsePage() {
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setSortOpen(false,)} />
-              <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-lg border border-border bg-card p-3 shadow-lg">
+              <div className="absolute right-0 top-full mt-2 z-50 max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-lg">
                 <p className="mb-2 font-mono text-sm font-semibold text-muted-foreground">{t("browse.sortBy",)}</p>
                 <div className="space-y-2">
                   {sortRules.map((rule, i,) => {
@@ -565,8 +565,8 @@ export function BrowsePage() {
       )}
 
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between gap-3 pb-6">
-          <div className="flex-1" />
+        <div className="mt-6 flex flex-col items-center gap-3 pb-6 sm:flex-row sm:justify-between">
+          <div className="hidden flex-1 sm:block" />
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -592,7 +592,7 @@ export function BrowsePage() {
               <ChevronRight className="size-3.5" />
             </Button>
           </div>
-          <div className="flex flex-1 items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 sm:flex-1">
             <span className="font-mono text-sm text-muted-foreground">{t("browse.perPage",)}</span>
             <Select
               value={String(limit,)}

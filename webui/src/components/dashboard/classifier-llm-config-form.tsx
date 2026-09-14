@@ -182,7 +182,7 @@ export function ClassifierLLMConfigForm() {
                 const next = { ...active!, concurrency: parseInt(e.target.value, 10,) || 0, } as ClassifierSection;
                 setForm(next,);
               }}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.concurrencyHint",)}</span>
           </div>
@@ -215,7 +215,7 @@ export function ClassifierLLMConfigForm() {
                     type="text"
                     value={active.llm.endpoint}
                     onChange={(e,) => updateLLM({ endpoint: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmEndpointHint",)}</span>
                 </div>
@@ -229,7 +229,7 @@ export function ClassifierLLMConfigForm() {
                     type="text"
                     value={active.llm.apiKey}
                     onChange={(e,) => updateLLM({ apiKey: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmApiKeyHint",)}</span>
                 </div>
@@ -243,7 +243,7 @@ export function ClassifierLLMConfigForm() {
                     type="text"
                     value={active.llm.model}
                     onChange={(e,) => updateLLM({ model: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmModelHint",)}</span>
                 </div>
@@ -256,7 +256,7 @@ export function ClassifierLLMConfigForm() {
                     <button
                       type="button"
                       onClick={() => updateLLM({ prompt: "", },)}
-                      className="font-mono text-[10px] text-muted-foreground/60 uppercase hover:text-foreground"
+                      className="rounded px-1 py-0.5 -m-1 font-mono text-[10px] text-muted-foreground/60 uppercase transition-colors hover:bg-muted hover:text-foreground pointer-coarse:min-h-9 pointer-coarse:px-2"
                     >
                       {t("dashboard.llmPromptReset",)}
                     </button>
@@ -265,7 +265,7 @@ export function ClassifierLLMConfigForm() {
                     id="llmPrompt"
                     value={active.llm.prompt}
                     onChange={(e,) => updateLLM({ prompt: e.target.value, },)}
-                    className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[120px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
+                    className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[120px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
                     placeholder={t("dashboard.llmPromptPlaceholder",)}
                     rows={8}
                   />
@@ -281,7 +281,7 @@ export function ClassifierLLMConfigForm() {
                     type="number"
                     value={active.llm.timeout}
                     onChange={(e,) => updateLLM({ timeout: parseInt(e.target.value, 10,) || 0, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmTimeoutHint",)}</span>
                 </div>
@@ -295,7 +295,7 @@ export function ClassifierLLMConfigForm() {
                     type="number"
                     value={active.llm.maxRetries}
                     onChange={(e,) => updateLLM({ maxRetries: parseInt(e.target.value, 10,) || 0, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmMaxRetriesHint",)}</span>
                 </div>
@@ -312,7 +312,7 @@ export function ClassifierLLMConfigForm() {
                     max={2}
                     value={active.llm.temperature}
                     onChange={(e,) => updateLLM({ temperature: parseFloat(e.target.value,) || 0, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmTemperatureHint",)}</span>
                 </div>
@@ -344,7 +344,7 @@ export function ClassifierLLMConfigForm() {
                     min={-1}
                     value={active.llm.maxFiles}
                     onChange={(e,) => updateLLM({ maxFiles: parseInt(e.target.value, 10,) || 0, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.llmMaxFilesHint",)}</span>
                 </div>
@@ -397,7 +397,7 @@ export function ClassifierLLMConfigForm() {
                       }
                       updateTorrentFilter({ titlePatterns: result, },);
                     }}
-                    className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[80px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
+                    className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[80px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
                     placeholder={t("dashboard.torrentFilterTitlePatternsPlaceholder",)}
                     rows={4}
                   />
@@ -417,7 +417,7 @@ export function ClassifierLLMConfigForm() {
                       }
                       updateTorrentFilter({ filenamePatterns: result, },);
                     }}
-                    className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[80px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
+                    className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full min-h-[80px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/50 resize-y"
                     placeholder={t("dashboard.torrentFilterFilenamePatternsPlaceholder",)}
                     rows={4}
                   />
@@ -459,7 +459,7 @@ export function ClassifierLLMConfigForm() {
                     type="text"
                     value={active.tmdb.accessToken}
                     onChange={(e,) => updateTmdb({ accessToken: e.target.value, },)}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.tmdbAccessTokenHint",)}</span>
                 </div>
@@ -480,7 +480,7 @@ export function ClassifierLLMConfigForm() {
                         updateTmdb({ rateLimit: v, },);
                       }
                     }}
-                    className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+                    className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
                   />
                   <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.tmdbRateLimitHint",)}</span>
                 </div>
@@ -489,7 +489,7 @@ export function ClassifierLLMConfigForm() {
           </div>
         </fieldset>
 
-        <div className="flex items-center justify-between gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div className="flex flex-col gap-1">
             <Button
               variant="default"

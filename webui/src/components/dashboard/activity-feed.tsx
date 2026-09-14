@@ -42,7 +42,7 @@ export function ActivityFeed({ activity, }: ActivityFeedProps,) {
             <div key={item.id} className="flex items-start gap-2 py-1 border-b border-border/40 last:border-0">
               <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ backgroundColor: s.dotColor, }} />
               <span className={cn("font-mono text-xs shrink-0 w-9", s.text,)}>{s.label}</span>
-              <span className="font-mono text-xs text-foreground flex-1 leading-relaxed break-words [font-variant-ligatures:none]">
+              <span className="font-mono text-xs text-foreground flex-1 min-w-0 leading-relaxed break-words [font-variant-ligatures:none]">
                 {item.message}
               </span>
               <span className="font-mono text-xs text-muted-foreground shrink-0">{formatRelative(item.time, t,)}</span>

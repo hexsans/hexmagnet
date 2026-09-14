@@ -52,7 +52,7 @@ export function TorrentList({
     >
       <div
         className={cn(
-          "grid items-center gap-x-3 border-b border-border bg-muted/50 px-3 py-2",
+          "hidden items-center gap-x-3 border-b border-border bg-muted/50 px-3 py-2 md:grid",
           torrents.length > 0 && "has-[[data-checked]]:bg-muted",
         )}
         style={{ gridTemplateColumns: gridCols, }}
@@ -67,15 +67,15 @@ export function TorrentList({
         </span>
         <span />
         <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("table.name",)}</span>
-        <span className="hidden font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right md:flex items-center justify-end gap-1">
+        <span className="flex items-center justify-end gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right">
           <HardDrive className="size-3" />
           {t("table.size",)}
         </span>
-        <span className="hidden font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right md:flex items-center justify-end gap-1">
+        <span className="flex items-center justify-end gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right">
           <ArrowUpDown className="size-3" />
           {t("table.seedersLeechers",)}
         </span>
-        <span className="hidden font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right md:flex items-center justify-end gap-1">
+        <span className="flex items-center justify-end gap-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-right">
           <Clock className="size-3" />
           {t("table.published",)}
         </span>
@@ -86,18 +86,28 @@ export function TorrentList({
 
       {isLoading &&
         Array.from({ length: 10, },).map((_, i,) => (
-          <div
-            key={i}
-            className="grid items-center gap-x-3 border-b border-border px-3 py-2.5 last:border-b-0"
-            style={{ gridTemplateColumns: gridCols, }}
-          >
-            <Skeleton className="size-5 rounded" />
-            <Skeleton className="h-5 rounded" style={{ width: badgeW, }} />
-            <Skeleton className="h-3 w-full rounded" />
-            <Skeleton className="hidden h-3 w-full rounded md:block" />
-            <Skeleton className="hidden h-3 w-full rounded md:block" />
-            <Skeleton className="hidden h-3 w-full rounded md:block" />
-            <Skeleton className="h-7 w-full rounded" />
+          <div key={i} className="border-b border-border last:border-b-0">
+            <div className="flex items-start gap-2.5 px-3 py-3 md:hidden">
+              <Skeleton className="size-5 shrink-0 rounded" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-3/4 rounded" />
+                <Skeleton className="h-3 w-1/2 rounded" />
+                <Skeleton className="h-5 w-32 rounded" />
+              </div>
+              <Skeleton className="h-7 w-14 shrink-0 rounded" />
+            </div>
+            <div
+              className="hidden items-center gap-x-3 px-3 py-2.5 md:grid"
+              style={{ gridTemplateColumns: gridCols, }}
+            >
+              <Skeleton className="size-5 rounded" />
+              <Skeleton className="h-5 rounded" style={{ width: badgeW, }} />
+              <Skeleton className="h-3 w-full rounded" />
+              <Skeleton className="h-3 w-full rounded" />
+              <Skeleton className="h-3 w-full rounded" />
+              <Skeleton className="h-3 w-full rounded" />
+              <Skeleton className="h-7 w-full rounded" />
+            </div>
           </div>
         ),)}
 

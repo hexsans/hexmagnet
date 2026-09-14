@@ -117,7 +117,7 @@ export function TorznabConfigForm() {
         <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
           <legend className="font-mono text-xs text-foreground uppercase tracking-wider px-1">{t("dashboard.torznabGroup",)}</legend>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Checkbox
               id="torznabEnabled"
               checked={active.enabled}
@@ -126,7 +126,7 @@ export function TorznabConfigForm() {
             <label htmlFor="torznabEnabled" className="font-mono text-xs text-foreground uppercase cursor-pointer">
               {t("dashboard.torznabEnabled",)}
             </label>
-            <span className="font-mono text-[10px] text-muted-foreground/60 mt-0.5 block">{t("dashboard.torznabEnabledHint",)}</span>
+            <span className="font-mono text-[10px] text-muted-foreground/60 block w-full sm:mt-0.5 sm:w-auto">{t("dashboard.torznabEnabledHint",)}</span>
           </div>
 
           <div>
@@ -139,7 +139,7 @@ export function TorznabConfigForm() {
               value={active.apiKey}
               onChange={(e,) => update({ apiKey: e.target.value, },)}
               placeholder={t("dashboard.torznabApiKeyHint",)}
-              className="font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
+              className="font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.torznabApiKeyHint",)}</span>
           </div>
@@ -154,7 +154,7 @@ export function TorznabConfigForm() {
               value={active.path}
               onChange={(e,) => update({ path: e.target.value, },)}
               placeholder="/torznab"
-              className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.path ? "border-red" : ""}`}
+              className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.path ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">
               {t("dashboard.torznabPathHint",)} — {t("dashboard.restartRequired",)}
@@ -172,7 +172,7 @@ export function TorznabConfigForm() {
               min={1}
               value={active.maxResults}
               onChange={(e,) => update({ maxResults: parseInt(e.target.value, 10,) || 0, },)}
-              className={`font-mono text-sm bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxResults ? "border-red" : ""}`}
+              className={`font-mono bg-card border-border focus-visible:ring-2 focus-visible:ring-green/50 ${errors.maxResults ? "border-red" : ""}`}
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.torznabMaxResultsHint",)}</span>
             {errors.maxResults && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.maxResults}</span>}
@@ -194,12 +194,12 @@ export function TorznabConfigForm() {
                 update({ categories: lines, },);
               }}
               placeholder={t("dashboard.torznabCategoriesPlaceholder",)}
-              className="font-mono text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
+              className="font-mono text-base md:text-sm bg-card border border-border rounded px-3 py-2 w-full text-foreground focus-visible:ring-2 focus-visible:ring-green/50 focus-visible:outline-none resize-y"
             />
             <span className="font-mono text-[10px] text-muted-foreground/60 mt-1 block">{t("dashboard.torznabCategoriesHint",)}</span>
             {errors.categories && <span className="font-mono text-[10px] text-red mt-0.5 block">{errors.categories}</span>}
 
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3">
               <Checkbox
                 id="torznabTrustProxy"
                 checked={active.trustProxyHeaders}
@@ -208,7 +208,7 @@ export function TorznabConfigForm() {
               <label htmlFor="torznabTrustProxy" className="font-mono text-xs text-foreground uppercase cursor-pointer">
                 {t("dashboard.torznabTrustProxyHeaders",)}
               </label>
-              <span className="font-mono text-[10px] text-muted-foreground/60 mt-0.5 block">{t("dashboard.torznabTrustProxyHeadersHint",)}</span>
+              <span className="font-mono text-[10px] text-muted-foreground/60 block w-full sm:mt-0.5 sm:w-auto">{t("dashboard.torznabTrustProxyHeadersHint",)}</span>
             </div>
 
             <div className="flex flex-wrap gap-1.5 mt-2">

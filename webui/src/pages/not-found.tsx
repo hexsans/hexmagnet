@@ -7,9 +7,9 @@ export function NotFoundPage() {
   const { t, } = useTranslation();
   useDocumentTitle(t("title.notFound",),);
   return (
-    <main className="mx-auto max-w-screen-xl px-4 py-24">
+    <main className="mx-auto max-w-screen-xl px-4 py-12 sm:py-24">
       <div className="flex flex-col items-center gap-6 text-center">
-        <h1 className="font-mono text-4xl font-bold text-muted-foreground">
+        <h1 className="font-mono text-2xl font-bold text-muted-foreground sm:text-4xl">
           <span className="text-amber">#</span> {t("error.notFoundTitle",)}
         </h1>
         <p className="font-mono text-sm text-muted-foreground max-w-md">{t("error.notFoundMessage",)}</p>

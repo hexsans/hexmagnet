@@ -65,8 +65,8 @@ export function CrawlerOverview() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
           {healthFetching && !health ? (
             <Skeleton className="size-2.5 rounded-full" />
           ) : (
@@ -99,7 +99,7 @@ export function CrawlerOverview() {
                     </span>
                   </p>
                   {status.paused && (
-                    <Badge variant="outline" className="h-4 border-amber/40 bg-amber/10 px-1.5 py-0 font-mono text-[10px] leading-none text-amber">
+                    <Badge variant="outline" className="h-auto min-h-4 max-w-full whitespace-normal border-amber/40 bg-amber/10 px-1.5 py-0.5 text-left font-mono text-[10px] leading-tight text-amber">
                       {t("dashboard.crawlerPaused", { reason: pauseReason, },)}
                     </Badge>
                   )}

@@ -45,7 +45,7 @@ export function PageInput({ page, totalPages, onPageChange, }: PageInputProps,) 
           onChange={(e,) => setEditValue(e.target.value,)}
           onBlur={submit}
           onKeyDown={onKeyDown}
-          className="inline w-8 h-5 bg-card border border-border rounded text-center font-mono text-xs text-foreground outline-none focus:border-green/50"
+          className="inline h-8 w-14 bg-card border border-border rounded text-center font-mono text-base text-foreground outline-none focus:border-green/50 pointer-coarse:h-10 md:h-5 md:w-8 md:text-xs"
         />
         <span className="text-muted-foreground">/ {totalPages}</span>
       </span>

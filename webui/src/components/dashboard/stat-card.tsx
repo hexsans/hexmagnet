@@ -45,7 +45,7 @@ export function StatCard({ label, value, sub, icon: Icon, accent = "green", }: S
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-mono text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-            <p className={cn("font-mono text-2xl font-bold mt-1", colors.value,)}>{value}</p>
+            <p className={cn("font-mono text-xl font-bold mt-1 break-words sm:text-2xl", colors.value,)}>{value}</p>
             {sub && <p className="font-mono text-xs text-muted-foreground mt-0.5">{sub}</p>}
           </div>
           <div className={cn("rounded-md border p-2", colors.border, colors.bg,)}>
